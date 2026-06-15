@@ -23,7 +23,7 @@ git clone https://github.com/MrGalletah/S.I.G.S.M---Proyecto-UTU/tree/main
 
 Luego se ingresa a la carpeta del proyecto:
 
-cd Proyecto/prottipos/frontend
+cd Proyecto/prototipos/frontend
 
 2. Instalar las dependencias
 
