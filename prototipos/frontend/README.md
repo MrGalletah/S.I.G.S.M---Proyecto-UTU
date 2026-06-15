@@ -19,7 +19,7 @@ Antes de comenzar, es necesario contar con:
 
 Primero se debe clonar el repositorio del proyecto desde GitHub:
 
-git clone [URL_DEL_REPOSITORIO](https://github.com/MrGalletah/S.I.G.S.M---Proyecto-UTU/tree/main)
+git clone https://github.com/MrGalletah/S.I.G.S.M---Proyecto-UTU/tree/main
 
 Luego se ingresa a la carpeta del proyecto:
 
