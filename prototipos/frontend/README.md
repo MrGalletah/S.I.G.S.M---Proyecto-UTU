@@ -1,16 +1,71 @@
-# React + Vite
+# Instrucciones de uso de los prototipos
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+En este README se detallan los pasos necesarios para poder ver los prototipos del proyecto en un navegador web.
 
-Currently, two official plugins are available:
+Los prototipos fueron desarrollados utilizando Vite, una herramienta que permite ejecutar el frontend de forma rápida en un entorno de desarrollo local.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Requisitos previos
 
-## React Compiler
+Antes de comenzar, es necesario contar con:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Un IDE o editor de código instalado, por ejemplo Visual Studio Code.
+- Node.js instalado.
+- npm o un administrador de paquetes similar, como pnpm, bun o deno.
+- Git instalado para poder clonar el repositorio.
 
-## Expanding the ESLint configuration
+## Instalación
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+1. Clonar el repositorio
+
+Primero se debe clonar el repositorio del proyecto desde GitHub:
+
+git clone [URL_DEL_REPOSITORIO](https://github.com/MrGalletah/S.I.G.S.M---Proyecto-UTU/tree/main)
+
+Luego se ingresa a la carpeta del proyecto:
+
+cd Proyecto/prottipos/frontend
+
+2. Instalar las dependencias
+
+Una vez dentro de la carpeta del proyecto, se deben instalar los paquetes necesarios para su funcionamiento:
+
+npm install
+
+En caso de utilizar otro administrador de paquetes, se puede usar el comando correspondiente:
+
+pnpm install
+
+o
+
+bun install
+
+3. Ejecutar el entorno de desarrollo
+
+Para iniciar el proyecto en modo desarrollo, se debe ejecutar:
+
+npm run dev
+
+Luego de ejecutar el comando, Vite mostrará en la terminal una dirección local similar a la siguiente:
+
+http://localhost:5173/
+
+Se debe abrir esa dirección en el navegador web para visualizar los prototipos.
+
+## Comandos útiles
+
+npm install
+
+Instala todas las dependencias necesarias del proyecto.
+
+npm run dev
+
+Inicia el servidor de desarrollo local.
+
+npm run build
+
+Genera una versión optimizada del proyecto para producción.
+
+npm run preview
+
+Permite previsualizar la versión generada para producción.
+
