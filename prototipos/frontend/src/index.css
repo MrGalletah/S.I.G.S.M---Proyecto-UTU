@@ -1,3 +1,16 @@
+:root {
+  --main-bg-color: #eaf6f5;
+  --primary-color: #106ba2;
+  --primary-hover-color: #0d5d8f;
+  --white-color: #ffffff;
+  --text-main-color: #111827;
+  --text-muted-color: #6b7280;
+  --border-gray: 1px solid rgba(0,0,0,0.06);
+  --primary-color-shadow: #208ed331;
+  --card-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  --inactive-chip: #E9E9E9;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

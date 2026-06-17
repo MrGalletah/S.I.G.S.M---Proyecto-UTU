@@ -35,7 +35,7 @@ export default function Login() {
           {/* Izquierda */}
           <Box
             sx={{
-              bgcolor: "#106BA2",
+              bgcolor: "var(--primary-color)",
               p: 5,
               display: {
                 xs: "none",
@@ -66,7 +66,7 @@ export default function Login() {
               sx={{
                 fontWeight: 800,
                 mb: 2,
-                color: "#FFFFFF",
+                color: "var(--white-color)",
               }}
             >
               Portal Médico
@@ -74,7 +74,7 @@ export default function Login() {
 
             <Typography
               sx={{
-                color: "#ffffffdc",
+                color: "var(--white-color)",
                 fontWeight: 600,
                 fontSize: 14,
                 lineHeight: 1.7,
@@ -90,10 +90,10 @@ export default function Login() {
                 {/* Badge 1 */}
               <Stack direction={"row"} spacing={1.5}sx={{alignItems: "center"}}>
                 {" "}
-                <GppGoodIcon sx={{ color: "#FFFFFF", fontSize: 22 }} />
+                <GppGoodIcon sx={{ color: "var(--white-color)", fontSize: 22 }} />
                 <Typography
                   sx={{
-                    color: "#FFFFFF",
+                    color: "var(--white-color)",
                     fontSize: 14,
                     fontWeight: 700,
                   }}
@@ -104,10 +104,10 @@ export default function Login() {
                 {/* Badge 2 */}
               <Stack direction={"row"} spacing={1.5} sx={{alignItems: "center"}}>
                 {" "}
-                <ContentPasteIcon sx={{ color: "#FFFFFF", fontSize: 22 }} />
+                <ContentPasteIcon sx={{ color: "var(--white-color)", fontSize: 22 }} />
                 <Typography
                   sx={{
-                    color: "#FFFFFF",
+                    color: "var(--white-color)",
                     fontSize: 14,
                     fontWeight: 700,
                   }}

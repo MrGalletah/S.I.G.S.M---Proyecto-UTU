@@ -66,9 +66,9 @@ export default function LoginForm() {
             control={
               <Checkbox
                 sx={{
-                  color: "#106BA2",
+                  color: "var(--primary-color)",
                   "&.Mui-checked": {
-                    color: "#106BA2",
+                    color: "var(--primary-color)",
                   },
                 }}
               />
@@ -81,7 +81,7 @@ export default function LoginForm() {
             variant="contained"
             fullWidth
             sx={{
-              bgcolor: "#106BA2",
+              bgcolor: "var(--primary-color)",
               py: 1.3,
               borderRadius: 2,
               textTransform: "none",
@@ -107,7 +107,7 @@ export default function LoginForm() {
               href="#"
               underline="none"
               sx={{
-                color: "#106BA2",
+                color: "var(--primary-color)",
                 fontWeight: 700,
               }}
             >
