@@ -21,8 +21,31 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { useMemo, useState } from "react";
 
-function createDummyCategories() {
-  const categoryNames = [
+function createDummyDocuments() {
+  const documentNames = [
+    "Protocolo terapéutico de uso de vasopresina",
+    "Indicaciones para tratamiento con warfarina",
+    "Preparación para estudios imagenológicos",
+    "Indicaciones ecocardiograma con dobutamina",
+    "Indicaciones ecocardiograma transesofágico",
+    "Ingreso a centro de nefrología y trasplante",
+    "Plan de alta de enfermería",
+    "Prevención de infecciones",
+    "Pauta para pacientes ostomizados",
+    "Prostatectomía radical",
+    "Centellograma de perfusión miocárdica",
+    "Indicaciones para usuarios trasplantados",
+    "Estudios diagnósticos con pertecneciato",
+    "Información general para pacientes",
+    "Cuidados posteriores al alta",
+    "Recomendaciones preoperatorias",
+    "Guía de alimentación hospitalaria",
+    "Información sobre medicamentos",
+    "Cuidados paliativos para pacientes",
+    "Indicaciones de laboratorio",
+  ];
+
+  const categories = [
     "Anestesiología",
     "Cardiología",
     "Nefrología",
@@ -33,61 +56,34 @@ function createDummyCategories() {
     "Emergencia",
     "Cirugía",
     "Medicina general",
-    "Pediatría",
-    "Ginecología",
-    "Urología",
-    "Farmacia",
-    "Laboratorio",
-    "Nutrición",
-    "Salud mental",
-    "Rehabilitación",
-    "Infectología",
-    "Cuidados paliativos",
-    "Odontología",
-    "Endocrinología",
-    "Traumatología",
-    "Neurología",
-    "Documentación general",
   ];
 
-  return categoryNames.map((name, index) => ({
+  return documentNames.map((name, index) => ({
     id: index + 1,
-    cat: name,
-    desc: `Documentos relacionados con ${name.toLowerCase()}.`,
-    docs: Math.floor(Math.random() * 20) + 1,
-    createdAt: `${String((index % 28) + 1).padStart(2, "0")}/05/2026`,
-    state: index % 5 === 0 ? "Inactiva" : "Activa",
-    actions: ["edit", "delete"],
+    document: name,
+    category: categories[index % categories.length],
+    uploadedAt: `${String((index % 28) + 1).padStart(2, "0")}/05/2026`,
+    state: index % 6 === 0 ? "Inactivo" : "Activo",
+    actions: ["qr", "edit", "delete"],
   }));
 }
 
-export default function CategoriesCard({ variant }) {
-  const categories = useMemo(() => createDummyCategories(), []);
+export default function DocsCard({ variant }) {
+  const categories = useMemo(() => createDummyDocuments(), []);
 
   const isFull = variant === "full";
   const rowsPerPage = isFull ? 15 : 4;
 
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
 
-  const filteredCategories = categories.filter((category) => {
-    const searchText = search.toLowerCase();
-
-    return (
-      category.cat.toLowerCase().includes(searchText) ||
-      category.desc.toLowerCase().includes(searchText) ||
-      category.state.toLowerCase().includes(searchText)
-    );
-  });
-
-  const totalPages = Math.ceil(filteredCategories.length / rowsPerPage);
+  const totalPages = Math.ceil(categories.length / rowsPerPage);
 
   const startIndex = (page - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
 
-  const visibleCategories = filteredCategories.slice(startIndex, endIndex);
+  const visibleCategories = categories.slice(startIndex, endIndex);
 
-  const showPagination = filteredCategories.length > rowsPerPage;
+  const showPagination = categories.length > rowsPerPage;
 
   return (
     <Card
@@ -115,7 +111,7 @@ export default function CategoriesCard({ variant }) {
               fontWeight: 700,
             }}
           >
-            Categorías
+            Documentos
           </Typography>
 
           <Typography
@@ -124,7 +120,7 @@ export default function CategoriesCard({ variant }) {
               color: "var(--text-muted-color)",
             }}
           >
-            Gestiona las categorías
+            Añade nuevos documentos y gestiona los existentes
           </Typography>
         </Box>
 
@@ -141,18 +137,18 @@ export default function CategoriesCard({ variant }) {
             },
           }}
         >
-          Agregar categoría
+          Añadir documento
         </Button>
       </Stack>
 
       <TextField
         size="small"
-        placeholder="Buscar categoría"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
+        placeholder="Buscar documento"
+        // value={search}
+        // onChange={(e) => {
+        //   setSearch(e.target.value);
+        //   setPage(1);
+        // }}
         sx={{
           mb: 2,
           width: {
@@ -178,40 +174,27 @@ export default function CategoriesCard({ variant }) {
           <TableHead>
             <TableRow>
               <TableCell
-                sx={{ fontWeight: 700, width: isFull ? "20%" : "25%" }}
+                sx={{ fontWeight: 700, width: isFull ? "30%" : "35%" }}
+              >
+                Documento
+              </TableCell>
+
+              <TableCell
+                sx={{ fontWeight: 700, width: isFull ? "20%" : "20%" }}
               >
                 Categoría
               </TableCell>
 
               <TableCell
-                sx={{ fontWeight: 700, width: isFull ? "30%" : "35%" }}
-              >
-                Descripción
-              </TableCell>
-
-              <TableCell
                 sx={{
                   fontWeight: 700,
-                  width: "12%",
+                  width: "15%",
                   whiteSpace: "nowrap",
                 }}
                 align="center"
               >
-                Documentos
+                Fecha de subida
               </TableCell>
-
-              {isFull && (
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: "14%",
-                    whiteSpace: "nowrap",
-                  }}
-                  align="center"
-                >
-                  Fecha de creación
-                </TableCell>
-              )}
 
               <TableCell
                 sx={{
@@ -250,19 +233,25 @@ export default function CategoriesCard({ variant }) {
                       textOverflow: "ellipsis",
                     }}
                   >
-                    {category.cat}
+                    {category.document}
                   </Typography>
                 </TableCell>
 
                 <TableCell>
-                  <Typography variant="body2">{category.desc}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {category.category}
+                  </Typography>
                 </TableCell>
 
-                <TableCell align="center">{category.docs}</TableCell>
-
-                {isFull && (
-                  <TableCell align="center">{category.createdAt}</TableCell>
-                )}
+                <TableCell align="center">{category.uploadedAt}</TableCell>
 
                 <TableCell align="center">
                   <Chip
@@ -270,11 +259,11 @@ export default function CategoriesCard({ variant }) {
                     size="small"
                     sx={{
                       bgcolor:
-                        category.state === "Activa"
+                        category.state === "Activo"
                           ? "var(--primary-color)"
                           : "var(--inactive-chip)",
                       color:
-                        category.state === "Activa"
+                        category.state === "Activo"
                           ? "var(--white-color)"
                           : "var(--text-main-color)",
                       fontWeight: 600,

@@ -5,6 +5,8 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import CategoriesCard from "./CategoriesCard";
+import SurveysCard from "../documents/SurveysCard";
+import DocsCard from "./DocsCard";
 
 const cardsData = [
   {
@@ -65,8 +67,8 @@ export default function DocsDashboard() {
           width: "100%",
         }}
       >
-        <CategoriesCard variant=""/>
-        {/* <CategoriesCard /> */}
+        <CategoriesCard />
+        <SurveysCard />
 
         <Box
           sx={{
@@ -76,7 +78,7 @@ export default function DocsDashboard() {
             },
           }}
         >
-          {/* <CategoriesCard /> */}
+          <DocsCard />
         </Box>
       </Box>
     </>

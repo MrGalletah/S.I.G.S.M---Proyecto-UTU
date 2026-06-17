@@ -3,6 +3,10 @@ import Sidebar from "../../components/admin/Sidebar";
 import { useState } from "react";
 import DocsDashboard from "../../components/admin/documents/DocsDashboard";
 import CategoriesCard from "../../components/admin/documents/CategoriesCard";
+import SurveysCard from "../../components/admin/documents/SurveysCard"
+import DocsCard from "../../components/admin/documents/DocsCard";
+
+
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -25,10 +29,10 @@ export default function AdminDashboard() {
         return <CategoriesCard variant="full"/>;
 
       case "docs":
-        return <Typography>Pantalla de documentos</Typography>;
+        return <DocsCard variant="full"/>;
 
       case "enc":
-        return <Typography>Pantalla de encuestas</Typography>;
+        return <SurveysCard variant="full" />;
 
       case "ambDashboard":
         return <Typography>Inicio de ambulancias</Typography>;

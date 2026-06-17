@@ -53,7 +53,7 @@ function createDummyCategories() {
   return categoryNames.map((name, index) => ({
     id: index + 1,
     cat: name,
-    desc: `Documentos relacionados con ${name.toLowerCase()}.`,
+    desc: `Encuestas relacionadas con ${name.toLowerCase()}.`,
     docs: Math.floor(Math.random() * 20) + 1,
     createdAt: `${String((index % 28) + 1).padStart(2, "0")}/05/2026`,
     state: index % 5 === 0 ? "Inactiva" : "Activa",
@@ -61,33 +61,22 @@ function createDummyCategories() {
   }));
 }
 
-export default function CategoriesCard({ variant }) {
+export default function SurveysCard({ variant }) {
   const categories = useMemo(() => createDummyCategories(), []);
 
   const isFull = variant === "full";
-  const rowsPerPage = isFull ? 15 : 4;
+  const rowsPerPage = isFull ? 15 : 5;
 
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
 
-  const filteredCategories = categories.filter((category) => {
-    const searchText = search.toLowerCase();
-
-    return (
-      category.cat.toLowerCase().includes(searchText) ||
-      category.desc.toLowerCase().includes(searchText) ||
-      category.state.toLowerCase().includes(searchText)
-    );
-  });
-
-  const totalPages = Math.ceil(filteredCategories.length / rowsPerPage);
+  const totalPages = Math.ceil(categories.length / rowsPerPage);
 
   const startIndex = (page - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
 
-  const visibleCategories = filteredCategories.slice(startIndex, endIndex);
+  const visibleCategories = categories.slice(startIndex, endIndex);
 
-  const showPagination = filteredCategories.length > rowsPerPage;
+  const showPagination = categories.length > rowsPerPage;
 
   return (
     <Card
@@ -115,7 +104,7 @@ export default function CategoriesCard({ variant }) {
               fontWeight: 700,
             }}
           >
-            Categorías
+            Encuestas
           </Typography>
 
           <Typography
@@ -124,7 +113,7 @@ export default function CategoriesCard({ variant }) {
               color: "var(--text-muted-color)",
             }}
           >
-            Gestiona las categorías
+            Gestiona las encuestas
           </Typography>
         </Box>
 
@@ -141,11 +130,11 @@ export default function CategoriesCard({ variant }) {
             },
           }}
         >
-          Agregar categoría
+          Crear encuesta
         </Button>
       </Stack>
 
-      <TextField
+      {/* <TextField
         size="small"
         placeholder="Buscar categoría"
         value={search}
@@ -160,7 +149,7 @@ export default function CategoriesCard({ variant }) {
             sm: "250px",
           },
         }}
-      />
+      /> */}
 
       <TableContainer
         sx={{
@@ -180,7 +169,7 @@ export default function CategoriesCard({ variant }) {
               <TableCell
                 sx={{ fontWeight: 700, width: isFull ? "20%" : "25%" }}
               >
-                Categoría
+                Encuesta
               </TableCell>
 
               <TableCell
@@ -197,21 +186,8 @@ export default function CategoriesCard({ variant }) {
                 }}
                 align="center"
               >
-                Documentos
+                Respuestas
               </TableCell>
-
-              {isFull && (
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: "14%",
-                    whiteSpace: "nowrap",
-                  }}
-                  align="center"
-                >
-                  Fecha de creación
-                </TableCell>
-              )}
 
               <TableCell
                 sx={{
@@ -255,14 +231,20 @@ export default function CategoriesCard({ variant }) {
                 </TableCell>
 
                 <TableCell>
-                  <Typography variant="body2">{category.desc}</Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {category.desc}
+                  </Typography>
                 </TableCell>
 
                 <TableCell align="center">{category.docs}</TableCell>
-
-                {isFull && (
-                  <TableCell align="center">{category.createdAt}</TableCell>
-                )}
 
                 <TableCell align="center">
                   <Chip

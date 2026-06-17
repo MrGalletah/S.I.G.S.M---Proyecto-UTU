@@ -1,4 +1,5 @@
 import { Box, Button, IconButton, Stack, Typography } from "@mui/material";
+
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
 import HomeIcon from "@mui/icons-material/Home";
@@ -18,7 +19,7 @@ const sections = [
     title: "Módulo de documentación",
     items: [
       { label: "Inicio", icon: <HomeIcon />, component: "docsDashboard" },
-      { label: "Categorías", icon: <FolderOpenIcon />, component: "cat"  },
+      { label: "Categorías", icon: <FolderOpenIcon />, component: "cat" },
       { label: "Documentos", icon: <DescriptionIcon />, component: "docs" },
       { label: "Encuestas", icon: <AssignmentIcon />, component: "enc" },
     ],
@@ -26,16 +27,20 @@ const sections = [
   {
     title: "Módulo de ambulancias",
     items: [
-      { label: "Inicio", icon: <HomeIcon /> , component: "ambDashboard" },
-      { label: "Nuevo traslado", icon: <NoteAddIcon /> , component: "new" },
-      { label: "Seguimiento", icon: <QueuePlayNextIcon /> , component: "follow" },
+      { label: "Inicio", icon: <HomeIcon />, component: "ambDashboard" },
+      { label: "Nuevo traslado", icon: <NoteAddIcon />, component: "new" },
+      {
+        label: "Seguimiento",
+        icon: <QueuePlayNextIcon />,
+        component: "follow",
+      },
     ],
   },
   {
     title: "Administrador general",
     items: [
-      { label: "Usuarios", icon: <PeopleIcon /> , component: "users" },
-      { label: "Conceder acceso", icon: <LoginIcon /> , component: "access" },
+      { label: "Usuarios", icon: <PeopleIcon />, component: "users" },
+      { label: "Conceder acceso", icon: <LoginIcon />, component: "access" },
     ],
   },
 ];
@@ -43,7 +48,6 @@ const sections = [
 export default function Sidebar({ open, onOpen, onClose, setContent }) {
   return (
     <>
-      {/* closed */}
       {!open && (
         <IconButton
           onClick={onOpen}
@@ -74,7 +78,7 @@ export default function Sidebar({ open, onOpen, onClose, setContent }) {
         aria-label="Menú principal"
         sx={{
           width: "240px",
-          height: "100vh",
+          height: "100dvh",
           bgcolor: "var(--primary-color)",
           color: "var(--white-color)",
           p: 2.5,
@@ -88,22 +92,45 @@ export default function Sidebar({ open, onOpen, onClose, setContent }) {
           transition: "transform 0.25s ease",
           display: "flex",
           flexDirection: "column",
-          zIndex: 10
+          zIndex: 10,
+          overflow: "hidden",
         }}
       >
         <IconButton
           onClick={onClose}
+          aria-label="Cerrar menú de navegación"
           sx={{
             display: { xs: "inline-flex", lg: "none" },
             alignSelf: "flex-end",
             color: "var(--white-color)",
             mb: 2,
+            flexShrink: 0,
           }}
         >
           <CloseIcon />
         </IconButton>
 
-        <Box>
+        {/* Zona scrolleable */}
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            pr: 0.5,
+            pb: 2,
+
+            "&::-webkit-scrollbar": {
+              width: "6px",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              bgcolor: "rgba(255,255,255,0.25)",
+              borderRadius: "999px",
+            },
+            "&::-webkit-scrollbar-thumb:hover": {
+              bgcolor: "rgba(255,255,255,0.4)",
+            },
+          }}
+        >
           <Box
             sx={{
               display: "flex",
@@ -185,7 +212,10 @@ export default function Sidebar({ open, onOpen, onClose, setContent }) {
                           bgcolor: "rgba(255,255,255,0.12)",
                         },
                       }}
-                      onClick={() => setContent(item.component)}
+                      onClick={() => {
+                        setContent(item.component);
+                        onClose();
+                      }}
                     >
                       <Typography
                         sx={{
@@ -202,21 +232,25 @@ export default function Sidebar({ open, onOpen, onClose, setContent }) {
             ))}
           </Stack>
         </Box>
+
+        {/* Usuario fijo abajo */}
         <Box
           sx={{
             width: "100%",
-            mt: "auto",
+            mt: 2,
             borderRadius: 2,
             p: 1,
             bgcolor: "var(--white-color)28",
             display: "flex",
             gap: 3,
+            flexShrink: 0,
           }}
         >
           <Stack
-            direction={"row"}
+            direction="row"
             spacing={1.5}
             sx={{
+              width: "100%",
               justifyContent: "center",
               alignItems: "center",
             }}
@@ -234,13 +268,20 @@ export default function Sidebar({ open, onOpen, onClose, setContent }) {
               <PersonIcon />
             </Box>
 
-            <Box>
+            <Box
+              sx={{
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
               <Typography
                 sx={{
                   fontSize: 12,
                   fontWeight: 800,
                   lineHeight: 1,
-                  flex: 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 Administrador
@@ -253,18 +294,22 @@ export default function Sidebar({ open, onOpen, onClose, setContent }) {
                   lineHeight: 1.2,
                   color: "rgba(216, 216, 216, 0.9)",
                   mt: 0.3,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 admin@hc.com
               </Typography>
             </Box>
+
             <IconButton
               sx={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                color: "var(--white-color)"
+                color: "var(--white-color)",
               }}
             >
               <LogoutIcon />
