@@ -61,10 +61,16 @@ export default function DocsDashboard() {
           mt: 2,
           gridTemplateColumns: {
             xs: "1fr",
-            xl: "repeat(2, minmax(0,1fr))",
+            xl: "repeat(2, minmax(0, 1fr))",
           },
           gap: 3,
           width: "100%",
+          minWidth: 0,
+          overflow: "hidden",
+
+          "& > *": {
+            minWidth: 0,
+          },
         }}
       >
         <CategoriesCard />
@@ -72,6 +78,7 @@ export default function DocsDashboard() {
 
         <Box
           sx={{
+            minWidth: 0,
             gridColumn: {
               xs: "1",
               md: "1 / -1",

@@ -5,6 +5,9 @@ import DocsDashboard from "../../components/admin/documents/DocsDashboard";
 import CategoriesCard from "../../components/admin/documents/CategoriesCard";
 import SurveysCard from "../../components/admin/documents/SurveysCard"
 import DocsCard from "../../components/admin/documents/DocsCard";
+import NewTransfer from "../../components/admin/ambulances/NewTansfer";
+import FollowUp from "../../components/admin/ambulances/FollowUp";
+import UserView from "../../components/admin/general/UserView";
 
 
 export default function AdminDashboard() {
@@ -34,20 +37,20 @@ export default function AdminDashboard() {
       case "enc":
         return <SurveysCard variant="full" />;
 
-      case "ambDashboard":
-        return <Typography>Inicio de ambulancias</Typography>;
-
       case "new":
-        return <Typography>Formulario de nuevo traslado</Typography>;
+        return <NewTransfer />;
 
       case "follow":
-        return <Typography>Seguimiento de traslados</Typography>;
+        return <FollowUp />;
+
+      case "usersView": 
+        return <UserView />;
 
       case "users":
-        return <Typography>Gestión de usuarios</Typography>;
+        return <Typography>Gestión de usuarios 🚧 En construcción 🚧  </Typography>;
 
       case "access":
-        return <Typography>Conceder acceso</Typography>;
+        return <Typography>Conceder acceso 🚧 En construcción 🚧 </Typography>;
 
       default:
         return <Typography>Como llegaste hasta aqui?</Typography>;
@@ -78,26 +81,10 @@ export default function AdminDashboard() {
           component={"main"}
           sx={{
             p: { xs: 2, sm: 3, md: 4 },
-            gridColumn: { xs: "1 / -1", lg: "2 / 3" }
+            gridColumn: { xs: "1 / -1", lg: "2 / 3" },
+            minWidth: 0
           }}
         >
-          <Box
-            component={"div"}
-            sx={{
-              ml: { xs: "72px", lg: 0 },
-            }}
-          >
-            <Typography
-              variant="h5"
-              component={"h1"}
-              sx={{
-                fontWeight: 800,
-                color: "var(--text-main-colo)",
-              }}
-            >
-              Panel de administración
-            </Typography>
-          </Box>
           {renderContent()}
         </Box>
       </Box>

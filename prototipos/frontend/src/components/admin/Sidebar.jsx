@@ -27,7 +27,6 @@ const sections = [
   {
     title: "Módulo de ambulancias",
     items: [
-      { label: "Inicio", icon: <HomeIcon />, component: "ambDashboard" },
       { label: "Nuevo traslado", icon: <NoteAddIcon />, component: "new" },
       {
         label: "Seguimiento",
@@ -39,8 +38,9 @@ const sections = [
   {
     title: "Administrador general",
     items: [
+      { label: "Vista de usuarios", icon: <PeopleIcon />, component: "usersView" },
       { label: "Usuarios", icon: <PeopleIcon />, component: "users" },
-      { label: "Conceder acceso", icon: <LoginIcon />, component: "access" },
+      { label: "Acceso", icon: <LoginIcon />, component: "access" },
     ],
   },
 ];

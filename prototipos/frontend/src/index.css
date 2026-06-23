@@ -9,6 +9,10 @@
   --primary-color-shadow: #208ed331;
   --card-shadow: 0 10px 25px rgba(0,0,0,0.08);
   --inactive-chip: #E9E9E9;
+  --green-chip: #368D87;
+  --organe-chip: #EFCB95;
+  --violet-chip: #F3E8FF;
+  --warning: #e00000;
 }
 
 * {

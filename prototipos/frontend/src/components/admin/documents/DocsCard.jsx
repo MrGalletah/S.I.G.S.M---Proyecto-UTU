@@ -65,39 +65,37 @@ function createDummyDocuments() {
     category: categories[index % categories.length],
     uploadedAt: `${String((index % 28) + 1).padStart(2, "0")}/05/2026`,
     state: index % 6 === 0 ? "Inactivo" : "Activo",
-    actions: ["qr", "edit", "delete"],
   }));
 }
 
 export default function DocsCard({ variant }) {
+  const documents = useMemo(() => createDummyDocuments(), []);
 
-const documents = useMemo(() => createDummyDocuments(), []);
+  const isFull = variant === "full";
+  const rowsPerPage = isFull ? 15 : 4;
 
-const isFull = variant === "full";
-const rowsPerPage = isFull ? 15 : 4;
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
 
-const [page, setPage] = useState(1);
-const [search, setSearch] = useState("");
+  const filteredDocuments = documents.filter((documentItem) => {
+    const searchText = search.toLowerCase();
 
-const filteredDocuments = documents.filter((documentItem) => {
-  const searchText = search.toLowerCase();
+    return (
+      documentItem.document.toLowerCase().includes(searchText) ||
+      documentItem.category.toLowerCase().includes(searchText) ||
+      documentItem.uploadedAt.toLowerCase().includes(searchText) ||
+      documentItem.state.toLowerCase().includes(searchText)
+    );
+  });
 
-  return (
-    documentItem.document.toLowerCase().includes(searchText) ||
-    documentItem.category.toLowerCase().includes(searchText) ||
-    documentItem.uploadedAt.toLowerCase().includes(searchText) ||
-    documentItem.state.toLowerCase().includes(searchText)
-  );
-});
+  const totalPages = Math.ceil(filteredDocuments.length / rowsPerPage);
 
-const totalPages = Math.ceil(filteredDocuments.length / rowsPerPage);
+  const startIndex = (page - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
 
-const startIndex = (page - 1) * rowsPerPage;
-const endIndex = startIndex + rowsPerPage;
+  const visibleDocuments = filteredDocuments.slice(startIndex, endIndex);
 
-const visibleDocuments = filteredDocuments.slice(startIndex, endIndex);
-
-const showPagination = filteredDocuments.length > rowsPerPage;
+  const showPagination = filteredDocuments.length > rowsPerPage;
   return (
     <Card
       sx={{
@@ -237,18 +235,7 @@ const showPagination = filteredDocuments.length > rowsPerPage;
             {visibleDocuments.map((documentItem) => (
               <TableRow key={documentItem.id}>
                 <TableCell>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 500,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 2,
-                    }}
-                  >
+                  <Box sx={{ display: "flex",alignItems: "center", gap: 2 }}>
                     <SvgIcon>
                       <svg
                         viewBox="0 0 400 400"
@@ -306,8 +293,19 @@ const showPagination = filteredDocuments.length > rowsPerPage;
                         </g>
                       </svg>
                     </SvgIcon>
+                  
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
                     {documentItem.document}
                   </Typography>
+                  </Box>
                 </TableCell>
 
                 <TableCell>

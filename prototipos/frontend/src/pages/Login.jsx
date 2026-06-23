@@ -4,7 +4,7 @@ import GppGoodIcon from "@mui/icons-material/GppGood";
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import LoginForm from "../components/login/LoginForm";
 
-export default function Login() {
+export default function Login({setPage}) {
   return (
     <>
       <Box
@@ -127,7 +127,7 @@ export default function Login() {
               
             }}
           >
-            <LoginForm />
+            <LoginForm setPage={setPage} />
           </Box>
         </Paper>
       </Box>

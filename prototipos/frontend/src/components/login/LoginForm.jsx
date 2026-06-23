@@ -9,13 +9,14 @@ import {
   Typography,
 } from "@mui/material";
 
-const handlesubmit = (e) => {
-    e.preventDefault()
+export default function LoginForm({ setPage }) {
+  const handlesubmit = (e) => {
+    e.preventDefault();
 
-    window.alert("Formulario enviado")
-}
+    window.alert("Formulario enviado");
+    setPage("dashboard");
+  };
 
-export default function LoginForm() {
   return (
     <>
       <Box

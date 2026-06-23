@@ -1,7 +1,8 @@
 import { Box, Typography } from "@mui/material";
 
-export default function StatCard({ item }) {
+export default function StatCard({ item, colors }) {
   const { label, icon, value, subtitle } = item;
+
 
   return (
     <>
@@ -25,8 +26,8 @@ export default function StatCard({ item }) {
             width: 44,
             height: 44,
             borderRadius: 2.5,
-            bgcolor: "var(--primary-color-shadow)",
-            color: "var(--primary-color)",
+            bgcolor: colors ? colors.background : "var(--primary-color-shadow)",
+            color: colors ?  colors.text :  "var(--primary-color)",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
