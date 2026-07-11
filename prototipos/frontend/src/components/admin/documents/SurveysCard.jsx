@@ -12,7 +12,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from "@mui/material";
 
@@ -20,46 +19,8 @@ import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { useMemo, useState } from "react";
+import { createDummyCategories } from "../../../mockData/categories";
 
-function createDummyCategories() {
-  const categoryNames = [
-    "Anestesiología",
-    "Cardiología",
-    "Nefrología",
-    "Imagenología",
-    "Oncología",
-    "Trasplantes",
-    "Enfermería",
-    "Emergencia",
-    "Cirugía",
-    "Medicina general",
-    "Pediatría",
-    "Ginecología",
-    "Urología",
-    "Farmacia",
-    "Laboratorio",
-    "Nutrición",
-    "Salud mental",
-    "Rehabilitación",
-    "Infectología",
-    "Cuidados paliativos",
-    "Odontología",
-    "Endocrinología",
-    "Traumatología",
-    "Neurología",
-    "Documentación general",
-  ];
-
-  return categoryNames.map((name, index) => ({
-    id: index + 1,
-    cat: name,
-    desc: `Encuestas relacionadas con ${name.toLowerCase()}.`,
-    docs: Math.floor(Math.random() * 20) + 1,
-    createdAt: `${String((index % 28) + 1).padStart(2, "0")}/05/2026`,
-    state: index % 5 === 0 ? "Inactiva" : "Activa",
-    actions: ["edit", "delete"],
-  }));
-}
 
 export default function SurveysCard({ variant }) {
   const categories = useMemo(() => createDummyCategories(), []);
@@ -133,23 +94,6 @@ export default function SurveysCard({ variant }) {
           Crear encuesta
         </Button>
       </Stack>
-
-      {/* <TextField
-        size="small"
-        placeholder="Buscar categoría"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
-        sx={{
-          mb: 2,
-          width: {
-            xs: "100%",
-            sm: "250px",
-          },
-        }}
-      /> */}
 
       <TableContainer
         sx={{
