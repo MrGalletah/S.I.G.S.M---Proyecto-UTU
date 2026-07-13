@@ -13,39 +13,55 @@ import LoginIcon from "@mui/icons-material/Login";
 import NoteAddIcon from "@mui/icons-material/NoteAdd";
 import PersonIcon from "@mui/icons-material/Person";
 import LogoutIcon from "@mui/icons-material/Logout";
+import { useLocation, useNavigate } from "react-router";
 
 const sections = [
   {
     title: "Módulo de documentación",
     items: [
-      { label: "Inicio", icon: <HomeIcon />, component: "docsDashboard" },
-      { label: "Categorías", icon: <FolderOpenIcon />, component: "cat" },
-      { label: "Documentos", icon: <DescriptionIcon />, component: "docs" },
-      { label: "Encuestas", icon: <AssignmentIcon />, component: "enc" },
+      { label: "Inicio", icon: <HomeIcon />, to: "/documents/dashboard" },
+      {
+        label: "Categorías",
+        icon: <FolderOpenIcon />,
+        to: "/documents/categories",
+      },
+      {
+        label: "Documentos",
+        icon: <DescriptionIcon />,
+        to: "/documents/files",
+      },
+      {
+        label: "Encuestas",
+        icon: <AssignmentIcon />,
+        to: "/documents/surveys",
+      },
     ],
   },
   {
     title: "Módulo de ambulancias",
     items: [
-      { label: "Nuevo traslado", icon: <NoteAddIcon />, component: "new" },
+      { label: "Nuevo traslado", icon: <NoteAddIcon />, to: "/ambulances/new" },
       {
         label: "Seguimiento",
         icon: <QueuePlayNextIcon />,
-        component: "follow",
+        to: "/ambulances/follow-up",
       },
     ],
   },
   {
     title: "Administrador general",
     items: [
-      { label: "Vista de usuarios", icon: <PeopleIcon />, component: "usersView" },
-      { label: "Usuarios", icon: <PeopleIcon />, component: "users" },
-      { label: "Acceso", icon: <LoginIcon />, component: "access" },
+      { label: "Vista de usuarios", icon: <PeopleIcon />, to: "/admin/users/view" },
+      { label: "Usuarios", icon: <PeopleIcon />, to: "/admin/users" },
+      { label: "Acceso", icon: <LoginIcon />, to: "/admin/access" },
     ],
   },
 ];
 
-export default function Sidebar({ open, onOpen, onClose, setContent }) {
+export default function Sidebar({ open, onOpen, onClose}) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   return (
     <>
       {!open && (
@@ -204,6 +220,10 @@ export default function Sidebar({ open, onOpen, onClose, setContent }) {
                         justifyContent: "start",
                         py: 0.8,
                         borderRadius: 1.5,
+                        bgcolor:
+                          location.pathname === item.to
+                            ? "rgba(255,255,255,0.18)"
+                            : "transparent",
                         cursor: "pointer",
                         "& svg": {
                           fontSize: 18,
@@ -213,7 +233,7 @@ export default function Sidebar({ open, onOpen, onClose, setContent }) {
                         },
                       }}
                       onClick={() => {
-                        setContent(item.component);
+                        navigate(item.to);
                         onClose();
                       }}
                     >

@@ -8,13 +8,18 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useNavigate } from "react-router";
 
-export default function LoginForm({ setPage }) {
+export default function LoginForm() {
+  const navigate = useNavigate();
+
   const handlesubmit = (e) => {
     e.preventDefault();
 
     window.alert("Formulario enviado");
-    setPage("dashboard");
+    navigate("/documents/dashboard", {
+      replace: true
+    })
   };
 
   return (

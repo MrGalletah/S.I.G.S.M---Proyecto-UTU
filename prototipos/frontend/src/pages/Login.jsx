@@ -10,7 +10,7 @@ export default function Login({setPage}) {
       <Box
         sx={{
           minHeight: "100vh",
-          bgcolor: "#EAF6F5",
+          bgcolor: "var(--main-bg-color)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
