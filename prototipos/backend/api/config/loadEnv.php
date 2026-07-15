@@ -29,7 +29,7 @@ function loadEnv(string $path): void
             continue; // detiene la vuelta actual y pasa a la siguiente si el nombre de la variable esta vacio 
         }
 
-        if (getenv($name) !== false) { 
+        if (getenv($name) !== false) {
             continue; // salta de vuelta si la variable ya existe en el entorno
         }
 

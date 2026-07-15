@@ -10,9 +10,7 @@ final class Database
 {
     private static ?PDO $connection = null;  //PHP data objects (herramienta pa hacer consultas y conectarse a la db) 
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function getConnection(): PDO
     {
@@ -57,6 +55,6 @@ final class Database
             ]
         );
 
-        return self::$connection; 
+        return self::$connection;
     }
 }

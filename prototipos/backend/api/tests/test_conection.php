@@ -28,6 +28,7 @@ try {
     echo "Administradores encontrados: {$adminCount}\n";
 
 } catch (Throwable $error) {
+    // imprime el error en la terminal
     fwrite(
         STDERR,
         "Error de conexión: {$error->getMessage()}\n"
