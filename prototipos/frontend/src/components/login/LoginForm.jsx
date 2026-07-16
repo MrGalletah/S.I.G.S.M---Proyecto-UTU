@@ -8,18 +8,34 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
 import { useNavigate } from "react-router";
+import { login } from "../../auth/authApi";
 
 export default function LoginForm() {
   const navigate = useNavigate();
+  const [mail, setMail] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handlesubmit = (e) => {
+  const handlesubmit = async (e) => {
     e.preventDefault();
 
-    window.alert("Formulario enviado");
-    navigate("/documents/dashboard", {
-      replace: true
-    })
+    setError("");
+    setLoading(true);
+
+    try {
+      const req = await login(mail, pwd);
+
+      console.log("Usuario autenticado:", req.usuario);
+
+      navigate("/documents/dashboard");
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -59,6 +75,8 @@ export default function LoginForm() {
             label="Correo electrónico"
             placeholder="Ingrese su correo"
             fullWidth
+            value={mail}
+            onChange={(e) => setMail(e.target.value)}
           />
 
           <TextField
@@ -66,6 +84,8 @@ export default function LoginForm() {
             placeholder="Ingrese su contraseña"
             type="password"
             fullWidth
+            value={pwd}
+            onChange={(e) => setPwd(e.target.value)}
           />
 
           <FormControlLabel

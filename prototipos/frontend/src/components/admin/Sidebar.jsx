@@ -51,7 +51,7 @@ const sections = [
   {
     title: "Administrador general",
     items: [
-      { label: "Vista de usuarios", icon: <PeopleIcon />, to: "/admin/users/view" },
+      { label: "Vista de usuarios", icon: <PeopleIcon />, to: "/documents/view" },
       { label: "Usuarios", icon: <PeopleIcon />, to: "/admin/users" },
       { label: "Acceso", icon: <LoginIcon />, to: "/admin/access" },
     ],

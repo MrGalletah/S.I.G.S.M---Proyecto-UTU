@@ -18,6 +18,7 @@ function App() {
     <Routes>
       {/* Pública */}
       <Route path="/login" element={<Login />} />
+      <Route path="/documents/view" element={<UserView />} />
 
       {/* Privadas TODO: implementar bien el login/logout */}
       <Route element={<ProtectedRoute />}>
@@ -36,7 +37,7 @@ function App() {
           <Route path="ambulances/new" element={<NewTransfer />} />
           <Route path="ambulances/follow-up" element={<FollowUp />} />
 
-          <Route path="admin/users/view" element={<UserView />} />
+          
           <Route
             path="admin/users"
             element={<div> Gestión de usuarios - En construcción</div>}
