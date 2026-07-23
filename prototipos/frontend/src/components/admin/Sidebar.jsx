@@ -1,4 +1,12 @@
-import { Box, Button, IconButton, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  Slide,
+  Snackbar,
+  Stack,
+  Typography,
+} from "@mui/material";
 
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
@@ -14,6 +22,8 @@ import NoteAddIcon from "@mui/icons-material/NoteAdd";
 import PersonIcon from "@mui/icons-material/Person";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useLocation, useNavigate } from "react-router";
+import { useState } from "react";
+import { logout } from "../../auth/authApi";
 
 const sections = [
   {
@@ -51,16 +61,52 @@ const sections = [
   {
     title: "Administrador general",
     items: [
-      { label: "Vista de usuarios", icon: <PeopleIcon />, to: "/documents/view" },
+      {
+        label: "Vista de usuarios",
+        icon: <PeopleIcon />,
+        to: "/documents/view",
+      },
       { label: "Usuarios", icon: <PeopleIcon />, to: "/admin/users" },
       { label: "Acceso", icon: <LoginIcon />, to: "/admin/access" },
     ],
   },
 ];
 
-export default function Sidebar({ open, onOpen, onClose}) {
+export default function Sidebar({ open, onOpen, onClose, user }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [logoutSnackbarOpen, setLogoutSnackbarOpen] = useState(false);
+
+  const handleLogout = async () => {
+    const status = await logout();
+
+    if(status.ok){
+      navigate("/")
+    }
+  };
+
+  const handleOpen = () => {
+    setLogoutSnackbarOpen(true);
+  };
+
+  const handleClose = (event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+
+    setLogoutSnackbarOpen(false);
+  };
+
+  const action = (
+    <>
+      <Button size="small" sx={{ color: "var(--text-main-color)" }} onClick={handleLogout}>
+        Si
+      </Button>
+      <IconButton size="small" aria-label="close" onClick={handleClose}>
+        <CloseIcon fontSize="small" />
+      </IconButton>
+    </>
+  );
 
   return (
     <>
@@ -304,7 +350,7 @@ export default function Sidebar({ open, onOpen, onClose}) {
                   textOverflow: "ellipsis",
                 }}
               >
-                Administrador
+                {user.nombre}
               </Typography>
 
               <Typography
@@ -319,11 +365,12 @@ export default function Sidebar({ open, onOpen, onClose}) {
                   textOverflow: "ellipsis",
                 }}
               >
-                admin@hc.com
+                {user.correo}
               </Typography>
             </Box>
 
             <IconButton
+              onClick={handleOpen}
               sx={{
                 display: "flex",
                 alignItems: "center",
@@ -337,6 +384,28 @@ export default function Sidebar({ open, onOpen, onClose}) {
           </Stack>
         </Box>
       </Box>
+      <Snackbar
+        open={logoutSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleClose}
+        message="¿Quieres cerrar sesión?"
+        action={action}
+        slots={{
+          transition: Slide,
+        }}
+        slotProps={{
+          transition: {
+            direction: "up",
+          },
+          content: {
+            sx: {
+              bgcolor: "white",
+              color: "var(--text-main-color)",
+              mb: 8,
+            },
+          },
+        }}
+      />
     </>
   );
 }
