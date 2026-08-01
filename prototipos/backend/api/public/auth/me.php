@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') { // solo metodo GET
     ]);
 }
 
-startAppSession();  // busca la cookie y carga los datos en session 
+startAppSession();  // busca la cookie pa ver si existe SESSION
 
 $usuario = $_SESSION['usuario'] ?? null; // guarda el usuario de la sesion o null si no existe
 

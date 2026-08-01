@@ -15,7 +15,7 @@ function startAppSession(): void
         'lifetime' => 0,  // dura hasta que cierre el navegador
         'path' => '/',  // envia la cookie a todas las rutas 
         'domain' => '', // asocia al dominio que lo crea 
-        'secure' => false, // dice si se puede mandar solo por HTTPS
+        'secure' => false, // dice si se puede mandar solo por HTTPS (pa prod hay que cambiarlo a true)
         'httponly' => true, // impide que js lea la cookie 
         'samesite' => 'Lax', // controla cuando se envia desde otros sitios
     ]);

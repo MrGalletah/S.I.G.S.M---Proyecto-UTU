@@ -35,7 +35,7 @@ export default function AdminDashboard() {
           minWidth: 0,
         }}
       >
-        <Outlet />
+        <Outlet context={{user}} />
       </Box>
     </Box>
   );

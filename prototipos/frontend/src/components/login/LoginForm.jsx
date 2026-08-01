@@ -72,6 +72,7 @@ export default function LoginForm() {
 
         <Stack spacing={2.5}>
           <TextField
+            autoFocus
             label="Correo electrónico"
             placeholder="Ingrese su correo"
             fullWidth

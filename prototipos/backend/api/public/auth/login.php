@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../config/session.php';
 require_once __DIR__ . '/../../utils/jsonResponse.php';
 
 header('Content-Type: application/json; charset=utf-8');
-header('Cache-Control: no-store');
+header('Cache-Control: no-store'); // le dice al navegador que no cachee o lo guarde al localStorage
 
 
 // Solo acepta peticiones POST

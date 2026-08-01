@@ -22,8 +22,19 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import { useMemo, useState } from "react";
 
 import { createDummyCategories } from "../../../mockData/categories";
+import { useOutletContext } from "react-router";
 
 export default function CategoriesCard({ variant }) {
+  const {user} = useOutletContext()
+
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+
+  const createCategory = async (category) => {
+
+    console.log(category)
+  }
+
+  console.log(user)
   const categories = useMemo(() => createDummyCategories(), []);
 
   const isFull = variant === "full";
@@ -93,6 +104,7 @@ export default function CategoriesCard({ variant }) {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
+          onClick={() => setCategoryModalOpen(true)}
           sx={{
             borderRadius: 2,
             textTransform: "none",
