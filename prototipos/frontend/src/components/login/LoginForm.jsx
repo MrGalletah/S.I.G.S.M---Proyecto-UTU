@@ -1,9 +1,11 @@
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
   FormControlLabel,
   Link,
+  Snackbar,
   Stack,
   TextField,
   Typography,
@@ -18,6 +20,15 @@ export default function LoginForm() {
   const [pwd, setPwd] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+
+  const handleOpenSnackbar = () => setOpenSnackbar(true);
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setOpenSnackbar(false);
+  };
 
   const handlesubmit = async (e) => {
     e.preventDefault();
@@ -31,8 +42,9 @@ export default function LoginForm() {
       console.log("Usuario autenticado:", req.usuario);
 
       navigate("/documents/dashboard");
-    } catch (error) {
-      setError(error.message);
+    } catch (e) {
+      setError(e.message);
+      handleOpenSnackbar();
     } finally {
       setLoading(false);
     }
@@ -72,12 +84,19 @@ export default function LoginForm() {
 
         <Stack spacing={2.5}>
           <TextField
-            autoFocus
             label="Correo electrónico"
             placeholder="Ingrese su correo"
             fullWidth
             value={mail}
+            error={Boolean(error)}
+            helperText={error ? "Correo incorrecto" : " "}
             onChange={(e) => setMail(e.target.value)}
+            FormHelperTextProps={{
+              sx: {
+                minHeight: "20px",
+                marginLeft: 0,
+              },
+            }}
           />
 
           <TextField
@@ -85,8 +104,16 @@ export default function LoginForm() {
             placeholder="Ingrese su contraseña"
             type="password"
             fullWidth
+            error={Boolean(error)}
+            helperText={error ? "Contraseña incorrecta" : " "}
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
+            FormHelperTextProps={{
+              sx: {
+                minHeight: "20px",
+                marginLeft: 0,
+              },
+            }}
           />
 
           <FormControlLabel
@@ -107,6 +134,7 @@ export default function LoginForm() {
             type="submit"
             variant="contained"
             fullWidth
+            disabled={loading}
             sx={{
               bgcolor: "var(--primary-color)",
               py: 1.3,
@@ -143,6 +171,21 @@ export default function LoginForm() {
           </Typography>
         </Stack>
       </Box>
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ horizontal: "center", vertical: "top" }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity="error"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {error}
+        </Alert>
+      </Snackbar>
     </>
   );
 }
