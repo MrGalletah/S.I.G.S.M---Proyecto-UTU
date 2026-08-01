@@ -91,12 +91,6 @@ export default function LoginForm() {
             error={Boolean(error)}
             helperText={error ? "Correo incorrecto" : " "}
             onChange={(e) => setMail(e.target.value)}
-            // FormHelperTextProps={{
-            //   sx: {
-            //     minHeight: "20px",
-            //     marginLeft: 0,
-            //   },
-            // }}
           />
 
           <TextField
@@ -108,12 +102,6 @@ export default function LoginForm() {
             helperText={error ? "Contraseña incorrecta" : " "}
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
-            // FormHelperTextProps={{
-            //   sx: {
-            //     minHeight: "20px",
-            //     marginLeft: 0,
-            //   },
-            // }}
           />
 
           <FormControlLabel
