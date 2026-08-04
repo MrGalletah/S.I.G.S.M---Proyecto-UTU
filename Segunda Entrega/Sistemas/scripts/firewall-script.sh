@@ -15,7 +15,7 @@ showRules() {
 
 openPort() {
     read -p "Puerto a abrir: " port
-    read -p "Protocolo (tcp/upd): " protocol
+    read -p "Protocolo (tcp/udp): " protocol
     read -p "Abrir permanentemente? (s/n): " permanent
 
     firewall-cmd --add-port="$port/$protocol"
@@ -27,7 +27,7 @@ openPort() {
 
 closePort() {
     read -p "Puerto a cerrar: " port
-    read -p "Protocolo (tcp/upd): " protocol
+    read -p "Protocolo (tcp/udp): " protocol
     read -p "Cerrar permanentemente? (s/n): " permanent
 
     firewall-cmd --remove-port="$port/$protocol"
