@@ -13,7 +13,14 @@ $method = $_SERVER["REQUEST_METHOD"];
 switch ($method) {
 
     case "GET":
-        getCategories();
+
+        $includeInactive = filter_var($_GET["includeInactive"] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        if ($includeInactive) {
+            requireAuth();
+        }
+
+        getCategories($includeInactive);
         break;
 
     case "POST":
@@ -47,7 +54,7 @@ switch ($method) {
         ]);
 }
 
-function getCategories(): void
+function getCategories(bool $includeInactive = false): void
 {
     try {
         $db = Database::getConnection();
@@ -57,8 +64,15 @@ function getCategories(): void
          id_func,
          nombre,
          descripcion,
+         activo,
          fecha_creacion
-         FROM categoria ORDER BY nombre ASC";
+         FROM categoria";
+
+         if(!$includeInactive) {
+            $sql .= " WHERE activo = TRUE ";
+         }
+
+         $sql .= " ORDER BY nombre ASC ";
 
         $stmt = $db->prepare($sql);
         $stmt->execute();
@@ -141,7 +155,6 @@ function createCategory(int $idFunc): void
             'mensaje' => 'Categoría creada correctamente.',
             'id_cat' => (int) $db->lastInsertId(),
         ]);
-
     } catch (PDOException $e) {
 
         // 1062 = Duplicate entry
@@ -261,6 +274,21 @@ function updateCategory(int $idCat): void
             $params[':descripcion'] = $descripcion;
         }
 
+        // ACTIVO
+        if (array_key_exists('activo', $data)) {
+
+            if (!is_bool($data['activo'])) {
+                sendJson(400, [
+                    'ok' => false,
+                    'mensaje' => 'El estado activo debe ser true o false.',
+                ]);
+                exit;
+            }
+
+            $fields[] = 'activo = :activo';
+            $params[':activo'] = $data['activo'] ? true : false;
+        }
+
         // Si no mandaron ningún campo modificable
         if (empty($fields)) {
             sendJson(400, [
@@ -283,7 +311,6 @@ function updateCategory(int $idCat): void
             'ok' => true,
             'mensaje' => 'Categoría actualizada correctamente.',
         ]);
-
     } catch (PDOException $e) {
 
         if (($e->errorInfo[1] ?? null) === 1062) {
