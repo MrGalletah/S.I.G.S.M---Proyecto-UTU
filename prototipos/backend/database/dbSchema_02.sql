@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS categoria (
     nombre VARCHAR(50) NOT NULL UNIQUE,
     descripcion VARCHAR(255) NULL,
     fecha_creacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (id_cat),
     FOREIGN KEY (id_func) REFERENCES funcionario (id_func)
 ) ENGINE = InnoDB;
