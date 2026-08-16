@@ -19,23 +19,41 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { createDummyCategories } from "../../../mockData/categories";
 import { useOutletContext } from "react-router";
+import { getAllCategories } from "../../../apiCalls/categories/categoriesApi";
+import { formatDate } from "../../utils/formatDate";
 
 export default function CategoriesCard({ variant }) {
-  const {user} = useOutletContext()
+  const { user } = useOutletContext();
 
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [categories, setCategories] = useState([]);
 
-  const createCategory = async (category) => {
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // setLoading(true);
+        // setError("");
 
-    console.log(category)
-  }
+        const data = await getAllCategories();
+        console.log(data.categorias);
 
-  console.log(user)
-  const categories = useMemo(() => createDummyCategories(), []);
+        setCategories(data.categorias);
+      } catch (error) {
+        // setError(error.message);
+      } finally {
+        // setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  console.log(user);
+  console.log(categories);
 
   const isFull = variant === "full";
   const rowsPerPage = isFull ? 15 : 4;
@@ -47,9 +65,9 @@ export default function CategoriesCard({ variant }) {
     const searchText = search.toLowerCase();
 
     return (
-      category.cat.toLowerCase().includes(searchText) ||
-      category.desc.toLowerCase().includes(searchText) ||
-      category.state.toLowerCase().includes(searchText)
+      category.nombre.toLowerCase().includes(searchText) ||
+      category.descripcion.toLowerCase().includes(searchText) ||
+      category.activo.toLowerCase().includes(searchText)
     );
   });
 
@@ -224,36 +242,40 @@ export default function CategoriesCard({ variant }) {
                       textOverflow: "ellipsis",
                     }}
                   >
-                    {category.cat}
+                    {category.nombre}
                   </Typography>
                 </TableCell>
 
                 <TableCell>
-                  <Typography variant="body2">{category.desc}</Typography>
+                  <Typography variant="body2">
+                    {category.descripcion}
+                  </Typography>
                 </TableCell>
 
-                <TableCell align="center">{category.docs}</TableCell>
+                <TableCell align="center">{category.documentos}</TableCell>
 
                 {isFull && (
-                  <TableCell align="center">{category.createdAt}</TableCell>
+                  <TableCell align="center">
+                    {formatDate(category.fecha_creacion)}
+                  </TableCell>
                 )}
 
                 <TableCell align="center">
                   <Chip
-                    label={category.state}
+                    label={category.activo === 1 ? "Activa" : "Inactiva"}
                     size="small"
                     sx={{
                       bgcolor:
-                        category.state === "Activa"
+                        category.activo === 1
                           ? "var(--primary-color)"
                           : "var(--inactive-chip)",
                       color:
-                        category.state === "Activa"
+                        category.activo === 1
                           ? "var(--white-color)"
                           : "var(--text-main-color)",
                       fontWeight: 600,
                       whiteSpace: "nowrap",
-                      minWidth: category.state === "Inactiva" ? 78 : 64,
+                      minWidth: category.activo === 0 ? 78 : 64,
                       justifyContent: "center",
                     }}
                   />
