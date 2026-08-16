@@ -60,19 +60,30 @@ function getCategories(bool $includeInactive = false): void
         $db = Database::getConnection();
 
         $sql = "SELECT
-         id_cat,
-         id_func,
-         nombre,
-         descripcion,
-         activo,
-         fecha_creacion
-         FROM categoria";
+         c.id_cat,
+         c.id_func,
+         c.nombre,
+         c.descripcion,
+         c.activo,
+         c.fecha_creacion,
+         COUNT(d.id_doc) AS documentos
+         FROM categoria AS c
+         LEFT JOIN documento AS d
+         ON d.id_cat = c.id_cat 
+         ";
 
          if(!$includeInactive) {
-            $sql .= " WHERE activo = TRUE ";
+            $sql .= " WHERE c.activo = TRUE ";
          }
 
-         $sql .= " ORDER BY nombre ASC ";
+         $sql .= " GROUP BY
+        c.id_cat,
+        c.id_func,
+        c.nombre,
+        c.descripcion,
+        c.activo,
+        c.fecha_creacion
+        ORDER BY c.nombre ASC; ";
 
         $stmt = $db->prepare($sql);
         $stmt->execute();
