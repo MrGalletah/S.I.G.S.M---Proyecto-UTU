@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
 import { Box, CircularProgress } from "@mui/material";
-import { getCurrentUser } from "../../auth/authApi";
+import { getCurrentUser } from "../../apiCalls/auth/authApi";
 
 export default function ProtectedRoute() {
   const location = useLocation();

@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { login } from "../../auth/authApi";
+import { login } from "../../apiCalls/auth/authApi";
 
 export default function LoginForm() {
   const navigate = useNavigate();
@@ -39,9 +39,13 @@ export default function LoginForm() {
     try {
       const req = await login(mail, pwd);
 
-      console.log("Usuario autenticado:", req.usuario);
+      if(req.ok){
+        // console.log("Usuario autenticado:", req.usuario);
+        
+        navigate("/documents/dashboard");
+      }
 
-      navigate("/documents/dashboard");
+
     } catch (e) {
       setError(e.message);
       handleOpenSnackbar();

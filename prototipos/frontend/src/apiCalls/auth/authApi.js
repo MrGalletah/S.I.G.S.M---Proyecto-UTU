@@ -1,4 +1,4 @@
-import { processResponse } from "../components/utils/processApiResponse";
+import { processResponse } from "../../components/utils/processApiResponse";
 
 const authUrl = "/api/auth";
 
