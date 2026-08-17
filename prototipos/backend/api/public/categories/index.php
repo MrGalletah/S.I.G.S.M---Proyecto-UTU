@@ -72,11 +72,11 @@ function getCategories(bool $includeInactive = false): void
          ON d.id_cat = c.id_cat 
          ";
 
-         if(!$includeInactive) {
+        if (!$includeInactive) {
             $sql .= " WHERE c.activo = TRUE ";
-         }
+        }
 
-         $sql .= " GROUP BY
+        $sql .= " GROUP BY
         c.id_cat,
         c.id_func,
         c.nombre,
@@ -297,7 +297,7 @@ function updateCategory(int $idCat): void
             }
 
             $fields[] = 'activo = :activo';
-            $params[':activo'] = $data['activo'] ? true : false;
+            $params[':activo'] = $data['activo'] ? 1 : 0;
         }
 
         // Si no mandaron ningún campo modificable
