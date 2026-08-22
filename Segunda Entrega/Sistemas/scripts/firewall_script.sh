@@ -12,54 +12,61 @@ showRules() {
     firewall-cmd --list-all
 }
 
+managePort() {
+    action=$1
+    text=$2
 
-openPort() {
-    read -p "Puerto a abrir: " port
+    read -p "Puerto a $text: " port
     read -p "Protocolo (tcp/udp): " protocol
-    read -p "Abrir permanentemente? (s/n): " permanent
+    read -p "Hacer permanentemente? (s/n): " permanent
 
-    firewall-cmd --add-port="$port/$protocol"
+    firewall-cmd "--$action-port=$port/$protocol"
 
     if [[ $permanent == "s" ]]; then
-            firewall-cmd --permanent --add-port="$port/$protocol"
+        firewall-cmd --permanent "--$action-port=$port/$protocol"
     fi
 }
 
-closePort() {
-    read -p "Puerto a cerrar: " port
-    read -p "Protocolo (tcp/udp): " protocol
-    read -p "Cerrar permanentemente? (s/n): " permanent
 
-    firewall-cmd --remove-port="$port/$protocol"
+manageService() {
+    action=$1
+    text=$2
+
+    read -p "Servicio a $text: " service
+    read -p "Hacer permanentemente? (s/n): " permanent
+
+    firewall-cmd "--$action-service=$service"
 
     if [[ $permanent == "s" ]]; then
-            firewall-cmd --permanent --remove-port="$port/$protocol"
+        firewall-cmd --permanent "--$action-service=$service"
     fi
 }
 
-addService(){
-    read -p "Servicio: " service
+manageIpPort() {
+    action=$1
+
+    read -p "IP: " ip
+    read -p "Puerto: " port
+    read -p "Protocolo (tcp/udp): " protocol
     read -p "Hacer permanente? (s/n): " permanent
 
-    firewall-cmd --add-service="$service"
+    rule="rule family='ipv4' source address='$ip' port port='$port' protocol='$protocol' accept"
 
-    if [[ $permanent == "s" ]]; then
-            firewall-cmd --permanent --add-service="$service"
+    if [[ $action == "add" ]]; then
+        firewall-cmd --add-rich-rule="$rule"
+
+        if [[ $permanent == "s" ]]; then
+            firewall-cmd --permanent --add-rich-rule="$rule"
+        fi
+
+    elif [[ $action == "remove" ]]; then
+        firewall-cmd --remove-rich-rule="$rule"
+
+        if [[ $permanent == "s" ]]; then
+            firewall-cmd --permanent --remove-rich-rule="$rule"
+        fi
     fi
 }
-
-deleteService(){
-    read -p "Servicio: " service
-    read -p "Hacer permanente? (s/n): " permanent
-
-    firewall-cmd --remove-service="$service"
-
-    if [[ $permanent == "s" ]]; then
-            firewall-cmd --permanent --remove-service="$service"
-    fi
-}
-
-
 
 option=-1
 
@@ -70,16 +77,20 @@ do
     echo "3) Cerrar un puerto."
     echo "4) Añadir un servicio."
     echo "5) Eliminar un servicio."
+    echo "6) Permitir una IP en un puerto."
+    echo "7) Quitar permiso de una IP en un puerto."
     echo "0) Salir."
 
     read -p "Seleccione una opción: " option
 
     case $option in
         1) showRules ;;
-        2) openPort ;;
-        3) closePort ;;
-        4) addService ;;
-        5) deleteService ;;
+        2) managePort "add" "abrir" ;;
+        3) managePort "remove" "cerrar" ;;
+        4) manageService "add" "añadir" ;;
+        5) manageService "remove" "eliminar" ;;
+        6) manageIpPort "add";;
+        7) manageIpPort "remove" ;;
         0) echo "Saliendo..."; exit 0;;
         *) echo "Opción inválida." ;;
     esac
