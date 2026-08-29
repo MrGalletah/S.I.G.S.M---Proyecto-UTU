@@ -60,7 +60,7 @@ Luego se debe ingresar a la carpeta correspondiente al backend.
 Por ejemplo:
 
 ```bash
-cd S.I.G.S.M---Proyecto-UTU/Proyecto/backend
+cd S.I.G.S.M---Proyecto-UTU/Proyecto/prototipos/backend
 ```
 
 > La ruta puede variar dependiendo del directorio donde se haya clonado el repositorio.
