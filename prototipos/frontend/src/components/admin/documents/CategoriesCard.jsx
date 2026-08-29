@@ -19,7 +19,6 @@ import {
 
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { useEffect, useState } from "react";
 import {
   createOrUpdateCategory,
