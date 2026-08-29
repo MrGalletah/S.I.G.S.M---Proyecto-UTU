@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Accordion,
   AccordionDetails,
@@ -22,138 +22,45 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 
-const categories = [
-  {
-    id: 1,
-    name: "Anestesiología",
-    documents: [
-      {
-        id: 1,
-        title: "Protocolo terapéutico de uso de vasopresina",
-        url: "#",
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "Hematología",
-    documents: [
-      {
-        id: 2,
-        title: "Consenso nacional de Mieloma",
-        url: "#",
-      },
-      {
-        id: 3,
-        title: "Consenso nacional de Leucemia linfoide",
-        url: "#",
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: "Medicina interna",
-    documents: [
-      {
-        id: 4,
-        title: "Guía de control de hipertensión arterial",
-        url: "#",
-      },
-      {
-        id: 5,
-        title: "Manejo inicial del paciente diabético",
-        url: "#",
-      },
-      {
-        id: 6,
-        title: "Protocolo de anticoagulación",
-        url: "#",
-      },
-      {
-        id: 7,
-        title: "Guía clínica de infecciones respiratorias",
-        url: "#",
-      },
-      {
-        id: 8,
-        title: "Recomendaciones para adultos mayores",
-        url: "#",
-      },
-    ],
-  },
-  {
-    id: 4,
-    name: "Infectología",
-    documents: [
-      {
-        id: 9,
-        title: "Protocolo de aislamiento hospitalario",
-        url: "#",
-      },
-      {
-        id: 10,
-        title: "Guía de uso racional de antibióticos",
-        url: "#",
-      },
-      {
-        id: 11,
-        title: "Manejo de infecciones intrahospitalarias",
-        url: "#",
-      },
-      {
-        id: 12,
-        title: "Prevención de infecciones respiratorias",
-        url: "#",
-      },
-      {
-        id: 13,
-        title: "Protocolo de higiene de manos",
-        url: "#",
-      },
-      {
-        id: 14,
-        title: "Guía de vacunación hospitalaria",
-        url: "#",
-      },
-      {
-        id: 15,
-        title: "Control de brotes infecciosos",
-        url: "#",
-      },
-    ],
-  },
-];
+import { getUserCategories } from "../../../apiCalls/categories/categoriesApi";
 
 export default function UserView() {
   const [search, setSearch] = useState("");
   const [alert, setAlert] = useState(null);
+
+  const [categories, setCategories] = useState([]);
+  // const [loading, setLoading] = useState(true);
+  // const [error, setError] = useState("");
 
   const filteredCategories = useMemo(() => {
     const text = search.trim().toLowerCase();
 
     if (!text) return categories;
 
-    return categories
-      .map((category) => {
-        const categoryMatches = category.name.toLowerCase().includes(text);
+    return categories.filter((category) =>
+      category.nombre.toLowerCase().includes(text),
+    );
+  }, [search, categories]);
 
-        const documents = category.documents.filter((document) =>
-          document.title.toLowerCase().includes(text)
-        );
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // setLoading(true);
+        // setError("");
 
-        if (categoryMatches) return category;
+        const data = await getUserCategories();
+        console.log(data.categorias);
 
-        return {
-          ...category,
-          documents,
-        };
-      })
-      .filter(
-        (category) =>
-          category.name.toLowerCase().includes(text) ||
-          category.documents.length > 0
-      );
-  }, [search]);
+        setCategories(data.categorias);
+      } catch (error) {
+        // setError(error.message);
+      } finally {
+        // setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleView = (document) => {
     setAlert(`Visualizar documento: ${document.title}`);
@@ -303,7 +210,7 @@ export default function UserView() {
             >
               {filteredCategories.map((category) => (
                 <CategoryAccordion
-                  key={category.id}
+                  key={category.id_cat}
                   category={category}
                   onView={handleView}
                   onDownload={handleDownload}
@@ -392,12 +299,12 @@ function CategoryAccordion({ category, onView, onDownload }) {
             whiteSpace: "nowrap",
           }}
         >
-          {category.name}
+          {category.nombre}
         </Typography>
 
         <Chip
-          label={`${category.documents.length} ${
-            category.documents.length === 1 ? "Documento" : "Documentos"
+          label={`${category.documentos} ${
+            Number(category.documentos) === 1 ? "Documento" : "Documentos"
           }`}
           size="small"
           sx={{
@@ -415,12 +322,23 @@ function CategoryAccordion({ category, onView, onDownload }) {
 
       <AccordionDetails
         sx={{
-          px: 0,
+          px: { xs: 2.5, md: 3 },
           pt: 0,
           pb: 1.2,
         }}
       >
-        <Stack>
+        <Typography
+          sx={{
+            mb: 1.5,
+            color: "text.secondary",
+            fontSize: { xs: 13, md: 15 },
+            lineHeight: 1.5,
+          }}
+        >
+          {category.descripcion}
+        </Typography>
+
+        {/* <Stack>
           {category.documents.map((document) => (
             <DocumentAccordion
               key={document.id}
@@ -429,7 +347,7 @@ function CategoryAccordion({ category, onView, onDownload }) {
               onDownload={onDownload}
             />
           ))}
-        </Stack>
+        </Stack> */}
       </AccordionDetails>
     </Accordion>
   );

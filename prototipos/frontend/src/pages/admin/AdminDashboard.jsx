@@ -1,11 +1,12 @@
 import { Box } from "@mui/material";
-import { Outlet } from "react-router";
+import { Outlet, useOutletContext } from "react-router";
 import { useState } from "react";
 
 import Sidebar from "../../components/admin/Sidebar";
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const {user} = useOutletContext()
 
   return (
     <Box
@@ -23,6 +24,7 @@ export default function AdminDashboard() {
         open={sidebarOpen}
         onOpen={() => setSidebarOpen(true)}
         onClose={() => setSidebarOpen(false)}
+        user={user}
       />
 
       <Box
@@ -33,7 +35,7 @@ export default function AdminDashboard() {
           minWidth: 0,
         }}
       >
-        <Outlet />
+        <Outlet context={{user}} />
       </Box>
     </Box>
   );

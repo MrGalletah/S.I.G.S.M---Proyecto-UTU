@@ -1,29 +1,28 @@
-// import { useEffect, useState } from "react";
-import { Navigate, Outlet } from "react-router";
-// import { Box, CircularProgress } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Navigate, Outlet, useLocation } from "react-router";
+import { Box, CircularProgress } from "@mui/material";
+import { getCurrentUser } from "../../apiCalls/auth/authApi";
 
 export default function ProtectedRoute() {
-  {
-    /* const [status, setStatus] = useState("loading");
+  const location = useLocation();
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState();
 
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const response = await fetch("/api/auth/me.php", {
-          method: "GET",
-          credentials: "include",
-        });
+        const response = await getCurrentUser();
 
-        setStatus(response.ok ? "authenticated" : "guest");
-      } catch {
-        setStatus("guest");
+        setUser(response);
+      } finally {
+        setLoading(false);
       }
     };
 
     checkSession();
-  }, []);
+  }, [location.pathname]);
 
-  if (status === "loading") {
+  if (loading) {
     return (
       <Box
         sx={{
@@ -37,10 +36,10 @@ export default function ProtectedRoute() {
     );
   }
 
-  if (status === "guest") {
+  if (!user) {
     return <Navigate to="/login" replace />;
+  } else {
+    return <Outlet context={{user}} />;
   }
-*/
-  }
-  return <Outlet />; // <Navigate to="/login" replace /> Pa simular la protección TODO: implementar la autenticación con php
-} 
+
+}
