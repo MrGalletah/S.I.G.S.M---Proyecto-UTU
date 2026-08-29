@@ -7,35 +7,58 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import CategoriesCard from "./CategoriesCard";
 import SurveysCard from "../documents/SurveysCard";
 import DocsCard from "./DocsCard";
-
-const cardsData = [
-  {
-    label: "Categorías",
-    icon: <FolderOpenIcon />,
-    value: 24,
-    subtitle: undefined,
-  },
-  {
-    label: "Documentos",
-    icon: <DescriptionIcon />,
-    value: 152,
-    subtitle: undefined,
-  },
-  {
-    label: "Documentos activos",
-    icon: <TaskAltIcon />,
-    value: 128,
-    subtitle: "84% del total",
-  },
-  {
-    label: "Encuestas activas",
-    icon: <AssignmentIcon />,
-    value: 12,
-    subtitle: undefined,
-  },
-];
+import { getAllCategories } from "../../../apiCalls/categories/categoriesApi";
+import { useEffect, useState } from "react";
 
 export default function DocsDashboard() {
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        //setLoading(true);
+
+        const data = await getAllCategories();
+        if (data.ok) {
+          setCategories(data.categorias);
+        }
+      } catch (e) {
+        console.error(e);
+        //showNotification("Error al obtener las categorías.", "error");
+      } finally {
+        //setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const cardsData = [
+    {
+      label: "Categorías",
+      icon: <FolderOpenIcon />,
+      value: categories.length,
+      subtitle: undefined,
+    },
+    {
+      label: "Documentos",
+      icon: <DescriptionIcon />,
+      value: 152,
+      subtitle: undefined,
+    },
+    {
+      label: "Documentos activos",
+      icon: <TaskAltIcon />,
+      value: 128,
+      subtitle: "84% del total",
+    },
+    {
+      label: "Encuestas activas",
+      icon: <AssignmentIcon />,
+      value: 12,
+      subtitle: undefined,
+    },
+  ];
+
   return (
     <>
       <Stack

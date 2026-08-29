@@ -373,9 +373,9 @@ export default function CategoriesCard({ variant }) {
                           <EditOutlinedIcon fontSize="small" />
                         </IconButton>
 
-                        <IconButton size="small" color="error">
+                        {/* <IconButton size="small" color="error">
                           <DeleteOutlineOutlinedIcon fontSize="small" />
-                        </IconButton>
+                        </IconButton> */}
                       </Stack>
                     </TableCell>
                   </TableRow>
