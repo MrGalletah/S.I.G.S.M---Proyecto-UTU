@@ -94,7 +94,7 @@ createCron(){
     read -p "Hora (*, 0-23): " hora
     read -p "Día del mes (*, 1-31): " dia
     read -p "Mes (*, 1-12): " mes
-    read -p "Día de la semana (*, 0-7): " semana
+    read -p "Día de la semana (*, 0-6): " semana
 
     CRON="$minuto $hora $dia $mes $semana"
 
