@@ -22,7 +22,7 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 
-import { getUserCategories } from "../../../apiCalls/categories/categoriesApi";
+import { getUserDocuments } from "../../../apiCalls/documents/documentsApi";
 
 export default function UserView() {
   const [search, setSearch] = useState("");
@@ -48,7 +48,7 @@ export default function UserView() {
         // setLoading(true);
         // setError("");
 
-        const data = await getUserCategories();
+        const data = await getUserDocuments();
         console.log(data.categorias);
 
         setCategories(data.categorias);
@@ -63,11 +63,11 @@ export default function UserView() {
   }, []);
 
   const handleView = (document) => {
-    setAlert(`Visualizar documento: ${document.title}`);
+    setAlert(`Visualizar documento: ${document.titulo}`);
   };
 
   const handleDownload = (document) => {
-    setAlert(`Descargar documento: ${document.title}`);
+    setAlert(`Descargar documento: ${document.titulo}`);
   };
 
   return (
@@ -303,8 +303,10 @@ function CategoryAccordion({ category, onView, onDownload }) {
         </Typography>
 
         <Chip
-          label={`${category.documentos} ${
-            Number(category.documentos) === 1 ? "Documento" : "Documentos"
+          label={`${category.documentos.length} ${
+            Number(category.documentos.length) === 1
+              ? "Documento"
+              : "Documentos"
           }`}
           size="small"
           sx={{
@@ -338,16 +340,16 @@ function CategoryAccordion({ category, onView, onDownload }) {
           {category.descripcion}
         </Typography>
 
-        {/* <Stack>
-          {category.documents.map((document) => (
+        <Stack>
+          {category.documentos.map((document) => (
             <DocumentAccordion
-              key={document.id}
+              key={document.id_doc}
               document={document}
               onView={onView}
               onDownload={onDownload}
             />
           ))}
-        </Stack> */}
+        </Stack>
       </AccordionDetails>
     </Accordion>
   );
@@ -406,7 +408,7 @@ function DocumentAccordion({ document, onView, onDownload }) {
             minWidth: 0,
           }}
         >
-          {document.title}
+          {document.titulo}
         </Typography>
       </AccordionSummary>
 
@@ -428,7 +430,7 @@ function DocumentAccordion({ document, onView, onDownload }) {
               fontSize: { xs: 13, md: 15 },
               fontWeight: 800,
               color: "var(--primary-color)",
-              px: 0,
+              px: 2,
             }}
           >
             [ Descargar documento ]
@@ -444,7 +446,7 @@ function DocumentAccordion({ document, onView, onDownload }) {
               fontSize: { xs: 13, md: 15 },
               fontWeight: 800,
               color: "var(--primary-color)",
-              px: 0,
+              px: 2,
             }}
           >
             [ Visualizar documento ]

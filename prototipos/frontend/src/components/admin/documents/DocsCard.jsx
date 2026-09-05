@@ -19,14 +19,59 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { createDummyDocuments } from "../../../mockData/documents";
+import { getAllDocuments } from "../../../apiCalls/documents/documentsApi";
 import PdfSvg from "../../utils/PdfSvg";
-
+import { useNotification } from "../../../hooks/useNotification";
+import NotificationSnackbar from "../../utils/NotificationSnackbar";
+import { formatDate } from "../../utils/formatDate";
 
 export default function DocsCard({ variant }) {
-  const documents = useMemo(() => createDummyDocuments(), []);
+  const { notification, showNotification, closeNotification } =
+    useNotification();
+
+const fetchData = async () => {
+  try {
+    setLoading(true);
+
+    const data = await getAllDocuments();
+
+    if (data.ok) {
+      const formattedDocuments = data.categorias.flatMap((category) =>
+        category.documentos.map((document) => ({
+          id: document.id_doc,
+          category: category.nombre,
+          idUser: document.id_func,
+
+          document: document.titulo,
+          uploadedAt: formatDate(document.fecha_subida),
+          state: document.activo ? "Activo" : "Inactivo",
+
+          description: document.descripcion,
+          path: document.ruta,
+        })),
+      );
+
+      setDocuments(formattedDocuments);
+    }
+  } catch (e) {
+    console.error(e);
+    showNotification("Error al obtener los documentos.", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const [openDocumentModal, setOpenDocumentModal] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const isFull = variant === "full";
   const rowsPerPage = isFull ? 15 : 4;
@@ -54,235 +99,243 @@ export default function DocsCard({ variant }) {
 
   const showPagination = filteredDocuments.length > rowsPerPage;
   return (
-    <Card
-      sx={{
-        borderRadius: 4,
-        p: 3,
-        boxShadow: "var(--card-shadow)",
-        minWidth: 0,
-        overflow: "hidden",
-      }}
-    >
-      <Stack
-        direction="row"
+    <>
+      <Card
         sx={{
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          mb: 2,
-          gap: 2,
+          borderRadius: 4,
+          p: 3,
+          boxShadow: "var(--card-shadow)",
+          minWidth: 0,
+          overflow: "hidden",
         }}
       >
-        <Box>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-            }}
-          >
-            Documentos
-          </Typography>
-
-          <Typography
-            variant="body2"
-            sx={{
-              color: "var(--text-muted-color)",
-            }}
-          >
-            Añade nuevos documentos y gestiona los existentes
-          </Typography>
-        </Box>
-
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{
-            borderRadius: 2,
-            textTransform: "none",
-            bgcolor: "var(--primary-color)",
-            whiteSpace: "nowrap",
-            "&:hover": {
-              bgcolor: "var(--primary-hover-color)",
-            },
-          }}
-        >
-          Añadir documento
-        </Button>
-      </Stack>
-
-      <TextField
-        size="small"
-        placeholder="Buscar documento"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
-        sx={{
-          mb: 2,
-          width: {
-            xs: "100%",
-            sm: "250px",
-          },
-        }}
-      />
-
-      <TableContainer
-        sx={{
-          minWidth: "100%",
-          overflowX: "auto",
-        }}
-      >
-        <Table
-          size="small"
-          sx={{
-            minWidth: { xs: "650px", md: "100%" },
-            tableLayout: "fixed",
-          }}
-        >
-          <TableHead>
-            <TableRow>
-              <TableCell
-                sx={{ fontWeight: 700, width: isFull ? "30%" : "35%" }}
-              >
-                Documento
-              </TableCell>
-
-              <TableCell
-                sx={{ fontWeight: 700, width: isFull ? "20%" : "20%" }}
-              >
-                Categoría
-              </TableCell>
-
-              <TableCell
-                sx={{
-                  fontWeight: 700,
-                  width: "15%",
-                  whiteSpace: "nowrap",
-                }}
-                align="center"
-              >
-                Fecha de subida
-              </TableCell>
-
-              <TableCell
-                sx={{
-                  fontWeight: 700,
-                  width: isFull ? "12%" : "13%",
-                  whiteSpace: "nowrap",
-                }}
-                align="center"
-              >
-                Estado
-              </TableCell>
-
-              <TableCell
-                sx={{
-                  fontWeight: 700,
-                  width: isFull ? "12%" : "15%",
-                  whiteSpace: "nowrap",
-                }}
-                align="center"
-              >
-                Acciones
-              </TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {visibleDocuments.map((documentItem) => (
-              <TableRow key={documentItem.id}>
-                <TableCell>
-                  <Box sx={{ display: "flex",alignItems: "center", gap: 2 }}>
-                    <PdfSvg />
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 500,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {documentItem.document}
-                  </Typography>
-                  </Box>
-                </TableCell>
-
-                <TableCell>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {documentItem.category}
-                  </Typography>
-                </TableCell>
-
-                <TableCell align="center">{documentItem.uploadedAt}</TableCell>
-
-                <TableCell align="center">
-                  <Chip
-                    label={documentItem.state}
-                    size="small"
-                    sx={{
-                      bgcolor:
-                        documentItem.state === "Activo"
-                          ? "var(--primary-color)"
-                          : "var(--inactive-chip)",
-                      color:
-                        documentItem.state === "Activo"
-                          ? "var(--white-color)"
-                          : "var(--text-main-color)",
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      minWidth: documentItem.state === "Inactiva" ? 78 : 64,
-                      justifyContent: "center",
-                    }}
-                  />
-                </TableCell>
-
-                <TableCell>
-                  <Stack
-                    direction="row"
-                    spacing={0.5}
-                    sx={{ justifyContent: "center" }}
-                  >
-                    <IconButton size="small">
-                      <EditOutlinedIcon fontSize="small" />
-                    </IconButton>
-
-                    <IconButton size="small" color="error">
-                      <DeleteOutlineOutlinedIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {showPagination && (
         <Stack
           direction="row"
           sx={{
-            justifyContent: "center",
-            mt: 2,
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            mb: 2,
+            gap: 2,
           }}
         >
-          <Pagination
-            count={totalPages}
-            page={page}
-            onChange={(event, value) => setPage(value)}
-            size="small"
-            shape="rounded"
-          />
+          <Box>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+              }}
+            >
+              Documentos
+            </Typography>
+
+            <Typography
+              variant="body2"
+              sx={{
+                color: "var(--text-muted-color)",
+              }}
+            >
+              Añade nuevos documentos y gestiona los existentes
+            </Typography>
+          </Box>
+
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            sx={{
+              borderRadius: 2,
+              textTransform: "none",
+              bgcolor: "var(--primary-color)",
+              whiteSpace: "nowrap",
+              "&:hover": {
+                bgcolor: "var(--primary-hover-color)",
+              },
+            }}
+          >
+            Añadir documento
+          </Button>
         </Stack>
-      )}
-    </Card>
+
+        <TextField
+          size="small"
+          placeholder="Buscar documento"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          sx={{
+            mb: 2,
+            width: {
+              xs: "100%",
+              sm: "250px",
+            },
+          }}
+        />
+
+        <TableContainer
+          sx={{
+            minWidth: "100%",
+            overflowX: "auto",
+          }}
+        >
+          <Table
+            size="small"
+            sx={{
+              minWidth: { xs: "650px", md: "100%" },
+              tableLayout: "fixed",
+            }}
+          >
+            <TableHead>
+              <TableRow>
+                <TableCell
+                  sx={{ fontWeight: 700, width: isFull ? "30%" : "35%" }}
+                >
+                  Documento
+                </TableCell>
+
+                <TableCell
+                  sx={{ fontWeight: 700, width: isFull ? "20%" : "20%" }}
+                >
+                  Categoría
+                </TableCell>
+
+                <TableCell
+                  sx={{
+                    fontWeight: 700,
+                    width: "15%",
+                    whiteSpace: "nowrap",
+                  }}
+                  align="center"
+                >
+                  Fecha de subida
+                </TableCell>
+
+                <TableCell
+                  sx={{
+                    fontWeight: 700,
+                    width: isFull ? "12%" : "13%",
+                    whiteSpace: "nowrap",
+                  }}
+                  align="center"
+                >
+                  Estado
+                </TableCell>
+
+                <TableCell
+                  sx={{
+                    fontWeight: 700,
+                    width: isFull ? "12%" : "15%",
+                    whiteSpace: "nowrap",
+                  }}
+                  align="center"
+                >
+                  Acciones
+                </TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+               {visibleDocuments.map((documentItem) => (
+                <TableRow key={documentItem.id}>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <PdfSvg />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 500,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {documentItem.document}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+
+                  <TableCell>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {documentItem.category}
+                    </Typography>
+                  </TableCell>
+
+                  <TableCell align="center">
+                    {documentItem.uploadedAt}
+                  </TableCell>
+
+                  <TableCell align="center">
+                    <Chip
+                      label={documentItem.state}
+                      size="small"
+                      sx={{
+                        bgcolor:
+                          documentItem.state === "Activo"
+                            ? "var(--primary-color)"
+                            : "var(--inactive-chip)",
+                        color:
+                          documentItem.state === "Activo"
+                            ? "var(--white-color)"
+                            : "var(--text-main-color)",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        minWidth: documentItem.state === "Inactiva" ? 78 : 64,
+                        justifyContent: "center",
+                      }}
+                    />
+                  </TableCell>
+
+                  <TableCell>
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      sx={{ justifyContent: "center" }}
+                    >
+                      <IconButton size="small">
+                        <EditOutlinedIcon fontSize="small" />
+                      </IconButton>
+
+                      <IconButton size="small" color="error">
+                        <DeleteOutlineOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))} 
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {showPagination && (
+          <Stack
+            direction="row"
+            sx={{
+              justifyContent: "center",
+              mt: 2,
+            }}
+          >
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(event, value) => setPage(value)}
+              size="small"
+              shape="rounded"
+            />
+          </Stack>
+        )}
+      </Card>
+      <NotificationSnackbar
+        notification={notification}
+        onClose={closeNotification}
+      />
+    </>
   );
 }

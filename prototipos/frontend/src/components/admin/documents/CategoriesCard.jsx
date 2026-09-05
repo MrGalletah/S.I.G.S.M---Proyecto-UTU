@@ -36,7 +36,7 @@ export default function CategoriesCard({ variant }) {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       const data = await getAllCategories();
 
       if (data.ok) {
@@ -55,6 +55,10 @@ export default function CategoriesCard({ variant }) {
   const [categories, setCategories] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleSubmitCategory = async (data) => {
     try {
@@ -106,10 +110,6 @@ export default function CategoriesCard({ variant }) {
     setSelectedCategory(category);
     setOpenCategoryModal(true);
   };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const isFull = variant === "full";
   const rowsPerPage = isFull ? 15 : 5;
