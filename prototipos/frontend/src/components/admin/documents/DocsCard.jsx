@@ -21,47 +21,48 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { useEffect, useState } from "react";
 
-import { getAllDocuments } from "../../../apiCalls/documents/documentsApi";
+import { createOrUpdateDocument, getAllDocuments, updateDocument } from "../../../apiCalls/documents/documentsApi";
 import PdfSvg from "../../utils/PdfSvg";
 import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
 import { formatDate } from "../../utils/formatDate";
+import DocumentModal from "../../modals/DocumentDialog";
 
 export default function DocsCard({ variant }) {
   const { notification, showNotification, closeNotification } =
     useNotification();
 
-const fetchData = async () => {
-  try {
-    setLoading(true);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
 
-    const data = await getAllDocuments();
+      const data = await getAllDocuments();
 
-    if (data.ok) {
-      const formattedDocuments = data.categorias.flatMap((category) =>
-        category.documentos.map((document) => ({
-          id: document.id_doc,
-          category: category.nombre,
-          idUser: document.id_func,
+      if (data.ok) {
+        const formattedDocuments = data.categorias.flatMap((category) =>
+          category.documentos.map((document) => ({
+            id: document.id_doc,
+            category: category.nombre,
+            idUser: document.id_func,
+            idCat: category.id_cat,
+            document: document.titulo,
+            uploadedAt: formatDate(document.fecha_subida),
+            state: document.activo ? "Activo" : "Inactivo",
 
-          document: document.titulo,
-          uploadedAt: formatDate(document.fecha_subida),
-          state: document.activo ? "Activo" : "Inactivo",
+            description: document.descripcion,
+            path: document.ruta,
+          })),
+        );
 
-          description: document.descripcion,
-          path: document.ruta,
-        })),
-      );
-
-      setDocuments(formattedDocuments);
+        setDocuments(formattedDocuments);
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification("Error al obtener los documentos.", "error");
+    } finally {
+      setLoading(false);
     }
-  } catch (e) {
-    console.error(e);
-    showNotification("Error al obtener los documentos.", "error");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const [openDocumentModal, setOpenDocumentModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
@@ -72,6 +73,73 @@ const fetchData = async () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+const handleDocumentSubmit = async (data) => {
+  try {
+    setSaving(true);
+
+    let response;
+
+    if (!selectedDocument) {
+
+      // Crear
+      response = await createOrUpdateDocument(data);
+
+    } else if (data.archivo) {
+
+      // Editar y reemplazar archivo
+      response = await createOrUpdateDocument(
+        data,
+        selectedDocument.id
+      );
+
+    } else {
+
+      // Editar sin reemplazar archivo
+      response = await updateDocument(
+        data,
+        selectedDocument.id
+      );
+    }
+
+    if (response.ok) {
+      showNotification(
+        selectedDocument
+          ? "Documento actualizado correctamente."
+          : "Documento creado correctamente.",
+        "success"
+      );
+
+      setOpenDocumentModal(false);
+      setSelectedDocument(null);
+
+      await fetchData();
+    }
+
+  } catch (error) {
+    console.error(error);
+
+    showNotification(
+      selectedDocument
+        ? "Error al actualizar el documento."
+        : "Error al crear el documento.",
+      "error"
+    );
+
+  } finally {
+    setSaving(false);
+  }
+};
+
+  const handleCreateDocument = () => {
+    setSelectedDocument(null);
+    setOpenDocumentModal(true);
+  };
+
+  const handleEditDocument = (document) => {
+    setSelectedDocument(document);
+    setOpenDocumentModal(true);
+  };
 
   const isFull = variant === "full";
   const rowsPerPage = isFull ? 15 : 4;
@@ -141,6 +209,7 @@ const fetchData = async () => {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
+            onClick={handleCreateDocument}
             sx={{
               borderRadius: 2,
               textTransform: "none",
@@ -235,7 +304,7 @@ const fetchData = async () => {
             </TableHead>
 
             <TableBody>
-               {visibleDocuments.map((documentItem) => (
+              {visibleDocuments.map((documentItem) => (
                 <TableRow key={documentItem.id}>
                   <TableCell>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -299,7 +368,10 @@ const fetchData = async () => {
                       spacing={0.5}
                       sx={{ justifyContent: "center" }}
                     >
-                      <IconButton size="small">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditDocument(documentItem)}
+                      >
                         <EditOutlinedIcon fontSize="small" />
                       </IconButton>
 
@@ -309,7 +381,7 @@ const fetchData = async () => {
                     </Stack>
                   </TableCell>
                 </TableRow>
-              ))} 
+              ))}
             </TableBody>
           </Table>
         </TableContainer>
@@ -335,6 +407,17 @@ const fetchData = async () => {
       <NotificationSnackbar
         notification={notification}
         onClose={closeNotification}
+      />
+      <DocumentModal
+        key={selectedDocument?.id ?? "new"}
+        open={openDocumentModal}
+        onClose={() => {
+          setOpenDocumentModal(false);
+          setSelectedDocument(null);
+        }}
+        document={selectedDocument}
+        loading={saving}
+        onSubmit={handleDocumentSubmit}
       />
     </>
   );

@@ -3,13 +3,16 @@
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../middleware/requireAuth.php";
 
+require_once __DIR__ . "/get.php";
+require_once __DIR__ . "/postUpdate.php";
+require_once __DIR__ . "/post.php";
+require_once __DIR__ . "/patch.php";
+
 $method = $_SERVER["REQUEST_METHOD"];
 
 switch ($method) {
 
     case "GET":
-
-        require_once __DIR__ . "/get.php";
 
         getDocuments();
 
@@ -18,18 +21,28 @@ switch ($method) {
 
     case "POST":
 
-        require_once __DIR__ . "/post.php";
-
         $user = requireAuth();
 
-        createDocument((int) $user["id_func"]);
+        // Si se manda id actualizamos el documento
+        if (isset($_GET["id"])) {
+
+
+            $idDoc = requirePositiveInt(
+                $_GET["id"],
+                "El ID del documento"
+            );
+
+            updateDocumentWithFile($idDoc);
+        } else {
+
+
+            createDocument((int) $user["id_func"]);
+        }
 
         break;
 
 
     case "PATCH":
-
-        require_once __DIR__ . "/patch.php";
 
         requireAuth();
 

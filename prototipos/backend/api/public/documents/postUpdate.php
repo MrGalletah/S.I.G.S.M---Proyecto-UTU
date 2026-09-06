@@ -1,19 +1,14 @@
 <?php
 
 require_once __DIR__ . "/../../config/Database.php";
-require_once __DIR__ . "/../../middleware/requireAuth.php";
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../utils/validation.php";
 
 
-function createDocument(int $idFunc): void
+function updateDocumentWithFile(int $idDoc): void
 {
-    $destination = null;
-    $fileSaved = false;
-
     try {
 
-        // Validación de los datos recibidos
         $idCat = requirePositiveInt(
             $_POST["id_cat"] ?? null,
             "La categoría"
@@ -30,7 +25,20 @@ function createDocument(int $idFunc): void
             "La descripción"
         );
 
-        // Validación del archivo
+        $activoRaw = $_POST["activo"] ?? null;
+
+        if (!in_array($activoRaw, ["true", "false"], true)) {
+            sendJson(400, [
+                "ok" => false,
+                "mensaje" => "El estado activo debe ser true o false."
+            ]);
+        }
+
+        $activo = $activoRaw === "true";
+
+
+        // Validamos el PDF nuevo
+
         $archivo = requireUploadedFile(
             $_FILES,
             "archivo",
@@ -46,7 +54,30 @@ function createDocument(int $idFunc): void
         $db = Database::getConnection();
 
 
-        // Comprobamos que la categoría exista
+        // Documento actual
+
+        $stmt = $db->prepare(
+            "SELECT ruta
+             FROM documento
+             WHERE id_doc = :id_doc"
+        );
+
+        $stmt->execute([
+            ":id_doc" => $idDoc
+        ]);
+
+        $document = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$document) {
+            sendJson(404, [
+                "ok" => false,
+                "mensaje" => "El documento no existe."
+            ]);
+        }
+
+
+        // Comprobamos la categoría
+
         $stmt = $db->prepare(
             "SELECT id_cat
              FROM categoria
@@ -58,7 +89,6 @@ function createDocument(int $idFunc): void
         ]);
 
         if (!$stmt->fetch()) {
-
             sendJson(404, [
                 "ok" => false,
                 "mensaje" => "La categoría no existe."
@@ -66,84 +96,60 @@ function createDocument(int $idFunc): void
         }
 
 
-        $storagePath = __DIR__ . "/../../storage/documents";
+        // Ruta física DEL MISMO archivo
 
-        // Generamos un nombre único para el PDF
-        $fileName = bin2hex(random_bytes(16)) . ".pdf";
-
-        // Destino en el fs
-        $destination = $storagePath . "/" . $fileName;
-
-
-        // Ruta que se guarda en la base de datos
-        $ruta = "documents/" . $fileName;
+        $destination =
+            __DIR__
+            . "/../../storage/"
+            . $document["ruta"];
 
 
-        // Guardamos el archivo
+        // Reemplazamos el PDF anterior
+
         if (!move_uploaded_file(
             $archivo["tmp_name"],
             $destination
         )) {
-
             sendJson(500, [
                 "ok" => false,
-                "mensaje" => "No se pudo guardar el archivo."
+                "mensaje" => "No se pudo reemplazar el archivo."
             ]);
         }
 
-        $fileSaved = true;
+
+        // Actualizamos los demás datos
 
         $sql = "
-            INSERT INTO documento (
-                id_cat,
-                id_func,
-                ruta,
-                titulo,
-                descripcion
-            )
-            VALUES (
-                :id_cat,
-                :id_func,
-                :ruta,
-                :titulo,
-                :descripcion
-            )
+            UPDATE documento
+            SET
+                id_cat = :id_cat,
+                titulo = :titulo,
+                descripcion = :descripcion,
+                activo = :activo
+            WHERE id_doc = :id_doc
         ";
 
         $stmt = $db->prepare($sql);
 
         $stmt->execute([
             ":id_cat" => $idCat,
-            ":id_func" => $idFunc,
-            ":ruta" => $ruta,
             ":titulo" => $titulo,
-            ":descripcion" => $descripcion
+            ":descripcion" => $descripcion,
+            ":activo" => $activo ? 1 : 0,
+            ":id_doc" => $idDoc
         ]);
 
 
-        sendJson(201, [
+        sendJson(200, [
             "ok" => true,
-            "mensaje" => "Documento creado correctamente.",
-            "id_doc" => (int) $db->lastInsertId()
+            "mensaje" => "Documento actualizado correctamente."
         ]);
-
 
     } catch (Throwable $e) {
 
-        // Si el archivo se guardó pero falló el INSERT,
-        // eliminamos el PDF para evitar archivos huérfanos
-        if (
-            $fileSaved &&
-            $destination !== null &&
-            file_exists($destination)
-        ) {
-            unlink($destination);
-        }
-
-
         sendJson(500, [
             "ok" => false,
-            "mensaje" => "Error al crear el documento."
+            "mensaje" => "Error al actualizar el documento."
         ]);
     }
 }
