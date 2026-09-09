@@ -49,7 +49,6 @@ export default function UserView() {
         // setError("");
 
         const data = await getUserDocuments();
-        console.log(data.categorias);
 
         setCategories(data.categorias);
       } catch (error) {
@@ -355,7 +354,7 @@ function CategoryAccordion({ category, onView, onDownload }) {
   );
 }
 
-function DocumentAccordion({ document, onView, onDownload }) {
+function DocumentAccordion({ document }) {
   return (
     <Accordion
       disableGutters
@@ -423,7 +422,8 @@ function DocumentAccordion({ document, onView, onDownload }) {
           <Button
             size="small"
             startIcon={<DownloadOutlinedIcon />}
-            onClick={() => onDownload(document)}
+            href={`/api/documents/download.php?id=${document.id_doc}`}
+            rel="noopener noreferrer"
             sx={{
               justifyContent: "flex-start",
               textTransform: "none",
@@ -439,7 +439,9 @@ function DocumentAccordion({ document, onView, onDownload }) {
           <Button
             size="small"
             startIcon={<VisibilityOutlinedIcon />}
-            onClick={() => onView(document)}
+            href={`/api/documents/view.php?id=${document.id_doc}`}
+            target="_blank"
+            rel="noopener noreferrer"
             sx={{
               justifyContent: "flex-start",
               textTransform: "none",

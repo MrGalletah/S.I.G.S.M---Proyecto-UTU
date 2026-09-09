@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   Chip,
+  CircularProgress,
   IconButton,
   Pagination,
   Stack,
@@ -17,11 +18,16 @@ import {
 } from "@mui/material";
 
 import AddIcon from "@mui/icons-material/Add";
+import RemoveRedEyeIcon from "@mui/icons-material/RemoveRedEye";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { useEffect, useState } from "react";
 
-import { createOrUpdateDocument, getAllDocuments, updateDocument } from "../../../apiCalls/documents/documentsApi";
+import {
+  createOrUpdateDocument,
+  getAllDocuments,
+  updateDocument,
+} from "../../../apiCalls/documents/documentsApi";
 import PdfSvg from "../../utils/PdfSvg";
 import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
@@ -74,62 +80,49 @@ export default function DocsCard({ variant }) {
     fetchData();
   }, []);
 
-const handleDocumentSubmit = async (data) => {
-  try {
-    setSaving(true);
+  const handleDocumentSubmit = async (data) => {
+    try {
+      setSaving(true);
 
-    let response;
+      let response;
 
-    if (!selectedDocument) {
+      if (!selectedDocument) {
+        // Crear
+        response = await createOrUpdateDocument(data);
+      } else if (data.archivo) {
+        // Editar y reemplazar archivo
+        response = await createOrUpdateDocument(data, selectedDocument.id);
+      } else {
+        // Editar sin reemplazar archivo
+        response = await updateDocument(data, selectedDocument.id);
+      }
 
-      // Crear
-      response = await createOrUpdateDocument(data);
+      if (response.ok) {
+        showNotification(
+          selectedDocument
+            ? "Documento actualizado correctamente."
+            : "Documento creado correctamente.",
+          "success",
+        );
 
-    } else if (data.archivo) {
+        setOpenDocumentModal(false);
+        setSelectedDocument(null);
 
-      // Editar y reemplazar archivo
-      response = await createOrUpdateDocument(
-        data,
-        selectedDocument.id
-      );
+        await fetchData();
+      }
+    } catch (error) {
+      console.error(error);
 
-    } else {
-
-      // Editar sin reemplazar archivo
-      response = await updateDocument(
-        data,
-        selectedDocument.id
-      );
-    }
-
-    if (response.ok) {
       showNotification(
         selectedDocument
-          ? "Documento actualizado correctamente."
-          : "Documento creado correctamente.",
-        "success"
+          ? "Error al actualizar el documento."
+          : "Error al crear el documento.",
+        "error",
       );
-
-      setOpenDocumentModal(false);
-      setSelectedDocument(null);
-
-      await fetchData();
+    } finally {
+      setSaving(false);
     }
-
-  } catch (error) {
-    console.error(error);
-
-    showNotification(
-      selectedDocument
-        ? "Error al actualizar el documento."
-        : "Error al crear el documento.",
-      "error"
-    );
-
-  } finally {
-    setSaving(false);
-  }
-};
+  };
 
   const handleCreateDocument = () => {
     setSelectedDocument(null);
@@ -240,151 +233,174 @@ const handleDocumentSubmit = async (data) => {
             },
           }}
         />
-
-        <TableContainer
-          sx={{
-            minWidth: "100%",
-            overflowX: "auto",
-          }}
-        >
-          <Table
-            size="small"
+        {loading ? (
+          <Box
             sx={{
-              minWidth: { xs: "650px", md: "100%" },
-              tableLayout: "fixed",
+              flexGrow: 1,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: 200,
             }}
           >
-            <TableHead>
-              <TableRow>
-                <TableCell
-                  sx={{ fontWeight: 700, width: isFull ? "30%" : "35%" }}
-                >
-                  Documento
-                </TableCell>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <TableContainer
+            sx={{
+              minWidth: "100%",
+              overflowX: "auto",
+            }}
+          >
+            <Table
+              size="small"
+              sx={{
+                minWidth: { xs: "650px", md: "100%" },
+                tableLayout: "fixed",
+              }}
+            >
+              <TableHead>
+                <TableRow>
+                  <TableCell
+                    sx={{ fontWeight: 700, width: isFull ? "30%" : "35%" }}
+                  >
+                    Documento
+                  </TableCell>
 
-                <TableCell
-                  sx={{ fontWeight: 700, width: isFull ? "20%" : "20%" }}
-                >
-                  Categoría
-                </TableCell>
+                  <TableCell
+                    sx={{ fontWeight: 700, width: isFull ? "20%" : "20%" }}
+                  >
+                    Categoría
+                  </TableCell>
 
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: "15%",
-                    whiteSpace: "nowrap",
-                  }}
-                  align="center"
-                >
-                  Fecha de subida
-                </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 700,
+                      width: "15%",
+                      whiteSpace: "nowrap",
+                    }}
+                    align="center"
+                  >
+                    Fecha de subida
+                  </TableCell>
 
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: isFull ? "12%" : "13%",
-                    whiteSpace: "nowrap",
-                  }}
-                  align="center"
-                >
-                  Estado
-                </TableCell>
+                  <TableCell
+                    sx={{
+                      fontWeight: 700,
+                      width: isFull ? "12%" : "13%",
+                      whiteSpace: "nowrap",
+                    }}
+                    align="center"
+                  >
+                    Estado
+                  </TableCell>
 
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: isFull ? "12%" : "15%",
-                    whiteSpace: "nowrap",
-                  }}
-                  align="center"
-                >
-                  Acciones
-                </TableCell>
-              </TableRow>
-            </TableHead>
+                  <TableCell
+                    sx={{
+                      fontWeight: 700,
+                      width: isFull ? "12%" : "15%",
+                      whiteSpace: "nowrap",
+                    }}
+                    align="center"
+                  >
+                    Acciones
+                  </TableCell>
+                </TableRow>
+              </TableHead>
 
-            <TableBody>
-              {visibleDocuments.map((documentItem) => (
-                <TableRow key={documentItem.id}>
-                  <TableCell>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <PdfSvg />
+              <TableBody>
+                {visibleDocuments.map((documentItem) => (
+                  <TableRow key={documentItem.id}>
+                    <TableCell>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                      >
+                        <PdfSvg />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 500,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {documentItem.document}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+
+                    <TableCell>
                       <Typography
                         variant="body2"
                         sx={{
-                          fontWeight: 500,
-                          whiteSpace: "nowrap",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
                           overflow: "hidden",
-                          textOverflow: "ellipsis",
                         }}
                       >
-                        {documentItem.document}
+                        {documentItem.category}
                       </Typography>
-                    </Box>
-                  </TableCell>
+                    </TableCell>
 
-                  <TableCell>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {documentItem.category}
-                    </Typography>
-                  </TableCell>
+                    <TableCell align="center">
+                      {documentItem.uploadedAt}
+                    </TableCell>
 
-                  <TableCell align="center">
-                    {documentItem.uploadedAt}
-                  </TableCell>
-
-                  <TableCell align="center">
-                    <Chip
-                      label={documentItem.state}
-                      size="small"
-                      sx={{
-                        bgcolor:
-                          documentItem.state === "Activo"
-                            ? "var(--primary-color)"
-                            : "var(--inactive-chip)",
-                        color:
-                          documentItem.state === "Activo"
-                            ? "var(--white-color)"
-                            : "var(--text-main-color)",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        minWidth: documentItem.state === "Inactiva" ? 78 : 64,
-                        justifyContent: "center",
-                      }}
-                    />
-                  </TableCell>
-
-                  <TableCell>
-                    <Stack
-                      direction="row"
-                      spacing={0.5}
-                      sx={{ justifyContent: "center" }}
-                    >
-                      <IconButton
+                    <TableCell align="center">
+                      <Chip
+                        label={documentItem.state}
                         size="small"
-                        onClick={() => handleEditDocument(documentItem)}
-                      >
-                        <EditOutlinedIcon fontSize="small" />
-                      </IconButton>
+                        sx={{
+                          bgcolor:
+                            documentItem.state === "Activo"
+                              ? "var(--primary-color)"
+                              : "var(--inactive-chip)",
+                          color:
+                            documentItem.state === "Activo"
+                              ? "var(--white-color)"
+                              : "var(--text-main-color)",
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                          minWidth: documentItem.state === "Inactiva" ? 78 : 64,
+                          justifyContent: "center",
+                        }}
+                      />
+                    </TableCell>
 
-                      <IconButton size="small" color="error">
-                        <DeleteOutlineOutlinedIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                    <TableCell>
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        sx={{ justifyContent: "center" }}
+                      >
+                        <IconButton
+                          size="small"
+                          href={`/api/documents/view.php?id=${documentItem.id}&includeInactive=true`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <RemoveRedEyeIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditDocument(documentItem)}
+                        >
+                          <EditOutlinedIcon fontSize="small" />
+                        </IconButton>
+
+                        <IconButton size="small" color="error">
+                          <DeleteOutlineOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
 
         {showPagination && (
           <Stack

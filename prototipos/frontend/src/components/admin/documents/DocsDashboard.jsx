@@ -7,19 +7,40 @@ import AssignmentIcon from "@mui/icons-material/Assignment";
 import CategoriesCard from "./CategoriesCard";
 import SurveysCard from "../documents/SurveysCard";
 import DocsCard from "./DocsCard";
-import { getAllCategories } from "../../../apiCalls/categories/categoriesApi";
 import { useEffect, useState } from "react";
+import { getAllDocuments } from "../../../apiCalls/documents/documentsApi";
 
 export default function DocsDashboard() {
   const [categories, setCategories] = useState([]);
+  const [activeDocuments, setActiveDocuments] = useState(0);
+  const [totalDocuments, setTotalDocuments] = useState(0);
+
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         //setLoading(true);
 
-        const data = await getAllCategories();
+        const data = await getAllDocuments();
         if (data.ok) {
+          const { totalDocuments, activeDocuments } = data.categorias.reduce(
+            (acc, category) => {
+              acc.totalDocuments += category.documentos.length;
+
+              acc.activeDocuments += category.documentos.filter(
+                (document) => document.activo,
+              ).length;
+
+              return acc;
+            },
+            {
+              totalDocuments: 0,
+              activeDocuments: 0,
+            },
+          );
+
+          setActiveDocuments(activeDocuments)
+          setTotalDocuments(totalDocuments)
           setCategories(data.categorias);
         }
       } catch (e) {
@@ -34,22 +55,22 @@ export default function DocsDashboard() {
 
   const cardsData = [
     {
-      label: "Categorías",
+      label: categories.length === 1 ? "Categoría" : "Categorías",
       icon: <FolderOpenIcon />,
       value: categories.length,
       subtitle: undefined,
     },
     {
-      label: "Documentos",
+      label: totalDocuments === 1 ? "Documento" : "Documentos",
       icon: <DescriptionIcon />,
-      value: 152,
+      value: totalDocuments,
       subtitle: undefined,
     },
     {
       label: "Documentos activos",
       icon: <TaskAltIcon />,
-      value: 128,
-      subtitle: "84% del total",
+      value: activeDocuments,
+      subtitle: `${Math.round((activeDocuments / totalDocuments) * 100)}% del total`,
     },
     {
       label: "Encuestas activas",
