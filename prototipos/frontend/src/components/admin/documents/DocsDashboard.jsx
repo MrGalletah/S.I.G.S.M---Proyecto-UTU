@@ -15,7 +15,6 @@ export default function DocsDashboard() {
   const [activeDocuments, setActiveDocuments] = useState(0);
   const [totalDocuments, setTotalDocuments] = useState(0);
 
-
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -39,8 +38,8 @@ export default function DocsDashboard() {
             },
           );
 
-          setActiveDocuments(activeDocuments)
-          setTotalDocuments(totalDocuments)
+          setActiveDocuments(activeDocuments);
+          setTotalDocuments(totalDocuments);
           setCategories(data.categorias);
         }
       } catch (e) {
@@ -70,7 +69,10 @@ export default function DocsDashboard() {
       label: "Documentos activos",
       icon: <TaskAltIcon />,
       value: activeDocuments,
-      subtitle: `${Math.round((activeDocuments / totalDocuments) * 100)}% del total`,
+      subtitle:
+        activeDocuments === 0 && totalDocuments === 0
+          ? ""
+          : `${Math.round((activeDocuments / totalDocuments) * 100)}% del total`,
     },
     {
       label: "Encuestas activas",
