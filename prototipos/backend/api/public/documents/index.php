@@ -7,6 +7,7 @@ require_once __DIR__ . "/get.php";
 require_once __DIR__ . "/postUpdate.php";
 require_once __DIR__ . "/post.php";
 require_once __DIR__ . "/patch.php";
+require_once __DIR__ . "/delete.php";
 
 $method = $_SERVER["REQUEST_METHOD"];
 
@@ -55,6 +56,19 @@ switch ($method) {
 
         break;
 
+    case "DELETE":
+
+
+        requireAuth();
+
+        $idDoc = requirePositiveInt(
+            $_GET["id"] ?? null,
+            "El ID del documento"
+        );
+
+        deleteDocument($idDoc);
+
+        break;
 
     default:
 

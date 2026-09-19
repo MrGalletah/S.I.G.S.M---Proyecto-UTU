@@ -24,6 +24,7 @@ export async function getAllDocuments() {
     return data;
 }
 
+// Puede modificar la data y el archivo fisico
 export async function createOrUpdateDocument(data, idDoc = null) {
 
     const url =
@@ -51,7 +52,7 @@ export async function createOrUpdateDocument(data, idDoc = null) {
     return processResponse(req);
 }
 
-
+// Solo modifica la data 
 export async function updateDocument(data, idDoc) {
 
     const req = await fetch(`${documentsUrl}?id=${idDoc}`, {
@@ -64,4 +65,19 @@ export async function updateDocument(data, idDoc) {
     });
 
     return processResponse(req);
+}
+
+export async function deleteDocument(idDoc) {
+  const response = await fetch(`/api/documents?id=${idDoc}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.mensaje || "Error al eliminar el documento.");
+  }
+
+  return data;
 }

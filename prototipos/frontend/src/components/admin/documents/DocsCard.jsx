@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 
 import {
   createOrUpdateDocument,
+  deleteDocument,
   getAllDocuments,
   updateDocument,
 } from "../../../apiCalls/documents/documentsApi";
@@ -33,6 +34,7 @@ import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
 import { formatDate } from "../../utils/formatDate";
 import DocumentModal from "../../modals/DocumentDialog";
+import DeleteConfirmDialog from "../../modals/DeleteConfirmDialog";
 
 export default function DocsCard({ variant }) {
   const { notification, showNotification, closeNotification } =
@@ -75,6 +77,8 @@ export default function DocsCard({ variant }) {
   const [documents, setDocuments] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [documentToDelete, setDocumentToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -121,6 +125,31 @@ export default function DocsCard({ variant }) {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      setDeleting(true);
+
+      await deleteDocument(documentToDelete.id);
+
+      showNotification("Documento eliminado correctamente.", "success");
+
+      setDocumentToDelete(null);
+
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+
+      showNotification(
+        error.message || "Error al eliminar el documento.",
+        "error",
+      );
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -390,7 +419,11 @@ export default function DocsCard({ variant }) {
                           <EditOutlinedIcon fontSize="small" />
                         </IconButton>
 
-                        <IconButton size="small" color="error">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setDocumentToDelete(documentItem)}
+                        >
                           <DeleteOutlineOutlinedIcon fontSize="small" />
                         </IconButton>
                       </Stack>
@@ -434,6 +467,13 @@ export default function DocsCard({ variant }) {
         document={selectedDocument}
         loading={saving}
         onSubmit={handleDocumentSubmit}
+      />
+      <DeleteConfirmDialog
+        open={Boolean(documentToDelete)}
+        documentTitle={documentToDelete?.document}
+        loading={deleting}
+        onClose={() => setDocumentToDelete(null)}
+        onConfirm={handleDeleteDocument}
       />
     </>
   );
