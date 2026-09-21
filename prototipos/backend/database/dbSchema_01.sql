@@ -27,10 +27,40 @@ CREATE TABLE IF NOT EXISTS rol_usuario (
     FOREIGN KEY (id_rol) REFERENCES rol (id_rol) ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE = InnoDB;
 
+-- DATOS INICIALES
+INSERT INTO
+    rol (nombre, descripcion)
+VALUES (
+        "Administrador",
+        "Puede dar acceso a nuevos funcionarios, crear roles e interactuar con las secciones del sistema"
+    ),
+    (
+        'Gestor de documentación',
+        'Puede administrar categorías, documentos y encuestas'
+    ),
+    (
+        'Solicitante de traslado',
+        'Puede registrar nuevas solicitudes de traslado'
+    ),
+    (
+        'Gestor de traslados',
+        'Puede gestionar solicitudes, asignar recursos y actualizar estados'
+    ),
+    (
+        'Conductor',
+        'Funcionario habilitado para conducir vehículos institucionales'
+    ),
+    (
+        'Enfermero',
+        'Funcionario de enfermería que puede acompañar traslados'
+    ),
+    (
+        'Médico',
+        'Funcionario médico del hospital'
+    ),
+    (
+        'Administrativo',
+        'Funcionario administrativo del hospital'
+    );
 
-
--- DATOS INICIALES 
-INSERT INTO rol (nombre, descripcion) VALUES (
-    "Administrador",
-    "Puede dar acceso a nuevos funcionarios, crear roles e interactuar con las secciones del sistema"
-)
+CREATE INDEX idx_rol_usuario_rol ON rol_usuario (id_rol, id_func);

@@ -9,9 +9,9 @@ import CategoriesCard from "./components/admin/documents/CategoriesCard";
 import DocsCard from "./components/admin/documents/DocsCard";
 import SurveysCard from "./components/admin/documents/SurveysCard";
 
-import NewTransfer from "./components/admin/ambulances/NewTansfer";
-import FollowUp from "./components/admin/ambulances/FollowUp";
 import UserView from "./components/admin/general/UserView";
+import NewTransfer from "./components/admin/ambulances/transfer/NewTansfer";
+import FollowUp from "./components/admin/ambulances/followUp/FollowUp";
 
 function App() {
   return (
