@@ -1,9 +1,7 @@
 <?php
 
-require_once __DIR__ . "/../../config/Database.php";
-require_once __DIR__ . "/../../middleware/requireAuth.php";
 require_once __DIR__ . "/../../utils/jsonResponse.php";
-require_once __DIR__ . "/../../services/TransferQueryService.php";
+require_once __DIR__ . "/../../handlers/transfers/getTransfers.php";
 
 
 requireAuth();
@@ -12,7 +10,7 @@ requireAuth();
 switch ($_SERVER["REQUEST_METHOD"]) {
 
     case "GET":
-        getTransfers();
+        handleGetTransfers();
         break;
 
     default:
@@ -23,30 +21,3 @@ switch ($_SERVER["REQUEST_METHOD"]) {
 }
 
 
-function getTransfers(): void
-{
-    try {
-
-        $db = Database::getConnection();
-
-        $service = new TransferQueryService($db);
-
-        $transfers = $service->getActiveTransfers();
-
-        sendJson(200, [
-            "ok" => true,
-            "traslados" => $transfers
-        ]);
-
-    } catch (Throwable $e) {
-
-        error_log(
-            "Error al obtener traslados: " . $e->getMessage()
-        );
-
-        sendJson(500, [
-            "ok" => false,
-            "mensaje" => "Error al obtener los traslados."
-        ]);
-    }
-}
