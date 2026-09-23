@@ -2,8 +2,10 @@ import {
   Box,
   Button,
   Card,
+  Checkbox,
   Chip,
   CircularProgress,
+  FormControlLabel,
   IconButton,
   Pagination,
   Stack,
@@ -16,6 +18,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+
 
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -116,14 +119,18 @@ export default function CategoriesCard({ variant }) {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [onlyActive, setOnlyActive] = useState(false);
 
   const filteredCategories = categories.filter((category) => {
     const searchText = search.toLowerCase();
 
-    return (
+    const matchesSearch =
       category.nombre.toLowerCase().includes(searchText) ||
-      category.descripcion.toLowerCase().includes(searchText)
-    );
+      category.descripcion.toLowerCase().includes(searchText);
+
+    const matchesStatus = !onlyActive || category.activo === 1;
+
+    return matchesSearch && matchesStatus;
   });
 
   const totalPages = Math.ceil(filteredCategories.length / rowsPerPage);
@@ -196,22 +203,50 @@ export default function CategoriesCard({ variant }) {
           </Button>
         </Stack>
 
-        <TextField
-          size="small"
-          placeholder="Buscar categoría"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
           sx={{
             mb: 2,
-            width: {
-              xs: "100%",
-              sm: "250px",
-            },
+            gap: 2,
+            alignItems: { xs: "flex-start", sm: "center" },
+            justifyContent: "space-between",
           }}
-        />
+        >
+          <TextField
+            size="small"
+            placeholder="Buscar categoría"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            sx={{
+              width: {
+                xs: "100%",
+                sm: "250px",
+              },
+            }}
+          />
+
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={onlyActive}
+                onChange={(e) => {
+                  setOnlyActive(e.target.checked);
+                  setPage(1);
+                }}
+                sx={{
+                  color: "var(--primary-color)",
+                  "&.Mui-checked": {
+                    color: "var(--primary-color)",
+                  },
+                }}
+              />
+            }
+            label="Mostrar solo activas"
+          />
+        </Stack>
         {loading ? (
           <Box
             sx={{
