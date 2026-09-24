@@ -1,12 +1,6 @@
-import { useState } from "react";
-import {
-  Box,
-  Button,
-  Card,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { useEffect, useState } from "react";
+
+import { Box, Button, Card, Stack, TextField, Typography } from "@mui/material";
 
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
@@ -20,11 +14,13 @@ import TransferSubjectField from "./TransferSubjectField";
 import {
   initialForm,
   routeRules,
-  tipoTrasladoOptions,
-  tipoElementoOptions,
   prioridadOptions,
 } from "./transferFormConfig";
 
+import {
+  createTransfer,
+  getTransferCatalogs,
+} from "../../../../apiCalls/transfers/transfersApi";
 
 import { useNotification } from "../../../../hooks/useNotification";
 import NotificationSnackbar from "../../../utils/NotificationSnackbar";
@@ -32,30 +28,79 @@ import NotificationSnackbar from "../../../utils/NotificationSnackbar";
 export default function NewTransfer() {
   const [form, setForm] = useState(initialForm);
 
-  const {
-    notification,
-    showNotification,
-    closeNotification,
-  } = useNotification();
+  const [transferTypes, setTransferTypes] = useState([]);
+  const [elementTypes, setElementTypes] = useState([]);
 
-  const currentRouteRule =
-    routeRules[form.tipoTraslado] ?? {
-      lockOrigen: false,
-      lockDestino: false,
+  const [loadingCatalogs, setLoadingCatalogs] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const { notification, showNotification, closeNotification } =
+    useNotification();
+
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      try {
+        const data = await getTransferCatalogs();
+
+        setTransferTypes(data.tipos_traslado ?? []);
+
+        setElementTypes(data.tipos_elemento ?? []);
+      } catch (error) {
+        showNotification(error.message, "error");
+      } finally {
+        setLoadingCatalogs(false);
+      }
     };
+
+    loadCatalogs();
+  }, []);
+
+  const selectedTransferType = transferTypes.find(
+    (type) => Number(type.id_tipo_traslado) === Number(form.tipoTraslado),
+  );
+
+  const selectedElementType = elementTypes.find(
+    (type) => Number(type.id_tipo_elemento) === Number(form.tipoElemento),
+  );
+
+  const transferTypeName = selectedTransferType?.nombre ?? "";
+
+  const elementTypeName = selectedElementType?.nombre ?? "";
+
+  const currentRouteRule = routeRules[transferTypeName] ?? {
+    lockOrigen: false,
+    lockDestino: false,
+  };
+
+  const tipoTrasladoOptions = transferTypes.map((type) => ({
+    value: type.id_tipo_traslado,
+    label: type.nombre,
+  }));
+
+  const tipoElementoOptions = elementTypes.map((type) => ({
+    value: type.id_tipo_elemento,
+    label: type.nombre,
+  }));
 
   const handleChange = (event) => {
     const { name, value } = event.target;
 
     setForm((prev) => {
       if (name === "tipoTraslado") {
-        const rule = routeRules[value];
+        const selectedType = transferTypes.find(
+          (type) => Number(type.id_tipo_traslado) === Number(value),
+        );
+
+        const rule = routeRules[selectedType?.nombre] ?? {
+          origen: "",
+          destino: "",
+        };
 
         return {
           ...prev,
           tipoTraslado: value,
-          origen: rule?.origen ?? "",
-          destino: rule?.destino ?? "",
+          origen: rule.origen ?? "",
+          destino: rule.destino ?? "",
         };
       }
 
@@ -76,10 +121,12 @@ export default function NewTransfer() {
   };
 
   const handleCancel = () => {
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+    });
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (
@@ -90,53 +137,74 @@ export default function NewTransfer() {
       !form.prioridad ||
       !form.fechaRequerida
     ) {
-      showNotification(
-        "Complete todos los campos obligatorios.",
-        "error"
-      );
+      showNotification("Complete todos los campos obligatorios.", "error");
+
+      return;
+    }
+
+    if (elementTypeName === "Paciente" && !form.cedulaPaciente.trim()) {
+      showNotification("Ingrese la cédula del paciente.", "error");
+
+      return;
+    }
+
+    if (elementTypeName !== "Paciente" && !form.elemento.trim()) {
+      showNotification("Ingrese una descripción del elemento.", "error");
+
       return;
     }
 
     if (
-      form.tipoElemento === "Paciente" &&
-      !form.cedulaPaciente.trim()
-    ) {
-      showNotification(
-        "Ingrese la cédula del paciente.",
-        "error"
-      );
-      return;
-    }
-
-    if (
-      form.tipoElemento !== "Paciente" &&
-      !form.elemento.trim()
-    ) {
-      showNotification(
-        "Ingrese una descripción del elemento.",
-        "error"
-      );
-      return;
-    }
-
-    if (
-      form.tipoTraslado !== "Traslado interno" &&
-      form.origen.trim().toLowerCase() ===
-        form.destino.trim().toLowerCase()
+      transferTypeName !== "Traslado interno" &&
+      form.origen.trim().toLowerCase() === form.destino.trim().toLowerCase()
     ) {
       showNotification(
         "El origen y el destino no pueden ser iguales.",
-        "error"
+        "error",
       );
+
       return;
     }
 
-    console.log(form);
+    const transferData = {
+      id_tipo_traslado: Number(form.tipoTraslado),
 
-    showNotification(
-      "Solicitud de traslado registrada correctamente.",
-      "success"
-    );
+      id_tipo_elemento: Number(form.tipoElemento),
+
+      cedula_paciente:
+        elementTypeName === "Paciente" ? form.cedulaPaciente.trim() : null,
+
+      elemento: elementTypeName !== "Paciente" ? form.elemento.trim() : null,
+
+      origen: form.origen.trim(),
+
+      destino: form.destino.trim(),
+
+      prioridad: form.prioridad.toUpperCase(),
+
+      fecha_requerida: form.fechaRequerida,
+
+      observaciones: form.observaciones.trim() || null,
+    };
+
+    try {
+      setSubmitting(true);
+
+      await createTransfer(transferData);
+
+      showNotification(
+        "Solicitud de traslado registrada correctamente.",
+        "success",
+      );
+
+      setForm({
+        ...initialForm,
+      });
+    } catch (error) {
+      showNotification(error.message, "error");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -192,6 +260,7 @@ export default function NewTransfer() {
             icon={<LocalHospitalOutlinedIcon />}
             select
             options={tipoTrasladoOptions}
+            disabled={loadingCatalogs}
           />
 
           <TransferFormField
@@ -202,10 +271,11 @@ export default function NewTransfer() {
             icon={<Inventory2OutlinedIcon />}
             select
             options={tipoElementoOptions}
+            disabled={loadingCatalogs}
           />
 
           <TransferSubjectField
-            tipoElemento={form.tipoElemento}
+            tipoElemento={elementTypeName}
             cedulaPaciente={form.cedulaPaciente}
             elemento={form.elemento}
             onChange={handleChange}
@@ -274,6 +344,7 @@ export default function NewTransfer() {
               value={form.observaciones}
               onChange={handleChange}
               placeholder="Ingrese observaciones adicionales..."
+              disabled={submitting}
             />
           </Box>
         </Box>
@@ -290,6 +361,7 @@ export default function NewTransfer() {
             type="button"
             variant="outlined"
             onClick={handleCancel}
+            disabled={submitting}
           >
             Cancelar
           </Button>
@@ -297,8 +369,9 @@ export default function NewTransfer() {
           <Button
             type="submit"
             variant="contained"
+            disabled={submitting || loadingCatalogs}
           >
-            Enviar solicitud
+            {submitting ? "Enviando..." : "Enviar solicitud"}
           </Button>
         </Stack>
       </Card>

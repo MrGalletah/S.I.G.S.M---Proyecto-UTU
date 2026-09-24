@@ -49,22 +49,6 @@ export const routeRules = {
   },
 };
 
-export const tipoTrasladoOptions = [
-  "Traslado interno",
-  "Traslado a otro centro",
-  "Traslado a domicilio",
-  "Retorno al hospital",
-  "Otro",
-];
-
-export const tipoElementoOptions = [
-  "Paciente",
-  "Muestra biológica",
-  "Equipamiento",
-  "Insumo",
-  "Otro",
-];
-
 export const prioridadOptions = [
   "Normal",
   "Urgente",

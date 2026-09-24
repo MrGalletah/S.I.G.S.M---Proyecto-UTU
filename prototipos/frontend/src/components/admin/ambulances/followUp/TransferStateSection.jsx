@@ -1,25 +1,17 @@
-import {
-  Box,
-  Divider,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Divider, Stack, TextField, Typography } from "@mui/material";
 
 import { stateTransitions } from "./transferEditUtils";
 
-export default function TransferStateSection({
-  transfer,
-  form,
-  onChange,
-}) {
-  const availableStates =
-    stateTransitions[transfer.estado] ?? [];
+export default function TransferStateSection({ transfer, form, onChange }) {
+  const nextState = stateTransitions[transfer.estado]?.[0] ?? null;
 
   return (
     <>
-      <Divider sx={{ my: 3 }} />
+      <Divider
+        sx={{
+          my: 3,
+        }}
+      />
 
       <Box>
         <Typography
@@ -41,23 +33,19 @@ export default function TransferStateSection({
           Estado actual: {transfer.estado}
         </Typography>
 
-        {availableStates.length > 0 ? (
+        {nextState ? (
           <Stack spacing={2}>
             <TextField
-              select
               fullWidth
               size="small"
-              label="Nuevo estado *"
-              name="nuevoEstado"
-              value={form.nuevoEstado}
-              onChange={onChange}
-            >
-              {availableStates.map((state) => (
-                <MenuItem key={state} value={state}>
-                  {state}
-                </MenuItem>
-              ))}
-            </TextField>
+              label="Siguiente estado"
+              value={nextState}
+              slotProps={{
+                input: {
+                  readOnly: true,
+                },
+              }}
+            />
 
             <TextField
               fullWidth

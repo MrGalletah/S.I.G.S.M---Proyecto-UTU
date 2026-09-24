@@ -19,26 +19,60 @@ import {
   stateTransitions,
 } from "./transferEditUtils";
 
+import {
+  advanceTransferState,
+  assignTransfer,
+  getTransferResources,
+} from "../../../../apiCalls/transfers/transfersApi";
+
 import { useNotification } from "../../../../hooks/useNotification";
+
 import NotificationSnackbar from "../../../utils/NotificationSnackbar";
 
 export default function TransferEditDialog({
   open,
   transfer,
   onClose,
-  onSave,
+  onAssigned,
+  onStateUpdated,
 }) {
   const [form, setForm] = useState(() => getInitialAssignmentForm(transfer));
+
+  const [resources, setResources] = useState(null);
+
+  const [loadingResources, setLoadingResources] = useState(false);
+
+  const [savingAssignment, setSavingAssignment] = useState(false);
+
+  const [savingState, setSavingState] = useState(false);
 
   const { notification, showNotification, closeNotification } =
     useNotification();
 
   const assigned = isTransferAssigned(transfer);
 
-  const availableStates = stateTransitions[transfer?.estado] ?? [];
+  const nextState = stateTransitions[transfer?.estado]?.[0] ?? null;
+
+  const saving = savingAssignment || savingState;
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+
+    if (name === "horaSalidaEstimada" || name === "horaLlegadaEstimada") {
+      setResources(null);
+
+      setForm((prev) => ({
+        ...prev,
+
+        [name]: value,
+
+        idVehiculo: "",
+        idConductor: "",
+        idEnfermero: "",
+      }));
+
+      return;
+    }
 
     setForm((prev) => ({
       ...prev,
@@ -46,22 +80,13 @@ export default function TransferEditDialog({
     }));
   };
 
-  const handleAssignment = () => {
-    if (
-      !form.vehiculo ||
-      !form.conductor ||
-      !form.horaSalidaEstimada ||
-      !form.horaLlegadaEstimada
-    ) {
-      showNotification("Complete todos los datos obligatorios.", "error");
-      return;
-    }
-
-    if (transfer.tipoElemento === "Paciente" && !form.enfermero) {
+  const handleLoadResources = async () => {
+    if (!form.horaSalidaEstimada || !form.horaLlegadaEstimada) {
       showNotification(
-        "Los traslados de pacientes requieren un enfermero.",
+        "Ingrese la hora de salida y llegada estimadas.",
         "error",
       );
+
       return;
     }
 
@@ -72,43 +97,153 @@ export default function TransferEditDialog({
         "La llegada estimada debe ser posterior a la salida.",
         "error",
       );
+
       return;
     }
 
-    onSave({
-      ...transfer,
-      vehiculo: form.vehiculo,
-      conductor: form.conductor,
-      enfermero: form.enfermero || null,
-      horaSalidaEstimada: form.horaSalidaEstimada,
-      horaLlegadaEstimada: form.horaLlegadaEstimada,
-    });
+    try {
+      setLoadingResources(true);
 
-    onClose();
+      const data = await getTransferResources(
+        transfer.id,
+        form.horaSalidaEstimada,
+        form.horaLlegadaEstimada,
+      );
+
+      setResources(data);
+
+      setForm((prev) => ({
+        ...prev,
+
+        idVehiculo: "",
+        idConductor: "",
+        idEnfermero: "",
+      }));
+    } catch (error) {
+      setResources(null);
+
+      showNotification(error.message, "error");
+    } finally {
+      setLoadingResources(false);
+    }
   };
 
-  const handleStateUpdate = () => {
-    if (!form.nuevoEstado) {
-      showNotification("Seleccione el nuevo estado.", "error");
+  const handleAssignment = async () => {
+    if (!resources) {
+      showNotification(
+        "Consulte primero la disponibilidad de recursos.",
+        "error",
+      );
+
       return;
     }
 
-    onSave({
-      ...transfer,
-      estado: form.nuevoEstado,
-      ultimaObservacionEstado: form.observacionEstado.trim() || null,
-    });
+    if (
+      !form.idVehiculo ||
+      !form.idConductor ||
+      !form.horaSalidaEstimada ||
+      !form.horaLlegadaEstimada
+    ) {
+      showNotification("Complete todos los datos obligatorios.", "error");
 
-    onClose();
+      return;
+    }
+
+    if (transfer.tipoElemento === "Paciente" && !form.idEnfermero) {
+      showNotification(
+        "Los traslados de pacientes requieren un enfermero.",
+        "error",
+      );
+
+      return;
+    }
+
+    const version = resources.version ?? transfer.version;
+
+    if (version === null || version === undefined) {
+      showNotification(
+        "No se pudo obtener la versión actual del traslado.",
+        "error",
+      );
+
+      return;
+    }
+
+    try {
+      setSavingAssignment(true);
+
+      await assignTransfer(transfer.id, {
+        version: Number(version),
+
+        id_vehiculo: Number(form.idVehiculo),
+
+        id_conductor: Number(form.idConductor),
+
+        id_enfermero: form.idEnfermero ? Number(form.idEnfermero) : null,
+
+        hora_salida_estimada: form.horaSalidaEstimada,
+
+        hora_llegada_estimada: form.horaLlegadaEstimada,
+      });
+
+      await onAssigned(transfer.id);
+    } catch (error) {
+      setResources(null);
+
+      setForm((prev) => ({
+        ...prev,
+
+        idVehiculo: "",
+        idConductor: "",
+        idEnfermero: "",
+      }));
+
+      showNotification(error.message, "error");
+    } finally {
+      setSavingAssignment(false);
+    }
   };
 
-  if (!transfer) return null;
+  const handleStateUpdate = async () => {
+    if (!nextState) {
+      return;
+    }
+
+    if (transfer.version === null || transfer.version === undefined) {
+      showNotification(
+        "No se pudo obtener la versión actual del traslado.",
+        "error",
+      );
+
+      return;
+    }
+
+    try {
+      setSavingState(true);
+
+      await advanceTransferState(
+        transfer.id,
+        Number(transfer.version),
+        form.observacionEstado.trim() || null,
+      );
+
+      await onStateUpdated(transfer.id);
+    } catch (error) {
+      showNotification(error.message, "error");
+    } finally {
+      setSavingState(false);
+    }
+  };
+
+  if (!transfer) {
+    return null;
+  }
 
   return (
     <>
       <Dialog
         open={open}
-        onClose={onClose}
+        onClose={saving ? undefined : onClose}
         fullWidth
         maxWidth="md"
         slotProps={{
@@ -119,7 +254,11 @@ export default function TransferEditDialog({
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800 }}>
+        <DialogTitle
+          sx={{
+            fontWeight: 800,
+          }}
+        >
           Gestionar traslado {transfer.codigo}
         </DialogTitle>
 
@@ -133,7 +272,7 @@ export default function TransferEditDialog({
           >
             {assigned
               ? "Consulte los datos del traslado y actualice su estado."
-              : "Revise la solicitud y complete la asignación de recursos."}
+              : "Revise la solicitud, defina el horario y consulte los recursos disponibles."}
           </Typography>
 
           <RequestAccordion transfer={transfer} />
@@ -143,6 +282,9 @@ export default function TransferEditDialog({
             assigned={assigned}
             form={form}
             onChange={handleChange}
+            resources={resources}
+            loadingResources={loadingResources}
+            onLoadResources={handleLoadResources}
           />
 
           {assigned && (
@@ -154,12 +296,19 @@ export default function TransferEditDialog({
           )}
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, pb: 3 }}>
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 3,
+          }}
+        >
           <Button
             variant="outlined"
             onClick={onClose}
+            disabled={saving}
             sx={{
               textTransform: "none",
+
               borderRadius: 2,
               fontWeight: 700,
             }}
@@ -167,35 +316,41 @@ export default function TransferEditDialog({
             Cancelar
           </Button>
 
-          {!assigned ? (
-            <Button
-              variant="contained"
-              onClick={handleAssignment}
-              sx={{
-                textTransform: "none",
-                borderRadius: 2,
-                fontWeight: 700,
-                bgcolor: "var(--primary-color)",
-              }}
-            >
-              Confirmar asignación
-            </Button>
-          ) : (
-            availableStates.length > 0 && (
-              <Button
-                variant="contained"
-                onClick={handleStateUpdate}
-                sx={{
-                  textTransform: "none",
-                  borderRadius: 2,
-                  fontWeight: 700,
-                  bgcolor: "var(--primary-color)",
-                }}
-              >
-                Actualizar estado
-              </Button>
-            )
-          )}
+          {!assigned
+            ? resources && (
+                <Button
+                  variant="contained"
+                  onClick={handleAssignment}
+                  disabled={savingAssignment}
+                  sx={{
+                    textTransform: "none",
+
+                    borderRadius: 2,
+                    fontWeight: 700,
+
+                    bgcolor: "var(--primary-color)",
+                  }}
+                >
+                  {savingAssignment ? "Asignando..." : "Confirmar asignación"}
+                </Button>
+              )
+            : nextState && (
+                <Button
+                  variant="contained"
+                  onClick={handleStateUpdate}
+                  disabled={savingState}
+                  sx={{
+                    textTransform: "none",
+
+                    borderRadius: 2,
+                    fontWeight: 700,
+
+                    bgcolor: "var(--primary-color)",
+                  }}
+                >
+                  {savingState ? "Actualizando..." : "Actualizar estado"}
+                </Button>
+              )}
         </DialogActions>
       </Dialog>
 

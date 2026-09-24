@@ -44,27 +44,32 @@ export default function TransferFormField({
         sx={{
           "& .MuiOutlinedInput-root": {
             borderRadius: 2,
-            bgcolor: disabled
-              ? "action.hover"
-              : "var(--white-color)",
+
+            bgcolor: disabled ? "action.hover" : "var(--white-color)",
           },
         }}
         slotProps={{
           input: {
             startAdornment: icon ? (
-              <InputAdornment position="start">
-                {icon}
-              </InputAdornment>
+              <InputAdornment position="start">{icon}</InputAdornment>
             ) : null,
           },
         }}
       >
         {select &&
-          options.map((option) => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
+          options.map((option) => {
+            const isObject = typeof option === "object";
+
+            const optionValue = isObject ? option.value : option;
+
+            const optionLabel = isObject ? option.label : option;
+
+            return (
+              <MenuItem key={optionValue} value={optionValue}>
+                {optionLabel}
+              </MenuItem>
+            );
+          })}
       </TextField>
     </Box>
   );

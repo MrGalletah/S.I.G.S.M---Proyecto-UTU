@@ -18,7 +18,7 @@ class TransferCatalogService
             descripcion
         FROM tipo_traslado
         WHERE activo = TRUE
-        ORDER BY nombre
+        ORDER BY id_tipo_traslado ASC
     ";
 
         $elementTypesSql = "
@@ -27,7 +27,7 @@ class TransferCatalogService
             nombre,
             descripcion
         FROM tipo_elemento
-        ORDER BY nombre
+        ORDER BY id_tipo_elemento ASC
     ";
 
 
@@ -77,5 +77,4 @@ class TransferCatalogService
             )
         ];
     }
-
 }

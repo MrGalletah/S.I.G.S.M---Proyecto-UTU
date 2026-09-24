@@ -1,28 +1,9 @@
-export const vehicleOptions = [
-  "Ambulancia A-01",
-  "Ambulancia A-02",
-  "Ambulancia A-03",
-  "Auto 01",
-];
-
-export const driverOptions = [
-  "Carlos Rodríguez",
-  "Juan Pérez",
-  "Martín González",
-];
-
-export const nurseOptions = [
-  "Laura Martínez",
-  "María López",
-  "Sofía Rodríguez",
-];
-
 export const stateTransitions = {
-  Registrado: ["En camino"],
+  "Registrado": ["En camino"],
   "En camino": ["Llegó al destino"],
   "Llegó al destino": ["Retornando"],
-  Retornando: ["Completado"],
-  Completado: [],
+  "Retornando": ["Completado"],
+  "Completado": [],
 };
 
 export const initialAssignmentForm = {
