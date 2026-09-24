@@ -30,7 +30,7 @@ function handleGetTransferResources(): void
             sendJson(400, [
                 "ok" => false,
                 "mensaje" =>
-                    "La hora de llegada debe ser posterior a la hora de salida."
+                "La hora de llegada debe ser posterior a la hora de salida."
             ]);
         }
 
@@ -52,25 +52,35 @@ function handleGetTransferResources(): void
             "ok" => true,
             ...$resources
         ]);
-
     } catch (InvalidArgumentException $e) {
 
         sendJson(400, [
             "ok" => false,
             "mensaje" => $e->getMessage()
         ]);
+    } catch (RuntimeException $e) {
 
+        if ($e->getCode() === 409) {
+            sendJson(409, [
+                "ok" => false,
+                "mensaje" => $e->getMessage()
+            ]);
+
+            return;
+        }
+
+        throw $e;
     } catch (Throwable $e) {
 
         error_log(
             "Error al obtener recursos disponibles: "
-            . $e->getMessage()
+                . $e->getMessage()
         );
 
         sendJson(500, [
             "ok" => false,
             "mensaje" =>
-                "Error al obtener los recursos disponibles."
+            "Error al obtener los recursos disponibles."
         ]);
     }
 }

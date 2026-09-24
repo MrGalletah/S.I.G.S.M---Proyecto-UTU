@@ -37,6 +37,13 @@ class TransferResourceService
             );
         }
 
+        if ($this->isAlreadyAssigned($transfer)) {
+            throw new RuntimeException(
+                "El traslado ya fue asignado.",
+                409
+            );
+        }
+
         $requiresNurse =
             $transfer["tipo_elemento"] === "Paciente";
 
@@ -44,21 +51,21 @@ class TransferResourceService
         return [
             "traslado" => [
                 "id_traslado" =>
-                    (int) $transfer["id_traslado"],
+                (int) $transfer["id_traslado"],
 
                 "version" =>
-                    (int) $transfer["version"],
+                (int) $transfer["version"],
 
                 "tipo_elemento" => [
                     "id_tipo_elemento" =>
-                        (int) $transfer["id_tipo_elemento"],
+                    (int) $transfer["id_tipo_elemento"],
 
                     "nombre" =>
-                        $transfer["tipo_elemento"]
+                    $transfer["tipo_elemento"]
                 ],
 
                 "requiere_enfermero" =>
-                    $requiresNurse
+                $requiresNurse
             ],
 
             "intervalo" => [
@@ -67,30 +74,30 @@ class TransferResourceService
             ],
 
             "vehiculos" =>
-                $this->getAvailableVehicles(
-                    (int) $transfer["id_tipo_elemento"],
-                    $idTraslado,
-                    $inicio,
-                    $fin
-                ),
+            $this->getAvailableVehicles(
+                (int) $transfer["id_tipo_elemento"],
+                $idTraslado,
+                $inicio,
+                $fin
+            ),
 
             "conductores" =>
-                $this->getAvailableEmployees(
-                    "Conductor",
-                    "id_conductor",
-                    $idTraslado,
-                    $inicio,
-                    $fin
-                ),
+            $this->getAvailableEmployees(
+                "Conductor",
+                "id_conductor",
+                $idTraslado,
+                $inicio,
+                $fin
+            ),
 
             "enfermeros" =>
-                $this->getAvailableEmployees(
-                    "Enfermero",
-                    "id_enfermero",
-                    $idTraslado,
-                    $inicio,
-                    $fin
-                )
+            $this->getAvailableEmployees(
+                "Enfermero",
+                "id_enfermero",
+                $idTraslado,
+                $inicio,
+                $fin
+            )
         ];
     }
 
@@ -99,30 +106,40 @@ class TransferResourceService
         int $idTraslado
     ): ?array {
         $sql = "
-            SELECT
-                t.id_traslado,
-                t.version,
-                t.activo,
+    SELECT
+        t.id_traslado,
+        t.version,
+        t.activo,
 
-                t.id_tipo_elemento,
-                te.nombre AS tipo_elemento,
+        t.id_tipo_elemento,
+        te.nombre AS tipo_elemento,
 
-                et.nombre AS estado
+        t.id_vehiculo,
+        t.id_conductor,
+        t.id_enfermero,
 
-            FROM traslado t
+        t.id_func_gestor,
+        t.fecha_gestion,
 
-            INNER JOIN tipo_elemento te
-                ON te.id_tipo_elemento =
-                    t.id_tipo_elemento
+        t.hora_salida_estimada,
+        t.hora_llegada_estimada,
 
-            INNER JOIN estado_traslado et
-                ON et.id_estado =
-                    t.id_estado
+        et.nombre AS estado
 
-            WHERE t.id_traslado = :id_traslado
+    FROM traslado t
 
-            LIMIT 1
-        ";
+    INNER JOIN tipo_elemento te
+        ON te.id_tipo_elemento =
+            t.id_tipo_elemento
+
+    INNER JOIN estado_traslado et
+        ON et.id_estado =
+            t.id_estado
+
+    WHERE t.id_traslado = :id_traslado
+
+    LIMIT 1
+";
 
         $stmt = $this->db->prepare($sql);
 
@@ -214,16 +231,16 @@ class TransferResourceService
 
         $stmt->execute([
             "id_tipo_elemento" =>
-                $idTipoElemento,
+            $idTipoElemento,
 
             "id_traslado" =>
-                $idTraslado,
+            $idTraslado,
 
             "inicio" =>
-                $inicio,
+            $inicio,
 
             "fin" =>
-                $fin
+            $fin
         ]);
 
         $rows = $stmt->fetchAll(
@@ -233,20 +250,20 @@ class TransferResourceService
         return array_map(
             fn(array $row) => [
                 "id_vehiculo" =>
-                    (int) $row["id_vehiculo"],
+                (int) $row["id_vehiculo"],
 
                 "matricula" =>
-                    $row["matricula"],
+                $row["matricula"],
 
                 "modelo" =>
-                    $row["modelo"],
+                $row["modelo"],
 
                 "tipo" => [
                     "id_tipo_vehiculo" =>
-                        (int) $row["id_tipo_vehiculo"],
+                    (int) $row["id_tipo_vehiculo"],
 
                     "nombre" =>
-                        $row["tipo_vehiculo"]
+                    $row["tipo_vehiculo"]
                 ]
             ],
             $rows
@@ -338,16 +355,16 @@ class TransferResourceService
 
         $stmt->execute([
             "rol" =>
-                $role,
+            $role,
 
             "id_traslado" =>
-                $idTraslado,
+            $idTraslado,
 
             "inicio" =>
-                $inicio,
+            $inicio,
 
             "fin" =>
-                $fin
+            $fin
         ]);
 
         $rows = $stmt->fetchAll(
@@ -357,12 +374,25 @@ class TransferResourceService
         return array_map(
             fn(array $row) => [
                 "id_func" =>
-                    (int) $row["id_func"],
+                (int) $row["id_func"],
 
                 "nombre" =>
-                    $row["nombre"]
+                $row["nombre"]
             ],
             $rows
         );
+    }
+
+    private function isAlreadyAssigned(
+        array $transfer
+    ): bool {
+        return
+            $transfer["id_func_gestor"] !== null
+            || $transfer["fecha_gestion"] !== null
+            || $transfer["id_vehiculo"] !== null
+            || $transfer["id_conductor"] !== null
+            || $transfer["id_enfermero"] !== null
+            || $transfer["hora_salida_estimada"] !== null
+            || $transfer["hora_llegada_estimada"] !== null;
     }
 }
