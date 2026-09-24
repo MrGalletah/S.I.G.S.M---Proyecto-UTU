@@ -18,6 +18,7 @@ class TransferQueryService
                 t.fecha_solicitud,
                 t.fecha_requerida,
                 t.prioridad,
+                t.version,
 
                 tt.id_tipo_traslado,
                 tt.nombre AS tipo_traslado,
@@ -309,6 +310,7 @@ class TransferQueryService
             t.fecha_requerida,
             t.prioridad,
             t.observaciones,
+            t.version,
 
             tt.id_tipo_traslado,
             tt.nombre AS tipo_traslado,
@@ -638,6 +640,7 @@ class TransferQueryService
                 "orden" =>
                 (int) $row["estado_orden"]
             ],
+            "version" => (int) $row["version"],
 
             "historial" =>
             $history
@@ -741,7 +744,8 @@ class TransferQueryService
                 "orden" => (int) $row["estado_orden"]
             ],
 
-            "asignado" => (bool) $row["asignado"]
+            "asignado" => (bool) $row["asignado"],
+            "version" => (int) $row["version"],
         ];
     }
 

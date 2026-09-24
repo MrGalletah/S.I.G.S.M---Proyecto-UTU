@@ -159,3 +159,87 @@ function validateMimeType(
 
     return $mimeType;
 }
+
+function cleanOptionalString(mixed $value): ?string
+{
+    if ($value === null) {
+        return null;
+    }
+
+    $value = trim((string) $value);
+
+    return $value === ""
+        ? null
+        : $value;
+}
+
+
+function isValidTransferDate(string $date): bool
+{
+    $value = DateTime::createFromFormat(
+        "Y-m-d",
+        $date
+    );
+
+    return $value !== false
+        && $value->format("Y-m-d") === $date;
+}
+
+function requireDateTime(
+    mixed $value,
+    string $fieldName
+): string {
+    if (!is_string($value) || trim($value) === "") {
+        sendJson(400, [
+            "ok" => false,
+            "mensaje" => "$fieldName es obligatorio."
+        ]);
+
+        exit;
+    }
+
+    $value = trim($value);
+
+    $formats = [
+        "Y-m-d\TH:i",
+        "Y-m-d\TH:i:s",
+        "Y-m-d H:i",
+        "Y-m-d H:i:s"
+    ];
+
+    foreach ($formats as $format) {
+
+        $date = DateTime::createFromFormat(
+            $format,
+            $value
+        );
+
+        if (
+            $date !== false
+            && $date->format($format) === $value
+        ) {
+            return $date->format("Y-m-d H:i:s");
+        }
+    }
+
+    sendJson(400, [
+        "ok" => false,
+        "mensaje" => "$fieldName no tiene un formato válido."
+    ]);
+
+    exit;
+}
+
+function optionalPositiveInt(
+    mixed $value,
+    string $fieldName
+): ?int {
+    if ($value === null || $value === "") {
+        return null;
+    }
+
+    return requirePositiveInt(
+        $value,
+        $fieldName
+    );
+}

@@ -215,6 +215,7 @@ CREATE TABLE traslado (
 
     fecha_baja DATETIME NULL,
 
+    version INT UNSIGNED NOT NULL DEFAULT 1,
 
     CONSTRAINT fk_traslado_tipo_traslado
         FOREIGN KEY (id_tipo_traslado)
