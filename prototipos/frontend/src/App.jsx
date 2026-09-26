@@ -10,6 +10,7 @@ import DocsCard from "./components/admin/documents/DocsCard";
 import SurveysCard from "./components/admin/documents/SurveysCard";
 
 import UserView from "./components/admin/general/UserView";
+import AccessRequestsCard from "./components/admin/access/AccessRequestsCard";
 import NewTransfer from "./components/admin/ambulances/transfer/NewTansfer";
 import FollowUp from "./components/admin/ambulances/followUp/FollowUp";
 
@@ -44,7 +45,7 @@ function App() {
           />
           <Route
             path="admin/access"
-            element={<div> Conceder acceso - En construcción</div>}
+            element={<AccessRequestsCard variant="full" />}
           />
         </Route>
       </Route>
