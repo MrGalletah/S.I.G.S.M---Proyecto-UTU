@@ -12,29 +12,24 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { login } from "../../apiCalls/auth/authApi";
+import { login, requestAccess } from "../../apiCalls/auth/authApi";
+import { useNotification } from "../../hooks/useNotification";
 
 export default function LoginForm() {
   const navigate = useNavigate();
-  const [name, setName] = useState(""); 
+  const { notification, showNotification, closeNotification } =
+    useNotification();
+
+  const [name, setName] = useState("");
   const [showLogin, setShowLogin] = useState(false);
   const [mail, setMail] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  
-
-  const handleOpenSnackbar = () => setOpenSnackbar(true);
-  const handleCloseSnackbar = (event, reason) => {
-    if (reason === "clickaway") {
-      return;
-    }
-    setOpenSnackbar(false);
-  };
 
   const resetFields = () => {
+    setName("");
     setMail("");
     setPwd("");
     setConfirmPwd("");
@@ -49,20 +44,46 @@ export default function LoginForm() {
 
   const handlesubmit = async (e) => {
     e.preventDefault();
-    console.log(name, confirmPwd);
 
     setError("");
 
     if (showLogin) {
-      if (pwd !== confirmPwd) {
-        setError("Las contraseñas no coinciden");
-        handleOpenSnackbar();
+
+      if (!name.trim()) {
+        setError("El nombre es obligatorio");
+        showNotification("El nombre es obligatorio", "error");
         return;
       }
-      console.log("Solicitud de acceso:", { mail, pwd });
+
+      if (pwd !== confirmPwd) {
+        setError("Las contraseñas no coinciden");
+        showNotification("Las contraseñas no coinciden", "error");
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const req = await requestAccess(name, mail, pwd);
+
+        showNotification(
+          req.mensaje ||
+            "Solicitud enviada. Un administrador debe activar tu cuenta.",
+          "success"
+        );
+
+        setShowLogin(false);
+        resetFields();
+      } catch (e) {
+        setError(e.message);
+        showNotification(e.message, "error");
+      } finally {
+        setLoading(false);
+      }
+
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -73,7 +94,7 @@ export default function LoginForm() {
       navigate("/documents/dashboard");
     } catch (e) {
       setError(e.message);
-      handleOpenSnackbar();
+      showNotification(e.message, "error");
     } finally {
       setLoading(false);
     }
@@ -240,18 +261,18 @@ export default function LoginForm() {
         </Stack>
       </Box>
       <Snackbar
-        open={openSnackbar}
+        open={notification.open}
         autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
+        onClose={closeNotification}
         anchorOrigin={{ horizontal: "center", vertical: "top" }}
       >
         <Alert
-          onClose={handleCloseSnackbar}
-          severity="error"
+          onClose={closeNotification}
+          severity={notification.severity}
           variant="filled"
           sx={{ width: "100%" }}
         >
-          {error || "Las credenciales introducidas no son correctas"}
+          {notification.message}
         </Alert>
       </Snackbar>
     </>
