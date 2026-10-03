@@ -1,42 +1,129 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  Alert,
   Box,
+  Button,
   CircularProgress,
   Dialog,
+  DialogActions,
   DialogContent,
+  DialogContentText,
+  DialogTitle,
   Stack,
 } from "@mui/material";
 
 import TransferDetailsCard from "../../../utils/TransferDetailsCard";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import TransferEditDialog from "./TransferEditDialog";
-import StatCard from "../../../utils/StatCard";
 import TransfersCard from "./TransfersCard";
 
-import { cardsData } from "../../../../mockData/transfers";
+import {
+  deleteTransfer,
+  getTransferDetail,
+  getTransfers,
+} from "../../../../apiCalls/transfers/transfersApi";
 
-import { getTransferDetail, getTransfers } from "../../../../apiCalls/transfers/transfersApi";
+import {
+  filterAndSortTransfers,
+  initialFilters,
+  initialSort,
+} from "./TransferFiltersUtils";
 
 import { useNotification } from "../../../../hooks/useNotification";
-
 import NotificationSnackbar from "../../../utils/NotificationSnackbar";
 
+const rowsPerPage = 8;
+
 export default function FollowUp() {
-  const rowsPerPage = 8;
-
   const [transfers, setTransfers] = useState([]);
-
   const [loading, setLoading] = useState(true);
+
+  // TRASLADO SELECCIONADO
+
+  const [selectedTransferId, setSelectedTransferId] = useState(null);
 
   const [selectedTransferDetail, setSelectedTransferDetail] = useState(null);
 
-  const [page, setPage] = useState(1);
+  const [detailError, setDetailError] = useState(null);
 
-  const [selectedTransferId, setSelectedTransferId] = useState(null);
+  // GESTIÓN DEL TRASLADO
 
   const [editTransferId, setEditTransferId] = useState(null);
 
   const [editTransferDetail, setEditTransferDetail] = useState(null);
+
+  // PAGINACIÓN
+
+  const [page, setPage] = useState(1);
+
+  // REFERENCIA A LA SECCIÓN DE DETALLES
+
+  const detailsRef = useRef(null);
+
+  // BÚSQUEDA, FILTROS Y ORDENACIÓN
+
+  const [search, setSearch] = useState("");
+
+  const [filters, setFilters] = useState({
+    ...initialFilters,
+  });
+
+  const [sort, setSort] = useState({
+    ...initialSort,
+  });
+
+  // CANCELAR TRASLADO
+
+  const [transferToCancel, setTransferToCancel] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const handleCloseCancel = () => {
+    if (!cancelling) {
+      setTransferToCancel(null);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!transferToCancel || cancelling) return;
+
+    const { id, version } = transferToCancel;
+
+    setCancelling(true);
+
+    try {
+      await deleteTransfer(id, version);
+
+      setTransfers((prev) => prev.filter((transfer) => transfer.id !== id));
+
+      if (selectedTransferId === id) {
+        setSelectedTransferId(null);
+      }
+
+      showNotification("Traslado anulado correctamente.", "success");
+    } catch (error) {
+      showNotification(error.message, "error");
+
+      // Refrescar el listado por si otro gestor
+      // modificó la solicitud mientras tanto.
+
+      try {
+        const updatedTransfers = await getTransfers();
+
+        setTransfers(updatedTransfers);
+      } catch {
+        showNotification(
+          "No se pudo actualizar el listado de traslados.",
+          "warning",
+        );
+      }
+    } finally {
+      setCancelling(false);
+      setTransferToCancel(null);
+    }
+  };
+
+  // NOTIFICACIONES
 
   const { notification, showNotification, closeNotification } =
     useNotification();
@@ -50,9 +137,7 @@ export default function FollowUp() {
 
         setTransfers(data);
 
-        if (data.length > 0) {
-          setSelectedTransferId(data[0].id);
-        }
+        setSelectedTransferId(data[0]?.id ?? null);
       } catch (error) {
         showNotification(error.message, "error");
       } finally {
@@ -63,33 +148,80 @@ export default function FollowUp() {
     loadTransfers();
   }, []);
 
-  // DETALLE SELECCIONADO
+  // FILTRADO Y ORDENACIÓN
+
+  const filteredTransfers = useMemo(
+    () => filterAndSortTransfers(transfers, search, filters, sort),
+    [transfers, search, filters, sort],
+  );
+
+  // PAGINACIÓN
+
+  const totalPages = Math.ceil(filteredTransfers.length / rowsPerPage);
+
+  const currentPage = Math.min(page, Math.max(1, totalPages));
+
+  const startIndex = (currentPage - 1) * rowsPerPage;
+
+  const visibleTransfers = filteredTransfers.slice(
+    startIndex,
+    startIndex + rowsPerPage,
+  );
+
+  // SELECCIÓN DEL TRASLADO
+
+  const selectedIsVisible = visibleTransfers.some(
+    (transfer) => transfer.id === selectedTransferId,
+  );
+
+  const effectiveSelectedTransferId = selectedIsVisible
+    ? selectedTransferId
+    : (visibleTransfers[0]?.id ?? null);
+
+  // MOSTRAR SOLO EL ERROR DEL TRASLADO ACTUAL
+
+  const currentDetailError =
+    detailError?.id === effectiveSelectedTransferId
+      ? detailError.message
+      : null;
+
+  // COMPROBAR SI EL DETALLE ESTÁ ACTUALIZADO
+
+  const detailIsCurrent =
+    selectedTransferDetail?.id === effectiveSelectedTransferId;
+
+  // CARGAR DETALLE SELECCIONADO
 
   useEffect(() => {
-    if (!selectedTransferId) {
+    if (!effectiveSelectedTransferId) {
       return;
     }
 
     let cancelled = false;
 
-    getTransferDetail(selectedTransferId)
+    getTransferDetail(effectiveSelectedTransferId)
       .then((detail) => {
         if (!cancelled) {
           setSelectedTransferDetail(detail);
+
+          setDetailError(null);
         }
       })
       .catch((error) => {
         if (!cancelled) {
-          showNotification(error.message, "error");
+          setDetailError({
+            id: effectiveSelectedTransferId,
+            message: error.message,
+          });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [selectedTransferId]);
+  }, [effectiveSelectedTransferId]);
 
-  // DETALLE PARA GESTIONAR
+  // CARGAR DETALLE PARA GESTIONAR
 
   useEffect(() => {
     if (!editTransferId) {
@@ -117,28 +249,79 @@ export default function FollowUp() {
     };
   }, [editTransferId]);
 
-  const loadingInitialDetail =
-    selectedTransferId !== null && selectedTransferDetail === null;
-
-  const updatingDetail =
-    selectedTransferDetail !== null &&
-    selectedTransferId !== null &&
-    selectedTransferDetail.id !== selectedTransferId;
+  // ESTADO DE CARGA DEL DIÁLOGO
 
   const loadingEditTransfer =
     editTransferId !== null && editTransferDetail?.id !== editTransferId;
 
-  // PAGINACIÓN
+  // VISUALIZAR UN TRASLADO
 
-  const totalPages = Math.ceil(transfers.length / rowsPerPage);
+  const handleViewTransfer = (id) => {
+    setSelectedTransferId(id);
 
-  const startIndex = (page - 1) * rowsPerPage;
+    // Desplazarse aunque ya esté seleccionado.
 
-  const endIndex = startIndex + rowsPerPage;
+    detailsRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  };
 
-  const visibleTransfers = transfers.slice(startIndex, endIndex);
+  // CAMBIAR BÚSQUEDA
 
-  const showPagination = transfers.length > rowsPerPage;
+  const handleSearchChange = (value) => {
+    setSearch(value);
+
+    setPage(1);
+  };
+
+  // CAMBIAR FILTROS
+
+  const handleFilterChange = (name, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    setPage(1);
+  };
+
+  // CAMBIAR ORDENACIÓN
+
+  const handleSortChange = (key) => {
+    setSort((prev) => ({
+      key,
+
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+
+    setPage(1);
+  };
+
+  // COMPROBAR SI HAY FILTROS ACTIVOS
+
+  const hasActiveFilters =
+    Boolean(search.trim()) ||
+    Object.values(filters).some((value) => value !== "") ||
+    Boolean(sort.key);
+
+  // LIMPIAR FILTROS
+
+  const handleClearFilters = () => {
+    setSearch("");
+
+    setFilters({
+      ...initialFilters,
+    });
+
+    setSort({
+      ...initialSort,
+    });
+
+    setPage(1);
+  };
+
+  // CERRAR DIÁLOGO DE GESTIÓN
 
   const handleCloseEditDialog = () => {
     setEditTransferId(null);
@@ -146,8 +329,7 @@ export default function FollowUp() {
     setEditTransferDetail(null);
   };
 
-  // REFRESCAR DESPUÉS DE
-  // UNA MODIFICACIÓN REAL
+  // REFRESCAR DESPUÉS DE UNA MODIFICACIÓN
 
   const refreshTransfer = async (idTransfer, successMessage) => {
     handleCloseEditDialog();
@@ -157,30 +339,29 @@ export default function FollowUp() {
 
       setTransfers(updatedTransfers);
 
-      const transferStillActive = updatedTransfers.some(
-        (transfer) => transfer.id === idTransfer,
+      // Comprobar si el traslado seleccionado sigue activo.
+
+      const selectedStillActive = updatedTransfers.some(
+        (transfer) => transfer.id === selectedTransferId,
       );
 
-      // SIGUE EN LA LISTA ACTIVA
-
-      if (transferStillActive) {
-        if (selectedTransferId === idTransfer) {
-          const updatedDetail = await getTransferDetail(idTransfer);
-
-          setSelectedTransferDetail(updatedDetail);
-        }
-      } else if (selectedTransferId === idTransfer) {
-        // PROBABLEMENTE PASÓ A COMPLETADO
-
+      if (!selectedStillActive) {
         const nextTransfer = updatedTransfers[0] ?? null;
 
-        if (nextTransfer) {
-          setSelectedTransferId(nextTransfer.id);
-        } else {
-          setSelectedTransferId(null);
+        setSelectedTransferId(nextTransfer?.id ?? null);
 
+        if (!nextTransfer) {
           setSelectedTransferDetail(null);
         }
+      } else if (effectiveSelectedTransferId === idTransfer) {
+        // Actualizar el detalle si se modificó
+        // el traslado que estamos visualizando.
+
+        const detail = await getTransferDetail(idTransfer);
+
+        setSelectedTransferDetail(detail);
+
+        setDetailError(null);
       }
 
       showNotification(successMessage, "success");
@@ -192,9 +373,13 @@ export default function FollowUp() {
     }
   };
 
+  // ASIGNACIÓN REALIZADA
+
   const handleTransferAssigned = async (idTransfer) => {
     await refreshTransfer(idTransfer, "Traslado asignado correctamente.");
   };
+
+  // ESTADO ACTUALIZADO
 
   const handleStateUpdated = async (idTransfer) => {
     await refreshTransfer(idTransfer, "Estado actualizado correctamente.");
@@ -202,35 +387,13 @@ export default function FollowUp() {
 
   return (
     <>
-      {/* CARDS SUPERIORES */}
-
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{
-          flexWrap: "wrap",
-          mt: 2,
-
-          display: {
-            md: "flex",
-            xs: "none",
-          },
-        }}
-      >
-        {cardsData.map((item) => (
-          <StatCard key={item.label} item={item} colors={item.colors} />
-        ))}
-      </Stack>
-
-      {/* LISTADO */}
+      {/* TABLA */}
 
       {loading ? (
         <Stack
           sx={{
             alignItems: "center",
-
             justifyContent: "center",
-
             py: 8,
           }}
         >
@@ -239,68 +402,89 @@ export default function FollowUp() {
       ) : (
         <TransfersCard
           visibleTransfers={visibleTransfers}
-          selectedTransferId={selectedTransferId}
-          setSelectedTransferId={setSelectedTransferId}
+          totalTransfers={transfers.length}
+          filteredCount={filteredTransfers.length}
+          selectedTransferId={effectiveSelectedTransferId}
           setEditTransferId={setEditTransferId}
-          showPagination={showPagination}
-          totalPages={totalPages}
-          page={page}
+          onViewTransfer={handleViewTransfer}
+          page={currentPage}
           setPage={setPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          search={search}
+          onSearchChange={handleSearchChange}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          sort={sort}
+          onSortChange={handleSortChange}
+          onClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
+          onCancelTransfer={setTransferToCancel}
         />
       )}
 
-      {/* DETALLE */}
+      {/* SECCIÓN DE DETALLES */}
 
-      {!loading && selectedTransferId && (
-        <>
-          {loadingInitialDetail ? (
-            <Stack
-              sx={{
-                alignItems: "center",
+      {!loading && effectiveSelectedTransferId && (
+        <Box
+          ref={detailsRef}
+          sx={{
+            scrollMarginBottom: "24px",
+            pb: 3,
+          }}
+        >
+          {/* ERROR DE CARGA */}
 
-                justifyContent: "center",
+          {currentDetailError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {currentDetailError}
+            </Alert>
+          )}
 
-                py: 5,
-              }}
-            >
-              <CircularProgress size={28} />
-            </Stack>
+          {/* TARJETA DE DETALLES */}
+
+          {selectedTransferDetail ? (
+            <Box sx={{ position: "relative" }}>
+              <TransferDetailsCard transfer={selectedTransferDetail} />
+
+              {/* CAPA DE CARGA */}
+
+              {!detailIsCurrent && !currentDetailError && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    mt: 2,
+
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+
+                    bgcolor: "rgba(255, 255, 255, 0.65)",
+                    borderRadius: 4,
+                    zIndex: 1,
+                  }}
+                >
+                  <CircularProgress size={30} />
+                </Box>
+              )}
+            </Box>
           ) : (
-            selectedTransferDetail && (
-              <Box
+            // SOLO EN LA PRIMERA CARGA
+
+            !currentDetailError && (
+              <Stack
                 sx={{
-                  position: "relative",
+                  minHeight: 350,
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                <TransferDetailsCard transfer={selectedTransferDetail} />
-
-                {updatingDetail && (
-                  <Box
-                    sx={{
-                      position: "absolute",
-
-                      inset: 0,
-
-                      display: "flex",
-
-                      alignItems: "center",
-
-                      justifyContent: "center",
-
-                      bgcolor: "rgba(255, 255, 255, 0.65)",
-
-                      borderRadius: 4,
-
-                      zIndex: 1,
-                    }}
-                  >
-                    <CircularProgress size={30} />
-                  </Box>
-                )}
-              </Box>
+                <CircularProgress size={28} />
+              </Stack>
             )
           )}
-        </>
+        </Box>
       )}
 
       {/* CARGANDO DIÁLOGO */}
@@ -321,9 +505,7 @@ export default function FollowUp() {
           <Stack
             sx={{
               minHeight: 120,
-
               alignItems: "center",
-
               justifyContent: "center",
             }}
           >
@@ -332,7 +514,7 @@ export default function FollowUp() {
         </DialogContent>
       </Dialog>
 
-      {/* GESTIONAR */}
+      {/* GESTIONAR TRASLADO */}
 
       {editTransferId && editTransferDetail?.id === editTransferId && (
         <TransferEditDialog
@@ -344,6 +526,82 @@ export default function FollowUp() {
           onStateUpdated={handleStateUpdated}
         />
       )}
+
+      {/* CONFIRMAR ANULACIÓN */}
+
+      <Dialog
+        open={Boolean(transferToCancel)}
+        onClose={handleCloseCancel}
+        disableEscapeKeyDown={cancelling}
+        fullWidth
+        maxWidth="xs"
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 3,
+              p: 1,
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Anular solicitud</DialogTitle>
+
+        <DialogContent>
+          <DialogContentText>
+            ¿Estás seguro de que querés anular el traslado{" "}
+            <Box
+              component="span"
+              sx={{
+                fontWeight: 800,
+                color: "var(--text-main-color)",
+              }}
+            >
+              {transferToCancel?.codigo}
+            </Box>
+            ?
+          </DialogContentText>
+
+          <DialogContentText sx={{ mt: 1, fontSize: 13 }}>
+            La solicitud dejará de aparecer en el listado de traslados activos.
+          </DialogContentText>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            onClick={handleCloseCancel}
+            disabled={cancelling}
+            sx={{
+              textTransform: "none",
+              borderRadius: 2,
+            }}
+          >
+            Volver
+          </Button>
+
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmCancel}
+            disabled={cancelling}
+            startIcon={
+              cancelling ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <DeleteOutlineOutlinedIcon />
+              )
+            }
+            sx={{
+              textTransform: "none",
+              borderRadius: 2,
+              fontWeight: 700,
+            }}
+          >
+            {cancelling ? "Anulando..." : "Anular traslado"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* NOTIFICACIONES */}
 
       <NotificationSnackbar
         notification={notification}

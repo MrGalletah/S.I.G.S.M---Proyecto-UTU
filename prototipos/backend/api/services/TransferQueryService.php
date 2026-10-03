@@ -10,7 +10,7 @@ class TransferQueryService
     }
 
 
-        public function getActiveTransfers(): array
+    public function getActiveTransfers(): array
     {
         $sql = "
             SELECT
@@ -48,7 +48,22 @@ class TransferQueryService
                         AND t.hora_llegada_estimada IS NOT NULL
                     THEN 1
                     ELSE 0
-                END AS asignado
+                END AS asignado,
+                
+                
+                CASE
+                    WHEN et.nombre = 'Registrado'
+                        AND t.id_vehiculo IS NULL
+                        AND t.id_conductor IS NULL
+                        AND t.id_enfermero IS NULL
+                        AND t.id_func_gestor IS NULL
+                        AND t.fecha_gestion IS NULL
+                        AND t.hora_salida_estimada IS NULL
+                        AND t.hora_llegada_estimada IS NULL
+                    THEN 1
+                    ELSE 0
+                END AS anulable
+
 
             FROM traslado t
 
@@ -494,7 +509,7 @@ class TransferQueryService
     }
 
 
-    
+
     private function formatTransferDetail(
         array $row,
         array $history
@@ -746,7 +761,8 @@ class TransferQueryService
 
             "asignado" => (bool) $row["asignado"],
             "version" => (int) $row["version"],
+            "anulable" => (bool) $row["anulable"],
+
         ];
     }
-
 }

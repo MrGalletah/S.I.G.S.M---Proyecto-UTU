@@ -33,6 +33,7 @@ export default function AdminDashboard() {
           p: { xs: 2, sm: 3, md: 4 },
           gridColumn: { xs: "1 / -1", lg: "2 / 3" },
           minWidth: 0,
+          mt: {xs : 5, md: 5, lg: 1}
         }}
       >
         <Outlet context={{user}} />

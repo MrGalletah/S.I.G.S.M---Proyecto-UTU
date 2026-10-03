@@ -280,6 +280,9 @@ function mapTransferListItem(transfer) {
 
         asignado:
             Boolean(transfer.asignado),
+
+        anulable: Boolean(transfer.anulable),
+
     };
 }
 
