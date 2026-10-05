@@ -4,11 +4,14 @@ class TransferQueryService
 {
     private PDO $db;
 
+
     public function __construct(PDO $db)
     {
         $this->db = $db;
     }
 
+
+    // TRASLADOS ACTIVOS
 
     public function getActiveTransfers(): array
     {
@@ -49,10 +52,10 @@ class TransferQueryService
                     THEN 1
                     ELSE 0
                 END AS asignado,
-                
-                
+
                 CASE
-                    WHEN et.nombre = 'Registrado'
+                    WHEN
+                        et.nombre = 'Registrado'
                         AND t.id_vehiculo IS NULL
                         AND t.id_conductor IS NULL
                         AND t.id_enfermero IS NULL
@@ -64,17 +67,19 @@ class TransferQueryService
                     ELSE 0
                 END AS anulable
 
-
             FROM traslado t
 
             INNER JOIN tipo_traslado tt
-                ON tt.id_tipo_traslado = t.id_tipo_traslado
+                ON tt.id_tipo_traslado =
+                    t.id_tipo_traslado
 
             INNER JOIN tipo_elemento te
-                ON te.id_tipo_elemento = t.id_tipo_elemento
+                ON te.id_tipo_elemento =
+                    t.id_tipo_elemento
 
             INNER JOIN estado_traslado et
-                ON et.id_estado = t.id_estado
+                ON et.id_estado =
+                    t.id_estado
 
             WHERE
                 t.activo = TRUE
@@ -82,196 +87,324 @@ class TransferQueryService
 
             ORDER BY
                 CASE
-                    WHEN t.prioridad = 'URGENTE' THEN 0
+                    WHEN t.prioridad = 'URGENTE'
+                        THEN 0
                     ELSE 1
                 END,
+
                 t.fecha_requerida ASC,
                 t.fecha_solicitud ASC
         ";
 
-        $stmt = $this->db->prepare($sql);
+
+        $stmt =
+            $this->db->prepare($sql);
+
+
         $stmt->execute();
 
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $rows =
+            $stmt->fetchAll(
+                PDO::FETCH_ASSOC
+            );
+
 
         return array_map(
-            fn(array $row) => $this->formatTransferListItem($row),
+            fn(array $row) =>
+            $this->formatTransferListItem(
+                $row
+            ),
             $rows
         );
     }
+
+
+    // TRASLADOS COMPLETADOS
 
     public function getCompletedTransfers(
         int $page,
         int $limit,
         ?string $search = null,
         ?string $desde = null,
-        ?string $hasta = null
+        ?string $hasta = null,
+        ?int $idVehiculo = null,
+        ?int $idConductor = null,
+        ?int $idEnfermero = null
     ): array {
-        $offset = ($page - 1) * $limit;
+
+        $offset =
+            ($page - 1) * $limit;
+
 
         $where = [
             "t.activo = TRUE",
             "et.nombre = 'Completado'"
         ];
 
+
         $params = [];
 
-        if ($search !== null && $search !== "") {
 
-            if (preg_match('/^TR-(\d+)$/i', $search, $matches)) {
+        // BÚSQUEDA GENERAL
 
-                $where[] = "t.id_traslado = :search_id";
-                $params["search_id"] = (int) $matches[1];
+        if (
+            $search !== null
+            && $search !== ""
+        ) {
+
+            if (
+                preg_match(
+                    '/^TR-(\d+)$/i',
+                    $search,
+                    $matches
+                )
+            ) {
+
+                $where[] =
+                    "t.id_traslado = :search_id";
+
+
+                $params["search_id"] =
+                    (int) $matches[1];
             } else {
 
                 $where[] = "
-                (
-                    t.cedula_paciente LIKE :search_cedula
-                    OR t.elemento LIKE :search_elemento
-                    OR t.origen LIKE :search_origen
-                    OR t.destino LIKE :search_destino
-                )
-            ";
+                    (
+                        t.cedula_paciente
+                            LIKE :search_cedula
 
-                $searchValue = "%" . $search . "%";
+                        OR t.elemento
+                            LIKE :search_elemento
 
-                $params["search_cedula"] = $searchValue;
-                $params["search_elemento"] = $searchValue;
-                $params["search_origen"] = $searchValue;
-                $params["search_destino"] = $searchValue;
+                        OR t.origen
+                            LIKE :search_origen
+
+                        OR t.destino
+                            LIKE :search_destino
+                    )
+                ";
+
+
+                $searchValue =
+                    "%" . $search . "%";
+
+
+                $params["search_cedula"] =
+                    $searchValue;
+
+                $params["search_elemento"] =
+                    $searchValue;
+
+                $params["search_origen"] =
+                    $searchValue;
+
+                $params["search_destino"] =
+                    $searchValue;
             }
         }
 
+
+        // FECHA DESDE
+
         if ($desde !== null) {
-            $where[] = "finalizacion.fecha_finalizacion >= :desde";
-            $params["desde"] = $desde . " 00:00:00";
+
+            $where[] =
+                "finalizacion.fecha_finalizacion >= :desde";
+
+
+            $params["desde"] =
+                $desde . " 00:00:00";
         }
+
+
+        // FECHA HASTA
 
         if ($hasta !== null) {
-            $where[] = "finalizacion.fecha_finalizacion <= :hasta";
-            $params["hasta"] = $hasta . " 23:59:59";
+
+            $where[] =
+                "finalizacion.fecha_finalizacion <= :hasta";
+
+
+            $params["hasta"] =
+                $hasta . " 23:59:59";
         }
 
-        $whereSql = implode(" AND ", $where);
 
+        // VEHÍCULO
+
+        if ($idVehiculo !== null) {
+
+            $where[] =
+                "t.id_vehiculo = :id_vehiculo";
+
+
+            $params["id_vehiculo"] =
+                $idVehiculo;
+        }
+
+
+        // CONDUCTOR
+
+        if ($idConductor !== null) {
+
+            $where[] =
+                "t.id_conductor = :id_conductor";
+
+
+            $params["id_conductor"] =
+                $idConductor;
+        }
+
+
+        // ENFERMERO
+
+        if ($idEnfermero !== null) {
+
+            $where[] =
+                "t.id_enfermero = :id_enfermero";
+
+
+            $params["id_enfermero"] =
+                $idEnfermero;
+        }
+
+
+        $whereSql =
+            implode(
+                " AND ",
+                $where
+            );
+
+
+        // FECHA DE FINALIZACIÓN
 
         $completionJoin = "
-        INNER JOIN (
-            SELECT
-                h.id_traslado,
-                MAX(h.fecha_hora) AS fecha_finalizacion
+            INNER JOIN (
+                SELECT
+                    h.id_traslado,
 
-            FROM historial_estado_traslado h
+                    MAX(
+                        h.fecha_hora
+                    ) AS fecha_finalizacion
 
-            INNER JOIN estado_traslado eh
-                ON eh.id_estado = h.id_estado
+                FROM historial_estado_traslado h
 
-            WHERE eh.nombre = 'Completado'
+                INNER JOIN estado_traslado eh
+                    ON eh.id_estado =
+                        h.id_estado
 
-            GROUP BY h.id_traslado
-        ) finalizacion
-            ON finalizacion.id_traslado = t.id_traslado
-    ";
+                WHERE
+                    eh.nombre = 'Completado'
 
+                GROUP BY
+                    h.id_traslado
+
+            ) finalizacion
+                ON finalizacion.id_traslado =
+                    t.id_traslado
+        ";
+
+
+        // CONTAR RESULTADOS
 
         $countSql = "
-        SELECT COUNT(*)
+            SELECT
+                COUNT(*)
 
-        FROM traslado t
+            FROM traslado t
 
-        INNER JOIN estado_traslado et
-            ON et.id_estado = t.id_estado
+            INNER JOIN estado_traslado et
+                ON et.id_estado =
+                    t.id_estado
 
-        $completionJoin
+            $completionJoin
 
-        WHERE $whereSql
-    ";
+            WHERE
+                $whereSql
+        ";
 
-        $countStmt = $this->db->prepare($countSql);
 
-        foreach ($params as $key => $value) {
-            $countStmt->bindValue(
-                ":" . $key,
-                $value,
-                PDO::PARAM_STR
+        $countStmt =
+            $this->db->prepare(
+                $countSql
             );
-        }
 
-        if (isset($params["search_id"])) {
-            $countStmt->bindValue(
-                ":search_id",
-                $params["search_id"],
-                PDO::PARAM_INT
-            );
-        }
+
+        $this->bindQueryParams(
+            $countStmt,
+            $params
+        );
+
 
         $countStmt->execute();
 
-        $total = (int) $countStmt->fetchColumn();
 
+        $total =
+            (int) $countStmt->fetchColumn();
+
+
+        // OBTENER RESULTADOS
 
         $sql = "
-        SELECT
-            t.id_traslado,
-            t.fecha_solicitud,
-            t.fecha_requerida,
-            t.prioridad,
+            SELECT
+                t.id_traslado,
+                t.fecha_solicitud,
+                t.fecha_requerida,
+                t.prioridad,
 
-            tt.id_tipo_traslado,
-            tt.nombre AS tipo_traslado,
+                tt.id_tipo_traslado,
+                tt.nombre AS tipo_traslado,
 
-            te.id_tipo_elemento,
-            te.nombre AS tipo_elemento,
+                te.id_tipo_elemento,
+                te.nombre AS tipo_elemento,
 
-            t.elemento,
-            t.cedula_paciente,
+                t.elemento,
+                t.cedula_paciente,
 
-            t.origen,
-            t.destino,
+                t.origen,
+                t.destino,
 
-            finalizacion.fecha_finalizacion
+                finalizacion.fecha_finalizacion
 
-        FROM traslado t
+            FROM traslado t
 
-        INNER JOIN tipo_traslado tt
-            ON tt.id_tipo_traslado = t.id_tipo_traslado
+            INNER JOIN tipo_traslado tt
+                ON tt.id_tipo_traslado =
+                    t.id_tipo_traslado
 
-        INNER JOIN tipo_elemento te
-            ON te.id_tipo_elemento = t.id_tipo_elemento
+            INNER JOIN tipo_elemento te
+                ON te.id_tipo_elemento =
+                    t.id_tipo_elemento
 
-        INNER JOIN estado_traslado et
-            ON et.id_estado = t.id_estado
+            INNER JOIN estado_traslado et
+                ON et.id_estado =
+                    t.id_estado
 
-        $completionJoin
+            $completionJoin
 
-        WHERE $whereSql
+            WHERE
+                $whereSql
 
-        ORDER BY finalizacion.fecha_finalizacion DESC
+            ORDER BY
+                finalizacion.fecha_finalizacion DESC
 
-        LIMIT :limit
-        OFFSET :offset
-    ";
+            LIMIT :limit
+            OFFSET :offset
+        ";
 
-        $stmt = $this->db->prepare($sql);
 
-        foreach ($params as $key => $value) {
-
-            if ($key === "search_id") {
-                $stmt->bindValue(
-                    ":search_id",
-                    $value,
-                    PDO::PARAM_INT
-                );
-
-                continue;
-            }
-
-            $stmt->bindValue(
-                ":" . $key,
-                $value,
-                PDO::PARAM_STR
+        $stmt =
+            $this->db->prepare(
+                $sql
             );
-        }
+
+
+        $this->bindQueryParams(
+            $stmt,
+            $params
+        );
+
 
         $stmt->bindValue(
             ":limit",
@@ -279,136 +412,219 @@ class TransferQueryService
             PDO::PARAM_INT
         );
 
+
         $stmt->bindValue(
             ":offset",
             $offset,
             PDO::PARAM_INT
         );
 
+
         $stmt->execute();
 
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $transfers = array_map(
-            fn(array $row) =>
-            $this->formatCompletedTransferListItem($row),
-            $rows
-        );
+        $rows =
+            $stmt->fetchAll(
+                PDO::FETCH_ASSOC
+            );
+
+
+        $transfers =
+            array_map(
+                fn(array $row) =>
+                $this->formatCompletedTransferListItem(
+                    $row
+                ),
+                $rows
+            );
+
 
         return [
-            "traslados" => $transfers,
+            "traslados" =>
+            $transfers,
+
 
             "paginacion" => [
-                "pagina" => $page,
-                "limite" => $limit,
-                "total" => $total,
+                "pagina" =>
+                $page,
+
+                "limite" =>
+                $limit,
+
+                "total" =>
+                $total,
+
                 "total_paginas" =>
                 $total === 0
                     ? 0
-                    : (int) ceil($total / $limit)
+                    : (int) ceil(
+                        $total / $limit
+                    )
             ],
 
+
             "filtros" => [
-                "search" => $search,
-                "desde" => $desde,
-                "hasta" => $hasta
+                "search" =>
+                $search,
+
+                "desde" =>
+                $desde,
+
+                "hasta" =>
+                $hasta,
+
+                "id_vehiculo" =>
+                $idVehiculo,
+
+                "id_conductor" =>
+                $idConductor,
+
+                "id_enfermero" =>
+                $idEnfermero
             ]
         ];
     }
 
-    public function getTransferById(int $idTransfer): ?array
-    {
+
+    // BIND DE PARÁMETROS
+
+    private function bindQueryParams(
+        PDOStatement $stmt,
+        array $params
+    ): void {
+
+        foreach (
+            $params as $key => $value
+        ) {
+
+            $type =
+                is_int($value)
+                ? PDO::PARAM_INT
+                : PDO::PARAM_STR;
+
+
+            $stmt->bindValue(
+                ":" . $key,
+                $value,
+                $type
+            );
+        }
+    }
+
+
+    // DETALLE DE UN TRASLADO
+
+    public function getTransferById(
+        int $idTransfer
+    ): ?array {
+
         $sql = "
-        SELECT
-            t.id_traslado,
-            t.fecha_solicitud,
-            t.fecha_requerida,
-            t.prioridad,
-            t.observaciones,
-            t.version,
+            SELECT
+                t.id_traslado,
+                t.fecha_solicitud,
+                t.fecha_requerida,
+                t.prioridad,
+                t.observaciones,
+                t.version,
 
-            tt.id_tipo_traslado,
-            tt.nombre AS tipo_traslado,
+                tt.id_tipo_traslado,
+                tt.nombre AS tipo_traslado,
 
-            te.id_tipo_elemento,
-            te.nombre AS tipo_elemento,
+                te.id_tipo_elemento,
+                te.nombre AS tipo_elemento,
 
-            t.elemento,
-            t.cedula_paciente,
+                t.elemento,
+                t.cedula_paciente,
 
-            t.origen,
-            t.destino,
+                t.origen,
+                t.destino,
 
-            t.hora_salida_estimada,
-            t.hora_llegada_estimada,
-            t.hora_salida_real,
-            t.hora_llegada_destino,
+                t.hora_salida_estimada,
+                t.hora_llegada_estimada,
+                t.hora_salida_real,
+                t.hora_llegada_destino,
 
-            t.id_vehiculo,
-            v.matricula AS vehiculo_matricula,
-            v.modelo AS vehiculo_modelo,
+                t.id_vehiculo,
+                v.matricula AS vehiculo_matricula,
+                v.modelo AS vehiculo_modelo,
 
-            tv.id_tipo_vehiculo,
-            tv.nombre AS tipo_vehiculo,
+                tv.id_tipo_vehiculo,
+                tv.nombre AS tipo_vehiculo,
 
-            t.id_conductor,
-            conductor.nombre AS conductor,
+                t.id_conductor,
+                conductor.nombre AS conductor,
 
-            t.id_enfermero,
-            enfermero.nombre AS enfermero,
+                t.id_enfermero,
+                enfermero.nombre AS enfermero,
 
-            t.id_func_solicitante,
-            solicitante.nombre AS solicitante,
+                t.id_func_solicitante,
+                solicitante.nombre AS solicitante,
 
-            t.id_func_gestor,
-            gestor.nombre AS gestor,
+                t.id_func_gestor,
+                gestor.nombre AS gestor,
 
-            t.fecha_gestion,
+                t.fecha_gestion,
 
-            et.id_estado,
-            et.nombre AS estado,
-            et.orden AS estado_orden,
+                et.id_estado,
+                et.nombre AS estado,
+                et.orden AS estado_orden,
 
-            t.activo,
-            t.fecha_baja
+                t.activo,
+                t.fecha_baja
 
-        FROM traslado t
+            FROM traslado t
 
-        INNER JOIN tipo_traslado tt
-            ON tt.id_tipo_traslado = t.id_tipo_traslado
+            INNER JOIN tipo_traslado tt
+                ON tt.id_tipo_traslado =
+                    t.id_tipo_traslado
 
-        INNER JOIN tipo_elemento te
-            ON te.id_tipo_elemento = t.id_tipo_elemento
+            INNER JOIN tipo_elemento te
+                ON te.id_tipo_elemento =
+                    t.id_tipo_elemento
 
-        INNER JOIN estado_traslado et
-            ON et.id_estado = t.id_estado
+            INNER JOIN estado_traslado et
+                ON et.id_estado =
+                    t.id_estado
 
-        INNER JOIN funcionario solicitante
-            ON solicitante.id_func = t.id_func_solicitante
+            INNER JOIN funcionario solicitante
+                ON solicitante.id_func =
+                    t.id_func_solicitante
 
-        LEFT JOIN funcionario gestor
-            ON gestor.id_func = t.id_func_gestor
+            LEFT JOIN funcionario gestor
+                ON gestor.id_func =
+                    t.id_func_gestor
 
-        LEFT JOIN vehiculo v
-            ON v.id_vehiculo = t.id_vehiculo
+            LEFT JOIN vehiculo v
+                ON v.id_vehiculo =
+                    t.id_vehiculo
 
-        LEFT JOIN tipo_vehiculo tv
-            ON tv.id_tipo_vehiculo = v.id_tipo_vehiculo
+            LEFT JOIN tipo_vehiculo tv
+                ON tv.id_tipo_vehiculo =
+                    v.id_tipo_vehiculo
 
-        LEFT JOIN funcionario conductor
-            ON conductor.id_func = t.id_conductor
+            LEFT JOIN funcionario conductor
+                ON conductor.id_func =
+                    t.id_conductor
 
-        LEFT JOIN funcionario enfermero
-            ON enfermero.id_func = t.id_enfermero
+            LEFT JOIN funcionario enfermero
+                ON enfermero.id_func =
+                    t.id_enfermero
 
-        WHERE
-            t.id_traslado = :id_transfer
-            AND t.activo = TRUE
+            WHERE
+                t.id_traslado =
+                    :id_transfer
 
-        LIMIT 1
-    ";
+                AND t.activo = TRUE
 
-        $stmt = $this->db->prepare($sql);
+            LIMIT 1
+        ";
+
+
+        $stmt =
+            $this->db->prepare(
+                $sql
+            );
+
 
         $stmt->bindValue(
             ":id_transfer",
@@ -416,15 +632,26 @@ class TransferQueryService
             PDO::PARAM_INT
         );
 
+
         $stmt->execute();
 
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $row =
+            $stmt->fetch(
+                PDO::FETCH_ASSOC
+            );
+
 
         if (!$row) {
             return null;
         }
 
-        $history = $this->getTransferHistory($idTransfer);
+
+        $history =
+            $this->getTransferHistory(
+                $idTransfer
+            );
+
 
         return $this->formatTransferDetail(
             $row,
@@ -432,37 +659,51 @@ class TransferQueryService
         );
     }
 
-    private function getTransferHistory(int $idTransfer): array
-    {
+
+    // HISTORIAL DE ESTADOS
+
+    private function getTransferHistory(
+        int $idTransfer
+    ): array {
+
         $sql = "
-        SELECT
-            h.id_historial,
-            h.fecha_hora,
-            h.observacion,
+            SELECT
+                h.id_historial,
+                h.fecha_hora,
+                h.observacion,
 
-            et.id_estado,
-            et.nombre AS estado,
-            et.orden AS estado_orden,
+                et.id_estado,
+                et.nombre AS estado,
+                et.orden AS estado_orden,
 
-            f.id_func,
-            f.nombre AS funcionario
+                f.id_func,
+                f.nombre AS funcionario
 
-        FROM historial_estado_traslado h
+            FROM historial_estado_traslado h
 
-        INNER JOIN estado_traslado et
-            ON et.id_estado = h.id_estado
+            INNER JOIN estado_traslado et
+                ON et.id_estado =
+                    h.id_estado
 
-        INNER JOIN funcionario f
-            ON f.id_func = h.id_func
+            INNER JOIN funcionario f
+                ON f.id_func =
+                    h.id_func
 
-        WHERE h.id_traslado = :id_transfer
+            WHERE
+                h.id_traslado =
+                    :id_transfer
 
-        ORDER BY
-            h.fecha_hora ASC,
-            h.id_historial ASC
-    ";
+            ORDER BY
+                h.fecha_hora ASC,
+                h.id_historial ASC
+        ";
 
-        $stmt = $this->db->prepare($sql);
+
+        $stmt =
+            $this->db->prepare(
+                $sql
+            );
+
 
         $stmt->bindValue(
             ":id_transfer",
@@ -470,16 +711,25 @@ class TransferQueryService
             PDO::PARAM_INT
         );
 
+
         $stmt->execute();
 
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $rows =
+            $stmt->fetchAll(
+                PDO::FETCH_ASSOC
+            );
+
 
         return array_map(
             fn(array $row) => [
+
                 "id_historial" =>
                 (int) $row["id_historial"],
 
+
                 "estado" => [
+
                     "id_estado" =>
                     (int) $row["id_estado"],
 
@@ -490,13 +740,17 @@ class TransferQueryService
                     (int) $row["estado_orden"]
                 ],
 
+
                 "fecha_hora" =>
                 $row["fecha_hora"],
+
 
                 "observacion" =>
                 $row["observacion"],
 
+
                 "funcionario" => [
+
                     "id_func" =>
                     (int) $row["id_func"],
 
@@ -509,35 +763,45 @@ class TransferQueryService
     }
 
 
+    // FORMATEAR DETALLE
 
     private function formatTransferDetail(
         array $row,
         array $history
     ): array {
+
         return [
             "id_traslado" =>
             (int) $row["id_traslado"],
 
-            "codigo" => "TR-" . str_pad(
+
+            "codigo" =>
+            "TR-" . str_pad(
                 $row["id_traslado"],
                 5,
                 "0",
                 STR_PAD_LEFT
             ),
 
+
             "fecha_solicitud" =>
             $row["fecha_solicitud"],
+
 
             "fecha_requerida" =>
             $row["fecha_requerida"],
 
+
             "prioridad" =>
             $row["prioridad"],
+
 
             "observaciones" =>
             $row["observaciones"],
 
+
             "tipo_traslado" => [
+
                 "id_tipo_traslado" =>
                 (int) $row["id_tipo_traslado"],
 
@@ -545,7 +809,9 @@ class TransferQueryService
                 $row["tipo_traslado"]
             ],
 
+
             "tipo_elemento" => [
+
                 "id_tipo_elemento" =>
                 (int) $row["id_tipo_elemento"],
 
@@ -553,19 +819,25 @@ class TransferQueryService
                 $row["tipo_elemento"]
             ],
 
+
             "elemento" =>
             $row["elemento"],
+
 
             "cedula_paciente" =>
             $row["cedula_paciente"],
 
+
             "origen" =>
             $row["origen"],
+
 
             "destino" =>
             $row["destino"],
 
+
             "horarios" => [
+
                 "salida_estimada" =>
                 $row["hora_salida_estimada"],
 
@@ -579,9 +851,11 @@ class TransferQueryService
                 $row["hora_llegada_destino"]
             ],
 
+
             "vehiculo" =>
             $row["id_vehiculo"] !== null
                 ? [
+
                     "id_vehiculo" =>
                     (int) $row["id_vehiculo"],
 
@@ -592,6 +866,7 @@ class TransferQueryService
                     $row["vehiculo_modelo"],
 
                     "tipo" => [
+
                         "id_tipo_vehiculo" =>
                         (int) $row["id_tipo_vehiculo"],
 
@@ -601,9 +876,11 @@ class TransferQueryService
                 ]
                 : null,
 
+
             "conductor" =>
             $row["id_conductor"] !== null
                 ? [
+
                     "id_func" =>
                     (int) $row["id_conductor"],
 
@@ -612,9 +889,11 @@ class TransferQueryService
                 ]
                 : null,
 
+
             "enfermero" =>
             $row["id_enfermero"] !== null
                 ? [
+
                     "id_func" =>
                     (int) $row["id_enfermero"],
 
@@ -623,7 +902,9 @@ class TransferQueryService
                 ]
                 : null,
 
+
             "solicitante" => [
+
                 "id_func" =>
                 (int) $row["id_func_solicitante"],
 
@@ -631,9 +912,11 @@ class TransferQueryService
                 $row["solicitante"]
             ],
 
+
             "gestor" =>
             $row["id_func_gestor"] !== null
                 ? [
+
                     "id_func" =>
                     (int) $row["id_func_gestor"],
 
@@ -645,7 +928,9 @@ class TransferQueryService
                 ]
                 : null,
 
+
             "estado" => [
+
                 "id_estado" =>
                 (int) $row["id_estado"],
 
@@ -655,39 +940,56 @@ class TransferQueryService
                 "orden" =>
                 (int) $row["estado_orden"]
             ],
-            "version" => (int) $row["version"],
+
+
+            "version" =>
+            (int) $row["version"],
+
 
             "historial" =>
             $history
         ];
     }
 
+
+    // FORMATEAR LISTADO COMPLETADO
+
     private function formatCompletedTransferListItem(
         array $row
     ): array {
-        return [
-            "id_traslado" => (int) $row["id_traslado"],
 
-            "codigo" => "TR-" . str_pad(
+        return [
+            "id_traslado" =>
+            (int) $row["id_traslado"],
+
+
+            "codigo" =>
+            "TR-" . str_pad(
                 $row["id_traslado"],
                 5,
                 "0",
                 STR_PAD_LEFT
             ),
 
+
             "fecha_solicitud" =>
             $row["fecha_solicitud"],
+
 
             "fecha_requerida" =>
             $row["fecha_requerida"],
 
+
             "fecha_finalizacion" =>
             $row["fecha_finalizacion"],
+
 
             "prioridad" =>
             $row["prioridad"],
 
+
             "tipo_traslado" => [
+
                 "id_tipo_traslado" =>
                 (int) $row["id_tipo_traslado"],
 
@@ -695,7 +997,9 @@ class TransferQueryService
                 $row["tipo_traslado"]
             ],
 
+
             "tipo_elemento" => [
+
                 "id_tipo_elemento" =>
                 (int) $row["id_tipo_elemento"],
 
@@ -703,66 +1007,120 @@ class TransferQueryService
                 $row["tipo_elemento"]
             ],
 
+
             "cedula_paciente" =>
             $row["cedula_paciente"],
+
 
             "elemento" =>
             $row["elemento"],
 
+
             "origen" =>
             $row["origen"],
+
 
             "destino" =>
             $row["destino"]
         ];
     }
 
-    private function formatTransferListItem(array $row): array
-    {
-        return [
-            "id_traslado" => (int) $row["id_traslado"],
 
-            "codigo" => "TR-" . str_pad(
+    // FORMATEAR LISTADO ACTIVO
+
+    private function formatTransferListItem(
+        array $row
+    ): array {
+
+        return [
+            "id_traslado" =>
+            (int) $row["id_traslado"],
+
+
+            "codigo" =>
+            "TR-" . str_pad(
                 $row["id_traslado"],
                 5,
                 "0",
                 STR_PAD_LEFT
             ),
 
-            "fecha_solicitud" => $row["fecha_solicitud"],
-            "fecha_requerida" => $row["fecha_requerida"],
 
-            "prioridad" => $row["prioridad"],
+            "fecha_solicitud" =>
+            $row["fecha_solicitud"],
+
+
+            "fecha_requerida" =>
+            $row["fecha_requerida"],
+
+
+            "prioridad" =>
+            $row["prioridad"],
+
 
             "tipo_traslado" => [
-                "id_tipo_traslado" => (int) $row["id_tipo_traslado"],
-                "nombre" => $row["tipo_traslado"]
+
+                "id_tipo_traslado" =>
+                (int) $row["id_tipo_traslado"],
+
+                "nombre" =>
+                $row["tipo_traslado"]
             ],
+
 
             "tipo_elemento" => [
-                "id_tipo_elemento" => (int) $row["id_tipo_elemento"],
-                "nombre" => $row["tipo_elemento"]
+
+                "id_tipo_elemento" =>
+                (int) $row["id_tipo_elemento"],
+
+                "nombre" =>
+                $row["tipo_elemento"]
             ],
 
-            "elemento" => $row["elemento"],
-            "cedula_paciente" => $row["cedula_paciente"],
 
-            "origen" => $row["origen"],
-            "destino" => $row["destino"],
+            "elemento" =>
+            $row["elemento"],
+
+
+            "cedula_paciente" =>
+            $row["cedula_paciente"],
+
+
+            "origen" =>
+            $row["origen"],
+
+
+            "destino" =>
+            $row["destino"],
+
 
             "hora_salida_estimada" =>
             $row["hora_salida_estimada"],
 
+
             "estado" => [
-                "id_estado" => (int) $row["id_estado"],
-                "nombre" => $row["estado"],
-                "orden" => (int) $row["estado_orden"]
+
+                "id_estado" =>
+                (int) $row["id_estado"],
+
+                "nombre" =>
+                $row["estado"],
+
+                "orden" =>
+                (int) $row["estado_orden"]
             ],
 
-            "asignado" => (bool) $row["asignado"],
-            "version" => (int) $row["version"],
-            "anulable" => (bool) $row["anulable"],
 
+            "asignado" =>
+            (bool) $row["asignado"],
+
+
+            "version" =>
+            (int) $row["version"],
+
+
+            "anulable" =>
+            (bool) $row["anulable"]
         ];
     }
 }

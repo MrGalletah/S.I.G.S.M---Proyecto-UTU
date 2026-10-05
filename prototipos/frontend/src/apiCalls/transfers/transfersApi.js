@@ -181,16 +181,26 @@ export async function deleteTransfer(
 
 export async function getCompletedTransfers({
     page = 1,
-    limit = 20,
+    limit = 10,
     search = "",
     desde = "",
     hasta = "",
+    idVehiculo = "",
+    idConductor = "",
+    idEnfermero = "",
 } = {}) {
     const params =
         new URLSearchParams();
 
-    params.set("page", page);
-    params.set("limit", limit);
+    params.set(
+        "page",
+        page
+    );
+
+    params.set(
+        "limit",
+        limit
+    );
 
     if (search.trim()) {
         params.set(
@@ -213,6 +223,27 @@ export async function getCompletedTransfers({
         );
     }
 
+    if (idVehiculo) {
+        params.set(
+            "id_vehiculo",
+            idVehiculo
+        );
+    }
+
+    if (idConductor) {
+        params.set(
+            "id_conductor",
+            idConductor
+        );
+    }
+
+    if (idEnfermero) {
+        params.set(
+            "id_enfermero",
+            idEnfermero
+        );
+    }
+
     const response = await fetch(
         `${transfersUrl}/completed.php?${params.toString()}`,
         {
@@ -221,12 +252,36 @@ export async function getCompletedTransfers({
         }
     );
 
-    return processResponse(response);
+    const data =
+        await processResponse(response);
+
+    return {
+        transfers:
+            (data.traslados ?? []).map(
+                mapCompletedTransferListItem
+            ),
+
+        pagination: {
+            page:
+                data.paginacion?.pagina ?? 1,
+
+            limit:
+                data.paginacion?.limite ?? limit,
+
+            total:
+                data.paginacion?.total ?? 0,
+
+            totalPages:
+                data.paginacion?.total_paginas ?? 0,
+        },
+    };
 }
 
 
 function formatPriority(priority) {
-    if (!priority) return "";
+    if (!priority) {
+        return "";
+    }
 
     return (
         priority.charAt(0).toUpperCase() +
@@ -237,11 +292,14 @@ function formatPriority(priority) {
 
 function mapTransferListItem(transfer) {
     return {
-        id: transfer.id_traslado,
+        id:
+            transfer.id_traslado,
 
-        codigo: transfer.codigo,
+        codigo:
+            transfer.codigo,
 
-        version: transfer.version ?? null,
+        version:
+            transfer.version ?? null,
 
         fechaSolicitud:
             transfer.fecha_solicitud,
@@ -279,16 +337,21 @@ function mapTransferListItem(transfer) {
             transfer.estado?.nombre ?? "",
 
         asignado:
-            Boolean(transfer.asignado),
+            Boolean(
+                transfer.asignado
+            ),
 
-        anulable: Boolean(transfer.anulable),
-
+        anulable:
+            Boolean(
+                transfer.anulable
+            ),
     };
 }
 
 
 function mapTransferDetail(transfer) {
-    const vehicle = transfer.vehiculo;
+    const vehicle =
+        transfer.vehiculo;
 
     return {
         id:
@@ -314,13 +377,11 @@ function mapTransferDetail(transfer) {
         observaciones:
             transfer.observaciones ?? null,
 
-
         tipoTraslado:
             transfer.tipo_traslado?.nombre ?? "",
 
         idTipoTraslado:
             transfer.tipo_traslado?.id_tipo_traslado ?? null,
-
 
         tipoElemento:
             transfer.tipo_elemento?.nombre ?? "",
@@ -328,20 +389,17 @@ function mapTransferDetail(transfer) {
         idTipoElemento:
             transfer.tipo_elemento?.id_tipo_elemento ?? null,
 
-
         cedulaPaciente:
             transfer.cedula_paciente ?? null,
 
         elemento:
             transfer.elemento ?? null,
 
-
         origen:
             transfer.origen,
 
         destino:
             transfer.destino,
-
 
         horaSalidaEstimada:
             transfer.horarios?.salida_estimada ?? null,
@@ -355,7 +413,6 @@ function mapTransferDetail(transfer) {
         horaLlegadaDestino:
             transfer.horarios?.llegada_destino ?? null,
 
-
         idVehiculo:
             vehicle?.id_vehiculo ?? null,
 
@@ -367,13 +424,11 @@ function mapTransferDetail(transfer) {
         vehiculoData:
             vehicle ?? null,
 
-
         idConductor:
             transfer.conductor?.id_func ?? null,
 
         conductor:
             transfer.conductor?.nombre ?? null,
-
 
         idEnfermero:
             transfer.enfermero?.id_func ?? null,
@@ -381,13 +436,11 @@ function mapTransferDetail(transfer) {
         enfermero:
             transfer.enfermero?.nombre ?? null,
 
-
         idSolicitante:
             transfer.solicitante?.id_func ?? null,
 
         solicitante:
             transfer.solicitante?.nombre ?? null,
-
 
         idGestor:
             transfer.gestor?.id_func ?? null,
@@ -398,7 +451,6 @@ function mapTransferDetail(transfer) {
         fechaGestion:
             transfer.gestor?.fecha_gestion ?? null,
 
-
         idEstado:
             transfer.estado?.id_estado ?? null,
 
@@ -407,7 +459,6 @@ function mapTransferDetail(transfer) {
 
         estadoOrden:
             transfer.estado?.orden ?? null,
-
 
         historial:
             (transfer.historial ?? []).map(
@@ -437,5 +488,50 @@ function mapTransferDetail(transfer) {
                         item.funcionario?.id_func ?? null,
                 })
             ),
+    };
+}
+
+
+function mapCompletedTransferListItem(
+    transfer
+) {
+    return {
+        id:
+            transfer.id_traslado,
+
+        codigo:
+            transfer.codigo,
+
+        fechaSolicitud:
+            transfer.fecha_solicitud,
+
+        fechaRequerida:
+            transfer.fecha_requerida,
+
+        fechaFinalizacion:
+            transfer.fecha_finalizacion,
+
+        prioridad:
+            formatPriority(
+                transfer.prioridad
+            ),
+
+        tipoTraslado:
+            transfer.tipo_traslado?.nombre ?? "",
+
+        tipoElemento:
+            transfer.tipo_elemento?.nombre ?? "",
+
+        cedulaPaciente:
+            transfer.cedula_paciente ?? null,
+
+        elemento:
+            transfer.elemento ?? null,
+
+        origen:
+            transfer.origen,
+
+        destino:
+            transfer.destino,
     };
 }

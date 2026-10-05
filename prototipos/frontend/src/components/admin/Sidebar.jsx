@@ -21,6 +21,7 @@ import LoginIcon from "@mui/icons-material/Login";
 import NoteAddIcon from "@mui/icons-material/NoteAdd";
 import PersonIcon from "@mui/icons-material/Person";
 import LogoutIcon from "@mui/icons-material/Logout";
+import HistoryIcon from "@mui/icons-material/History";
 import { useLocation, useNavigate } from "react-router";
 import { useState } from "react";
 import { logout } from "../../apiCalls/auth/authApi";
@@ -56,6 +57,11 @@ const sections = [
         icon: <QueuePlayNextIcon />,
         to: "/ambulances/follow-up",
       },
+      {
+        label: "Historial",
+        icon: <HistoryIcon />,
+        to: "/ambulances/history",
+      },
     ],
   },
   {
@@ -80,8 +86,8 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
   const handleLogout = async () => {
     const status = await logout();
 
-    if(status.ok){
-      navigate("/")
+    if (status.ok) {
+      navigate("/");
     }
   };
 
@@ -99,7 +105,11 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
 
   const action = (
     <>
-      <Button size="small" sx={{ color: "var(--text-main-color)" }} onClick={handleLogout}>
+      <Button
+        size="small"
+        sx={{ color: "var(--text-main-color)" }}
+        onClick={handleLogout}
+      >
         Si
       </Button>
       <IconButton size="small" aria-label="close" onClick={handleClose}>

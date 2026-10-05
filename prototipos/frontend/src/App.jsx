@@ -12,6 +12,7 @@ import SurveysCard from "./components/admin/documents/SurveysCard";
 import UserView from "./components/admin/general/UserView";
 import NewTransfer from "./components/admin/ambulances/transfer/NewTansfer";
 import FollowUp from "./components/admin/ambulances/followUp/FollowUp";
+import TransferHistory from "./components/admin/ambulances/history/TransferHistory";
 
 function App() {
   return (
@@ -36,8 +37,8 @@ function App() {
 
           <Route path="ambulances/new" element={<NewTransfer />} />
           <Route path="ambulances/follow-up" element={<FollowUp />} />
+          <Route path="ambulances/history" element={<TransferHistory />} />
 
-          
           <Route
             path="admin/users"
             element={<div> Gestión de usuarios - En construcción</div>}
@@ -49,15 +50,9 @@ function App() {
         </Route>
       </Route>
 
-      <Route
-        path="/"
-        element={<Navigate to="/login" replace />}
-      />
+      <Route path="/" element={<Navigate to="/login" replace />} />
 
-      <Route
-        path="*"
-        element={<Navigate to="/login" replace />}
-      />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
