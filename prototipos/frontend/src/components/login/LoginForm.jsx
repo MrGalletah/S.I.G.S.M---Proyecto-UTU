@@ -152,7 +152,7 @@ export default function LoginForm() {
               type="text"
               fullWidth
               error={Boolean(error)}
-              helperText={error ? error : " "}
+              helperText={error.includes("nombre") ? error : " "}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -165,7 +165,15 @@ export default function LoginForm() {
             type="password"
             fullWidth
             error={Boolean(error)}
-            helperText={error && !showLogin ? "Contraseña incorrecta" : " "}
+            helperText={
+              showLogin
+                ? error.includes("contraseña")
+                  ? error
+                  : " "
+                : error
+                  ? "Contraseña incorrecta"
+                  : " "
+            }
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
           />

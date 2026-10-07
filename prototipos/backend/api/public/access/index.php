@@ -5,7 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../config/Database.php";
 require_once __DIR__ . "/../../middleware/requireAuth.php";
-
+require_once __DIR__ . "/../../utils/getJsonBody.php";
 
 $method = $_SERVER["REQUEST_METHOD"];
 
@@ -13,14 +13,19 @@ switch ($method) {
 
     case "GET":
         requireAuth();
-        getPendingAccessRequests();
+
+        if (isset($_GET["roles"])) {
+            getRoles();
+        } else {
+            getPendingAccessRequests();
+        }
         break;
 
     case "PATCH":
         requireAuth();
 
         $idFunc = filter_var(
-            $_GET['id'] ?? null, // agarra los parametros de la URL
+            $_GET['id'] ?? null,
             FILTER_VALIDATE_INT
         );
 
@@ -61,26 +66,23 @@ switch ($method) {
         ]);
 }
 
-// Solo devuelve los funcionarios que todavía no fueron habilitados
 function getPendingAccessRequests(): void
 {
     try {
         $db = Database::getConnection();
 
-        $sql = "SELECT
-        id_func,
-        nombre,
-        correo
-        FROM funcionario
-        WHERE activo = FALSE
-        ORDER BY id_func ASC";
-
-        $stmt = $db->prepare($sql);
+        $stmt = $db->prepare(
+            "SELECT id_func, nombre, correo
+             FROM funcionario
+             WHERE activo = FALSE
+             ORDER BY id_func ASC"
+        );
         $stmt->execute();
 
-        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        sendJson(200, ["ok" => true, "solicitudes" => $result]);
+        sendJson(200, [
+            "ok" => true,
+            "solicitudes" => $stmt->fetchAll(PDO::FETCH_ASSOC),
+        ]);
     } catch (PDOException $e) {
         sendJson(500, [
             "ok" => false,
@@ -89,24 +91,94 @@ function getPendingAccessRequests(): void
     }
 }
 
-// Acepta la solicitud: activo pasa de false a true
-function acceptAccessRequest(int $idFunc): void
+function getRoles(): void
 {
     try {
         $db = Database::getConnection();
 
         $stmt = $db->prepare(
-            'SELECT id_func
-            FROM funcionario
-            WHERE id_func = :id_func
-            AND activo = FALSE'
+            "SELECT id_rol, nombre, descripcion
+             FROM rol
+             ORDER BY id_rol ASC"
         );
+        $stmt->execute();
 
-        $stmt->execute([
-            ':id_func' => $idFunc,
+        sendJson(200, [
+            "ok" => true,
+            "roles" => $stmt->fetchAll(PDO::FETCH_ASSOC),
         ]);
+    } catch (PDOException $e) {
+        sendJson(500, [
+            "ok" => false,
+            "mensaje" => "Error al obtener los roles."
+        ]);
+    }
+}
 
-        if (!$stmt->fetch()) {
+function acceptAccessRequest(int $idFunc): void
+{
+    $data = getJsonBody();
+    $roles = $data["roles"] ?? null;
+
+    if (!is_array($roles) || count($roles) === 0) {
+        sendJson(422, [
+            'ok' => false,
+            'mensaje' => 'Debe seleccionar al menos un rol.',
+        ]);
+        exit;
+    }
+
+    $roleIds = [];
+
+    foreach ($roles as $role) {
+        $roleId = filter_var($role, FILTER_VALIDATE_INT);
+
+        if ($roleId === false || $roleId < 1) {
+            sendJson(422, [
+                'ok' => false,
+                'mensaje' => 'Los roles seleccionados no son válidos.',
+            ]);
+            exit;
+        }
+
+        $roleIds[$roleId] = $roleId;
+    }
+
+    $roleIds = array_values($roleIds);
+
+    try {
+        $db = Database::getConnection();
+
+        $placeholders = implode(",", array_fill(0, count($roleIds), "?"));
+
+        $checkRoles = $db->prepare(
+            "SELECT COUNT(*)
+             FROM rol
+             WHERE id_rol IN ($placeholders)"
+        );
+        $checkRoles->execute($roleIds);
+
+        if ((int) $checkRoles->fetchColumn() !== count($roleIds)) {
+            sendJson(422, [
+                'ok' => false,
+                'mensaje' => 'Alguno de los roles seleccionados no existe.',
+            ]);
+            exit;
+        }
+
+        $db->beginTransaction();
+
+        $activate = $db->prepare(
+            'UPDATE funcionario
+             SET activo = TRUE
+             WHERE id_func = :id_func
+             AND activo = FALSE'
+        );
+        $activate->execute([':id_func' => $idFunc]);
+
+        if ($activate->rowCount() === 0) {
+            $db->rollBack();
+
             sendJson(404, [
                 'ok' => false,
                 'mensaje' => 'La solicitud de acceso no existe o ya fue procesada.',
@@ -114,21 +186,29 @@ function acceptAccessRequest(int $idFunc): void
             exit;
         }
 
-        $update = $db->prepare(
-            'UPDATE funcionario
-            SET activo = TRUE
-            WHERE id_func = :id_func'
+        $assign = $db->prepare(
+            'INSERT INTO rol_usuario (id_func, id_rol)
+             VALUES (:id_func, :id_rol)'
         );
 
-        $update->execute([
-            ':id_func' => $idFunc,
-        ]);
+        foreach ($roleIds as $roleId) {
+            $assign->execute([
+                ':id_func' => $idFunc,
+                ':id_rol' => $roleId,
+            ]);
+        }
+
+        $db->commit();
 
         sendJson(200, [
             'ok' => true,
             'mensaje' => 'Acceso concedido correctamente.',
         ]);
     } catch (PDOException $e) {
+        if (isset($db) && $db->inTransaction()) {
+            $db->rollBack();
+        }
+
         sendJson(500, [
             'ok' => false,
             'mensaje' => 'Error al aceptar la solicitud de acceso.',
@@ -136,42 +216,25 @@ function acceptAccessRequest(int $idFunc): void
     }
 }
 
-// Rechaza la solicitud: se borra el registro de la base de datos.
-// Solo se permite borrar funcionarios inactivos (solicitudes pendientes),
-// nunca una cuenta ya habilitada.
 function rejectAccessRequest(int $idFunc): void
 {
     try {
         $db = Database::getConnection();
 
-        $stmt = $db->prepare(
-            'SELECT id_func
-            FROM funcionario
-            WHERE id_func = :id_func
-            AND activo = FALSE'
+        $delete = $db->prepare(
+            'DELETE FROM funcionario
+             WHERE id_func = :id_func
+             AND activo = FALSE'
         );
+        $delete->execute([':id_func' => $idFunc]);
 
-        $stmt->execute([
-            ':id_func' => $idFunc,
-        ]);
-
-        if (!$stmt->fetch()) {
+        if ($delete->rowCount() === 0) {
             sendJson(404, [
                 'ok' => false,
                 'mensaje' => 'La solicitud de acceso no existe o ya fue procesada.',
             ]);
             exit;
         }
-
-        $delete = $db->prepare(
-            'DELETE FROM funcionario
-            WHERE id_func = :id_func
-            AND activo = FALSE'
-        );
-
-        $delete->execute([
-            ':id_func' => $idFunc,
-        ]);
 
         sendJson(200, [
             'ok' => true,
