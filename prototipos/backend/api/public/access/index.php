@@ -72,10 +72,15 @@ function getPendingAccessRequests(): void
         $db = Database::getConnection();
 
         $stmt = $db->prepare(
-            "SELECT id_func, nombre, correo
-             FROM funcionario
-             WHERE activo = FALSE
-             ORDER BY id_func ASC"
+            "SELECT f.id_func, f.nombre, f.correo
+             FROM funcionario AS f
+             WHERE f.activo = FALSE
+             AND NOT EXISTS (
+                SELECT 1
+                FROM rol_usuario AS ru
+                WHERE ru.id_func = f.id_func
+             )
+             ORDER BY f.id_func ASC"
         );
         $stmt->execute();
 
@@ -172,7 +177,12 @@ function acceptAccessRequest(int $idFunc): void
             'UPDATE funcionario
              SET activo = TRUE
              WHERE id_func = :id_func
-             AND activo = FALSE'
+             AND activo = FALSE
+             AND NOT EXISTS (
+                SELECT 1
+                FROM rol_usuario AS ru
+                WHERE ru.id_func = funcionario.id_func
+             )'
         );
         $activate->execute([':id_func' => $idFunc]);
 
@@ -224,7 +234,12 @@ function rejectAccessRequest(int $idFunc): void
         $delete = $db->prepare(
             'DELETE FROM funcionario
              WHERE id_func = :id_func
-             AND activo = FALSE'
+             AND activo = FALSE
+             AND NOT EXISTS (
+                SELECT 1
+                FROM rol_usuario AS ru
+                WHERE ru.id_func = funcionario.id_func
+             )'
         );
         $delete->execute([':id_func' => $idFunc]);
 
