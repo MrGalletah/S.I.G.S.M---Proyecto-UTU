@@ -14,6 +14,8 @@ import NewTransfer from "./components/admin/ambulances/transfer/NewTansfer";
 import FollowUp from "./components/admin/ambulances/followUp/FollowUp";
 import TransferHistory from "./components/admin/ambulances/history/TransferHistory";
 
+import VehiclesPage from "./components/admin/vehicles/VehiclesPage";
+
 function App() {
   return (
     <Routes>
@@ -21,7 +23,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/documents/view" element={<UserView />} />
 
-      {/* Privadas TODO: implementar bien el login/logout */}
+      {/* Privadas */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminDashboard />}>
           <Route path="documents/dashboard" element={<DocsDashboard />} />
@@ -38,6 +40,7 @@ function App() {
           <Route path="ambulances/new" element={<NewTransfer />} />
           <Route path="ambulances/follow-up" element={<FollowUp />} />
           <Route path="ambulances/history" element={<TransferHistory />} />
+          <Route path="ambulances/vehicles" element={<VehiclesPage />} />
 
           <Route
             path="admin/users"

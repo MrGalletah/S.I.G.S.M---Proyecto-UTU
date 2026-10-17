@@ -25,6 +25,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import { useLocation, useNavigate } from "react-router";
 import { useState } from "react";
 import { logout } from "../../apiCalls/auth/authApi";
+import DirectionsCarOutlinedIcon from "@mui/icons-material/DirectionsCarOutlined";
 
 const sections = [
   {
@@ -61,6 +62,11 @@ const sections = [
         label: "Historial",
         icon: <HistoryIcon />,
         to: "/ambulances/history",
+      },
+      {
+        label: "Vehículos",
+        icon: <DirectionsCarOutlinedIcon />,
+        to: "/ambulances/vehicles",
       },
     ],
   },

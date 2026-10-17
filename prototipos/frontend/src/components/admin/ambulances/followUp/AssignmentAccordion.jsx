@@ -53,24 +53,21 @@ export default function AssignmentAccordion({
 }) {
   const requiresNurse = transfer.tipoElemento === "Paciente";
 
+  const canEdit = transfer.estado === "Registrado";
+
   const intervalComplete =
     Boolean(form.horaSalidaEstimada) && Boolean(form.horaLlegadaEstimada);
 
   return (
     <Accordion
-      defaultExpanded={!assigned}
+      defaultExpanded={!assigned || canEdit}
       disableGutters
       sx={{
         mt: 2,
-
         border: "1px solid",
-
         borderColor: "divider",
-
         borderRadius: "12px !important",
-
         boxShadow: "none",
-
         "&::before": {
           display: "none",
         },
@@ -78,11 +75,7 @@ export default function AssignmentAccordion({
     >
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box>
-          <Typography
-            sx={{
-              fontWeight: 700,
-            }}
-          >
+          <Typography sx={{ fontWeight: 700 }}>
             Asignación del traslado
           </Typography>
 
@@ -92,24 +85,26 @@ export default function AssignmentAccordion({
               color: "text.secondary",
             }}
           >
-            {assigned
+            {!canEdit
               ? "Recursos asignados al traslado."
-              : "Defina primero el horario para consultar los recursos disponibles."}
+              : assigned
+                ? "Consulte la disponibilidad para modificar los recursos asignados."
+                : "Defina primero el horario para consultar los recursos disponibles."}
           </Typography>
         </Box>
       </AccordionSummary>
 
       <AccordionDetails>
-        {assigned ? (
+        {!canEdit ? (
+          // TRASLADO YA INICIADO: SOLO LECTURA
+
           <Box
             sx={{
               display: "grid",
-
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "1fr 1fr",
               },
-
               gap: 2.5,
             }}
           >
@@ -131,17 +126,49 @@ export default function AssignmentAccordion({
           </Box>
         ) : (
           <>
-            {/* PRIMERO: INTERVALO */}
+            {/* ASIGNACIÓN ACTUAL */}
+
+            {assigned && !resources && (
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "1fr 1fr",
+                  },
+                  gap: 2,
+                  mb: 3,
+                  p: 2,
+                  borderRadius: 2,
+                  bgcolor: "var(--main-bg-color)",
+                }}
+              >
+                <ReadOnlyField
+                  label="Vehículo actual"
+                  value={transfer.vehiculo}
+                />
+
+                <ReadOnlyField
+                  label="Conductor actual"
+                  value={transfer.conductor}
+                />
+
+                <ReadOnlyField
+                  label="Enfermero actual"
+                  value={transfer.enfermero}
+                />
+              </Box>
+            )}
+
+            {/* HORARIOS */}
 
             <Box
               sx={{
                 display: "grid",
-
                 gridTemplateColumns: {
                   xs: "1fr",
                   sm: "1fr 1fr",
                 },
-
                 gap: 2.5,
               }}
             >
@@ -176,7 +203,7 @@ export default function AssignmentAccordion({
               />
             </Box>
 
-            {/* CONSULTAR DISPONIBILIDAD */}
+            {/* CONSULTA */}
 
             <Box
               sx={{
@@ -198,7 +225,6 @@ export default function AssignmentAccordion({
                 }
                 sx={{
                   textTransform: "none",
-
                   borderRadius: 2,
                   fontWeight: 700,
                 }}
@@ -211,17 +237,11 @@ export default function AssignmentAccordion({
               </Button>
             </Box>
 
-            {/* RECURSOS:
-                SOLO APARECEN DESPUÉS
-                DE CONSULTAR LA API */}
+            {/* RECURSOS DISPONIBLES */}
 
             {resources && (
               <>
-                <Divider
-                  sx={{
-                    my: 3,
-                  }}
-                />
+                <Divider sx={{ my: 3 }} />
 
                 <Typography
                   sx={{
@@ -236,23 +256,21 @@ export default function AssignmentAccordion({
                   sx={{
                     fontSize: 13,
                     color: "text.secondary",
-
                     mb: 2,
                   }}
                 >
-                  Seleccione los recursos disponibles para el intervalo
-                  indicado.
+                  {assigned
+                    ? "Puede mantener los recursos actuales o seleccionar otros."
+                    : "Seleccione los recursos para el intervalo indicado."}
                 </Typography>
 
                 <Box
                   sx={{
                     display: "grid",
-
                     gridTemplateColumns: {
                       xs: "1fr",
                       sm: "1fr 1fr",
                     },
-
                     gap: 2.5,
                   }}
                 >
@@ -277,7 +295,6 @@ export default function AssignmentAccordion({
                           {vehicle.matricula}
                           {" - "}
                           {vehicle.modelo}
-
                           {vehicle.tipo?.nombre
                             ? ` (${vehicle.tipo.nombre})`
                             : ""}
@@ -325,23 +342,25 @@ export default function AssignmentAccordion({
                     name="idEnfermero"
                     value={form.idEnfermero}
                     onChange={onChange}
-                    disabled={resources.enfermeros.length === 0}
+                    disabled={
+                      requiresNurse && resources.enfermeros.length === 0
+                    }
                   >
                     {!requiresNurse && (
                       <MenuItem value="">Sin asignar</MenuItem>
                     )}
 
-                    {resources.enfermeros.length > 0
-                      ? resources.enfermeros.map((nurse) => (
-                          <MenuItem key={nurse.id_func} value={nurse.id_func}>
-                            {nurse.nombre}
-                          </MenuItem>
-                        ))
-                      : requiresNurse && (
-                          <MenuItem disabled value="">
-                            No hay enfermeros disponibles
-                          </MenuItem>
-                        )}
+                    {resources.enfermeros.map((nurse) => (
+                      <MenuItem key={nurse.id_func} value={nurse.id_func}>
+                        {nurse.nombre}
+                      </MenuItem>
+                    ))}
+
+                    {requiresNurse && resources.enfermeros.length === 0 && (
+                      <MenuItem disabled value="">
+                        No hay enfermeros disponibles
+                      </MenuItem>
+                    )}
                   </TextField>
                 </Box>
               </>

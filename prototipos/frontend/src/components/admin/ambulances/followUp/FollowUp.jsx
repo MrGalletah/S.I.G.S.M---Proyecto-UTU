@@ -42,15 +42,12 @@ export default function FollowUp() {
   // TRASLADO SELECCIONADO
 
   const [selectedTransferId, setSelectedTransferId] = useState(null);
-
   const [selectedTransferDetail, setSelectedTransferDetail] = useState(null);
-
   const [detailError, setDetailError] = useState(null);
 
   // GESTIÓN DEL TRASLADO
 
   const [editTransferId, setEditTransferId] = useState(null);
-
   const [editTransferDetail, setEditTransferDetail] = useState(null);
 
   // PAGINACIÓN
@@ -64,19 +61,18 @@ export default function FollowUp() {
   // BÚSQUEDA, FILTROS Y ORDENACIÓN
 
   const [search, setSearch] = useState("");
-
-  const [filters, setFilters] = useState({
-    ...initialFilters,
-  });
-
-  const [sort, setSort] = useState({
-    ...initialSort,
-  });
+  const [filters, setFilters] = useState({ ...initialFilters });
+  const [sort, setSort] = useState({ ...initialSort });
 
   // CANCELAR TRASLADO
 
   const [transferToCancel, setTransferToCancel] = useState(null);
   const [cancelling, setCancelling] = useState(false);
+
+  // NOTIFICACIONES
+
+  const { notification, showNotification, closeNotification } =
+    useNotification();
 
   const handleCloseCancel = () => {
     if (!cancelling) {
@@ -104,12 +100,8 @@ export default function FollowUp() {
     } catch (error) {
       showNotification(error.message, "error");
 
-      // Refrescar el listado por si otro gestor
-      // modificó la solicitud mientras tanto.
-
       try {
         const updatedTransfers = await getTransfers();
-
         setTransfers(updatedTransfers);
       } catch {
         showNotification(
@@ -123,29 +115,35 @@ export default function FollowUp() {
     }
   };
 
-  // NOTIFICACIONES
-
-  const { notification, showNotification, closeNotification } =
-    useNotification();
-
   // CARGAR LISTADO INICIAL
 
   useEffect(() => {
-    const loadTransfers = async () => {
+    let cancelled = false;
+
+    async function loadTransfers() {
       try {
         const data = await getTransfers();
 
-        setTransfers(data);
+        if (cancelled) return;
 
+        setTransfers(data);
         setSelectedTransferId(data[0]?.id ?? null);
       } catch (error) {
-        showNotification(error.message, "error");
+        if (!cancelled) {
+          showNotification(error.message, "error");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-    };
+    }
 
     loadTransfers();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // FILTRADO Y ORDENACIÓN
@@ -168,7 +166,7 @@ export default function FollowUp() {
     startIndex + rowsPerPage,
   );
 
-  // SELECCIÓN DEL TRASLADO
+  // SELECCIÓN
 
   const selectedIsVisible = visibleTransfers.some(
     (transfer) => transfer.id === selectedTransferId,
@@ -178,14 +176,10 @@ export default function FollowUp() {
     ? selectedTransferId
     : (visibleTransfers[0]?.id ?? null);
 
-  // MOSTRAR SOLO EL ERROR DEL TRASLADO ACTUAL
-
   const currentDetailError =
     detailError?.id === effectiveSelectedTransferId
       ? detailError.message
       : null;
-
-  // COMPROBAR SI EL DETALLE ESTÁ ACTUALIZADO
 
   const detailIsCurrent =
     selectedTransferDetail?.id === effectiveSelectedTransferId;
@@ -193,9 +187,7 @@ export default function FollowUp() {
   // CARGAR DETALLE SELECCIONADO
 
   useEffect(() => {
-    if (!effectiveSelectedTransferId) {
-      return;
-    }
+    if (!effectiveSelectedTransferId) return;
 
     let cancelled = false;
 
@@ -203,7 +195,6 @@ export default function FollowUp() {
       .then((detail) => {
         if (!cancelled) {
           setSelectedTransferDetail(detail);
-
           setDetailError(null);
         }
       })
@@ -224,9 +215,7 @@ export default function FollowUp() {
   // CARGAR DETALLE PARA GESTIONAR
 
   useEffect(() => {
-    if (!editTransferId) {
-      return;
-    }
+    if (!editTransferId) return;
 
     let cancelled = false;
 
@@ -239,8 +228,8 @@ export default function FollowUp() {
       .catch((error) => {
         if (!cancelled) {
           showNotification(error.message, "error");
-
           setEditTransferId(null);
+          setEditTransferDetail(null);
         }
       });
 
@@ -249,17 +238,17 @@ export default function FollowUp() {
     };
   }, [editTransferId]);
 
-  // ESTADO DE CARGA DEL DIÁLOGO
+  // ABRIR GESTIÓN
 
-  const loadingEditTransfer =
-    editTransferId !== null && editTransferDetail?.id !== editTransferId;
+  const handleManageTransfer = (id) => {
+    setEditTransferDetail(null);
+    setEditTransferId(id);
+  };
 
-  // VISUALIZAR UN TRASLADO
+  // VISUALIZAR TRASLADO
 
   const handleViewTransfer = (id) => {
     setSelectedTransferId(id);
-
-    // Desplazarse aunque ya esté seleccionado.
 
     detailsRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -267,15 +256,14 @@ export default function FollowUp() {
     });
   };
 
-  // CAMBIAR BÚSQUEDA
+  // BÚSQUEDA
 
   const handleSearchChange = (value) => {
     setSearch(value);
-
     setPage(1);
   };
 
-  // CAMBIAR FILTROS
+  // FILTROS
 
   const handleFilterChange = (name, value) => {
     setFilters((prev) => ({
@@ -286,50 +274,37 @@ export default function FollowUp() {
     setPage(1);
   };
 
-  // CAMBIAR ORDENACIÓN
+  // ORDENACIÓN
 
   const handleSortChange = (key) => {
     setSort((prev) => ({
       key,
-
       direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
 
     setPage(1);
   };
 
-  // COMPROBAR SI HAY FILTROS ACTIVOS
-
   const hasActiveFilters =
     Boolean(search.trim()) ||
     Object.values(filters).some((value) => value !== "") ||
     Boolean(sort.key);
 
-  // LIMPIAR FILTROS
-
   const handleClearFilters = () => {
     setSearch("");
-
-    setFilters({
-      ...initialFilters,
-    });
-
-    setSort({
-      ...initialSort,
-    });
-
+    setFilters({ ...initialFilters });
+    setSort({ ...initialSort });
     setPage(1);
   };
 
-  // CERRAR DIÁLOGO DE GESTIÓN
+  // CERRAR GESTIÓN
 
   const handleCloseEditDialog = () => {
     setEditTransferId(null);
-
     setEditTransferDetail(null);
   };
 
-  // REFRESCAR DESPUÉS DE UNA MODIFICACIÓN
+  // REFRESCAR DESPUÉS DE MODIFICAR
 
   const refreshTransfer = async (idTransfer, successMessage) => {
     handleCloseEditDialog();
@@ -338,8 +313,6 @@ export default function FollowUp() {
       const updatedTransfers = await getTransfers();
 
       setTransfers(updatedTransfers);
-
-      // Comprobar si el traslado seleccionado sigue activo.
 
       const selectedStillActive = updatedTransfers.some(
         (transfer) => transfer.id === selectedTransferId,
@@ -354,18 +327,14 @@ export default function FollowUp() {
           setSelectedTransferDetail(null);
         }
       } else if (effectiveSelectedTransferId === idTransfer) {
-        // Actualizar el detalle si se modificó
-        // el traslado que estamos visualizando.
-
         const detail = await getTransferDetail(idTransfer);
 
         setSelectedTransferDetail(detail);
-
         setDetailError(null);
       }
 
       showNotification(successMessage, "success");
-    } catch (error) {
+    } catch {
       showNotification(
         "El cambio se guardó, pero no se pudo actualizar la vista.",
         "warning",
@@ -373,13 +342,9 @@ export default function FollowUp() {
     }
   };
 
-  // ASIGNACIÓN REALIZADA
-
   const handleTransferAssigned = async (idTransfer) => {
-    await refreshTransfer(idTransfer, "Traslado asignado correctamente.");
+    await refreshTransfer(idTransfer, "Asignación guardada correctamente.");
   };
-
-  // ESTADO ACTUALIZADO
 
   const handleStateUpdated = async (idTransfer) => {
     await refreshTransfer(idTransfer, "Estado actualizado correctamente.");
@@ -405,7 +370,7 @@ export default function FollowUp() {
           totalTransfers={transfers.length}
           filteredCount={filteredTransfers.length}
           selectedTransferId={effectiveSelectedTransferId}
-          setEditTransferId={setEditTransferId}
+          setEditTransferId={handleManageTransfer}
           onViewTransfer={handleViewTransfer}
           page={currentPage}
           setPage={setPage}
@@ -433,21 +398,15 @@ export default function FollowUp() {
             pb: 3,
           }}
         >
-          {/* ERROR DE CARGA */}
-
           {currentDetailError && (
             <Alert severity="error" sx={{ mt: 2 }}>
               {currentDetailError}
             </Alert>
           )}
 
-          {/* TARJETA DE DETALLES */}
-
           {selectedTransferDetail ? (
             <Box sx={{ position: "relative" }}>
               <TransferDetailsCard transfer={selectedTransferDetail} />
-
-              {/* CAPA DE CARGA */}
 
               {!detailIsCurrent && !currentDetailError && (
                 <Box
@@ -455,11 +414,9 @@ export default function FollowUp() {
                     position: "absolute",
                     inset: 0,
                     mt: 2,
-
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-
                     bgcolor: "rgba(255, 255, 255, 0.65)",
                     borderRadius: 4,
                     zIndex: 1,
@@ -470,8 +427,6 @@ export default function FollowUp() {
               )}
             </Box>
           ) : (
-            // SOLO EN LA PRIMERA CARGA
-
             !currentDetailError && (
               <Stack
                 sx={{
@@ -487,40 +442,18 @@ export default function FollowUp() {
         </Box>
       )}
 
-      {/* CARGANDO DIÁLOGO */}
+      {/* UN ÚNICO DIÁLOGO DE GESTIÓN */}
 
-      <Dialog
-        open={loadingEditTransfer}
-        fullWidth
-        maxWidth="xs"
-        slotProps={{
-          paper: {
-            sx: {
-              borderRadius: 3,
-            },
-          },
-        }}
-      >
-        <DialogContent>
-          <Stack
-            sx={{
-              minHeight: 120,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <CircularProgress size={32} />
-          </Stack>
-        </DialogContent>
-      </Dialog>
-
-      {/* GESTIONAR TRASLADO */}
-
-      {editTransferId && editTransferDetail?.id === editTransferId && (
+      {editTransferId !== null && (
         <TransferEditDialog
-          key={editTransferDetail.id}
+          key={editTransferId}
           open={true}
-          transfer={editTransferDetail}
+          transfer={
+            editTransferDetail?.id === editTransferId
+              ? editTransferDetail
+              : null
+          }
+          transferId={editTransferId}
           onClose={handleCloseEditDialog}
           onAssigned={handleTransferAssigned}
           onStateUpdated={handleStateUpdated}
@@ -561,12 +494,23 @@ export default function FollowUp() {
             ?
           </DialogContentText>
 
-          <DialogContentText sx={{ mt: 1, fontSize: 13 }}>
+          <DialogContentText
+            sx={{
+              mt: 1,
+              fontSize: 13,
+            }}
+          >
             La solicitud dejará de aparecer en el listado de traslados activos.
           </DialogContentText>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 2,
+            gap: 1,
+          }}
+        >
           <Button
             onClick={handleCloseCancel}
             disabled={cancelling}
