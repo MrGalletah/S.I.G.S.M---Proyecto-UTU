@@ -1,0 +1,29 @@
+{
+  "sidebar": {
+    "documentation": "Documents & Surveys",
+    "home": "Overview",
+    "categories": "Categories",
+    "documents": "Documents",
+    "surveys": "Surveys",
+    "ambulances": "Transport Management",
+    "newTransfer": "New transport request",
+    "followUp": "Transfer tracking",
+    "history": "Transfer history",
+    "vehicles": "Vehicles",
+    "administration": "Administration",
+    "userView": "Public view",
+    "users": "Users",
+    "access": "Access management",
+    "logout": "Sign out",
+    "logoutConfirm": "Are you sure you want to sign out?",
+    "logoutTitle": "Sign out",
+    "logoutDescription": "Are you sure you want to sign out?",
+    "confirmLogout": "Sign out",
+    "cancel": "Cancel",
+    "yes": "Yes",
+    "close": "Close",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu",
+    "navigation": "Main navigation"
+  }
+}

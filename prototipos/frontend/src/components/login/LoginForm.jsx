@@ -10,27 +10,35 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useTranslation } from "react-i18next";
+
 import { login } from "../../apiCalls/auth/authApi";
 
 export default function LoginForm() {
   const navigate = useNavigate();
-  const [name, setName] = useState(""); 
-  const [showLogin, setShowLogin] = useState(false);
+  const { t } = useTranslation("auth");
+
+  const [requestingAccess, setRequestingAccess] = useState(false);
+
+  const [name, setName] = useState("");
   const [mail, setMail] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [openSnackbar, setOpenSnackbar] = useState(false);
-  
 
-  const handleOpenSnackbar = () => setOpenSnackbar(true);
+  const handleOpenSnackbar = () => {
+    setOpenSnackbar(true);
+  };
+
   const handleCloseSnackbar = (event, reason) => {
-    if (reason === "clickaway") {
-      return;
-    }
+    if (reason === "clickaway") return;
+
     setOpenSnackbar(false);
   };
 
@@ -39,40 +47,42 @@ export default function LoginForm() {
     setPwd("");
     setConfirmPwd("");
     setError("");
+    setOpenSnackbar(false);
   };
 
-  const handleToggleLogin = (e) => {
-    e.preventDefault();
-    setShowLogin((prev) => !prev);
+  const handleToggleMode = (event) => {
+    event.preventDefault();
+
+    setRequestingAccess((prev) => !prev);
     resetFields();
   };
 
-  const handlesubmit = async (e) => {
-    e.preventDefault();
-    console.log(name, confirmPwd);
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     setError("");
 
-    if (showLogin) {
+    // SOLICITUD DE ACCESO
+    if (requestingAccess) {
       if (pwd !== confirmPwd) {
-        setError("Las contraseñas no coinciden");
+        setError(t("request.passwordMismatch"));
         handleOpenSnackbar();
         return;
       }
-      console.log("Solicitud de acceso:", { mail, pwd });
+
+      // Pendiente de conectar al backend.
       return;
     }
-    
+
+    // INICIO DE SESIÓN
     setLoading(true);
 
     try {
-      const req = await login(mail, pwd);
-
-      console.log("Usuario autenticado:", req.usuario);
+      await login(mail, pwd);
 
       navigate("/documents/dashboard");
-    } catch (e) {
-      setError(e.message);
+    } catch (error) {
+      setError(error.message || t("login.invalidCredentials"));
       handleOpenSnackbar();
     } finally {
       setLoading(false);
@@ -82,12 +92,13 @@ export default function LoginForm() {
   return (
     <>
       <Box
-        component={"form"}
-        onSubmit={handlesubmit}
+        component="form"
+        onSubmit={handleSubmit}
         sx={{
           width: "100%",
         }}
       >
+        {/* Título */}
         <Typography
           variant="h4"
           component="h2"
@@ -97,9 +108,10 @@ export default function LoginForm() {
             mb: 1,
           }}
         >
-          {showLogin ? "Solicitar acceso" : "Iniciar sesión"}
+          {requestingAccess ? t("request.title") : t("login.title")}
         </Typography>
 
+        {/* Descripción */}
         <Typography
           component="p"
           sx={{
@@ -108,61 +120,67 @@ export default function LoginForm() {
             mb: 4,
           }}
         >
-          {showLogin
-            ? "Complete sus datos para solicitar acceso al sistema."
-            : "Ingrese sus credenciales para acceder al sistema."}
+          {requestingAccess ? t("request.description") : t("login.description")}
         </Typography>
 
         <Stack spacing={1.5}>
+          {/* Correo electrónico */}
           <TextField
-            label="Correo electrónico"
-            placeholder="Ingrese su correo"
+            label={t("login.email")}
+            placeholder={t("login.emailPlaceholder")}
             fullWidth
             value={mail}
             error={Boolean(error)}
-            helperText={error && !showLogin ? "Correo incorrecto" : " "}
-            onChange={(e) => setMail(e.target.value)}
+            helperText={
+              error && !requestingAccess ? t("login.emailError") : " "
+            }
+            onChange={(event) => setMail(event.target.value)}
           />
 
-          {showLogin && (
+          {/* Nombre: solo solicitud de acceso */}
+          {requestingAccess && (
             <TextField
-              label="Nombre"
-              placeholder="Juan"
+              label={t("request.name")}
+              placeholder={t("request.namePlaceholder")}
               type="text"
               fullWidth
               error={Boolean(error)}
-              helperText={error ? error : " "}
+              helperText={error || " "}
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
             />
           )}
 
-
+          {/* Contraseña */}
           <TextField
-            label="Contraseña"
-            placeholder="Ingrese su contraseña"
+            label={t("login.password")}
+            placeholder={t("login.passwordPlaceholder")}
             type="password"
             fullWidth
             error={Boolean(error)}
-            helperText={error && !showLogin ? "Contraseña incorrecta" : " "}
+            helperText={
+              error && !requestingAccess ? t("login.passwordError") : " "
+            }
             value={pwd}
-            onChange={(e) => setPwd(e.target.value)}
+            onChange={(event) => setPwd(event.target.value)}
           />
 
-          {showLogin && (
+          {/* Confirmar contraseña */}
+          {requestingAccess && (
             <TextField
-              label="Confirmar contraseña"
-              placeholder="Repita su contraseña"
+              label={t("request.confirmPassword")}
+              placeholder={t("request.confirmPasswordPlaceholder")}
               type="password"
               fullWidth
               error={Boolean(error)}
-              helperText={error ? error : " "}
+              helperText={error || " "}
               value={confirmPwd}
-              onChange={(e) => setConfirmPwd(e.target.value)}
+              onChange={(event) => setConfirmPwd(event.target.value)}
             />
           )}
 
-          {!showLogin && (
+          {/* Recordarme */}
+          {!requestingAccess && (
             <FormControlLabel
               control={
                 <Checkbox
@@ -174,10 +192,11 @@ export default function LoginForm() {
                   }}
                 />
               }
-              label="Recordarme"
+              label={t("login.remember")}
             />
           )}
 
+          {/* Enviar formulario */}
           <Button
             type="submit"
             variant="contained"
@@ -190,14 +209,16 @@ export default function LoginForm() {
               textTransform: "none",
               fontWeight: 700,
               fontSize: 15,
+
               "&:hover": {
                 bgcolor: "#0A476D",
               },
             }}
           >
-            {showLogin ? "Solicitar acceso" : "Ingresar"}
+            {requestingAccess ? t("request.submit") : t("login.submit")}
           </Button>
 
+          {/* Alternar entre formularios */}
           <Typography
             sx={{
               textAlign: "center",
@@ -205,53 +226,60 @@ export default function LoginForm() {
               color: "#6b7280",
             }}
           >
-            {showLogin ? (
+            {requestingAccess ? (
               <>
-                ¿Ya tienes cuenta?{" "}
+                {t("request.hasAccount")}{" "}
                 <Link
                   href="#"
                   underline="none"
-                  onClick={handleToggleLogin}
+                  onClick={handleToggleMode}
                   sx={{
                     color: "var(--primary-color)",
                     fontWeight: 700,
                   }}
                 >
-                  Iniciar sesión
+                  {t("login.title")}
                 </Link>
               </>
             ) : (
               <>
-                ¿No tienes cuenta?{" "}
+                {t("login.noAccount")}{" "}
                 <Link
                   href="#"
                   underline="none"
-                  onClick={handleToggleLogin}
+                  onClick={handleToggleMode}
                   sx={{
                     color: "var(--primary-color)",
                     fontWeight: 700,
                   }}
                 >
-                  Solicitar acceso
+                  {t("login.requestAccess")}
                 </Link>
               </>
             )}
           </Typography>
         </Stack>
       </Box>
+
+      {/* Notificaciones */}
       <Snackbar
         open={openSnackbar}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
-        anchorOrigin={{ horizontal: "center", vertical: "top" }}
+        anchorOrigin={{
+          horizontal: "center",
+          vertical: "top",
+        }}
       >
         <Alert
           onClose={handleCloseSnackbar}
           severity="error"
           variant="filled"
-          sx={{ width: "100%" }}
+          sx={{
+            width: "100%",
+          }}
         >
-          {error || "Las credenciales introducidas no son correctas"}
+          {error || t("login.invalidCredentials")}
         </Alert>
       </Snackbar>
     </>

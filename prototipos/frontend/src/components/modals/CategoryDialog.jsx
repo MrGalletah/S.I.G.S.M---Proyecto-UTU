@@ -9,7 +9,9 @@ import {
   Switch,
   TextField,
 } from "@mui/material";
+
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function CategoryModal({
   open,
@@ -18,14 +20,18 @@ export default function CategoryModal({
   onSubmit,
   loading = false,
 }) {
+  const { t } = useTranslation("documents");
+
   const isEditing = Boolean(category);
 
   const [name, setName] = useState(category?.nombre ?? "");
   const [description, setDescription] = useState(category?.descripcion ?? "");
   const [active, setActive] = useState(Boolean(category?.activo));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const nameIsEmpty = !name.trim();
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     const data = {
       nombre: name.trim(),
@@ -39,35 +45,36 @@ export default function CategoryModal({
     await onSubmit(data);
   };
 
-  const nameIsEmpty = !name.trim();
-
   return (
     <Dialog
       open={open}
       onClose={loading ? undefined : onClose}
       fullWidth
       maxWidth="sm"
+      aria-labelledby="category-dialog-title"
     >
       <form onSubmit={handleSubmit}>
-        <DialogTitle>
-          {isEditing ? "Editar categoría" : "Nueva categoría"}
+        <DialogTitle id="category-dialog-title">
+          {isEditing
+            ? t("categories.dialog.editTitle")
+            : t("categories.dialog.createTitle")}
         </DialogTitle>
 
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField
-              label="Nombre"
+              label={t("categories.dialog.name")}
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
               required
               fullWidth
               autoFocus
             />
 
             <TextField
-              label="Descripción"
+              label={t("categories.dialog.description")}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(event) => setDescription(event.target.value)}
               multiline
               rows={4}
               fullWidth
@@ -78,10 +85,14 @@ export default function CategoryModal({
                 control={
                   <Switch
                     checked={active}
-                    onChange={(e) => setActive(e.target.checked)}
+                    onChange={(event) => setActive(event.target.checked)}
                   />
                 }
-                label={active ? "Categoría activa" : "Categoría inactiva"}
+                label={
+                  active
+                    ? t("categories.dialog.active")
+                    : t("categories.dialog.inactive")
+                }
               />
             )}
           </Stack>
@@ -89,7 +100,7 @@ export default function CategoryModal({
 
         <DialogActions>
           <Button onClick={onClose} disabled={loading}>
-            Cancelar
+            {t("categories.dialog.cancel")}
           </Button>
 
           <Button
@@ -98,10 +109,10 @@ export default function CategoryModal({
             disabled={loading || nameIsEmpty}
           >
             {loading
-              ? "Guardando..."
+              ? t("categories.dialog.saving")
               : isEditing
-                ? "Guardar cambios"
-                : "Crear categoría"}
+                ? t("categories.dialog.save")
+                : t("categories.dialog.create")}
           </Button>
         </DialogActions>
       </form>
