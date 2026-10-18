@@ -6,6 +6,8 @@ require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../config/Database.php";
 require_once __DIR__ . "/../../middleware/requireAuth.php";
 require_once __DIR__ . "/../../utils/getJsonBody.php";
+require_once __DIR__ . "/../../utils/validation.php";
+require_once __DIR__ . "/../../services/UserQueryService.php";
 
 $method = $_SERVER["REQUEST_METHOD"];
 
@@ -55,58 +57,78 @@ switch ($method) {
 
 function getUsers(): void
 {
+    $page = isset($_GET["page"])
+        ? (int) $_GET["page"]
+        : 1;
+
+    $limit = isset($_GET["limit"])
+        ? (int) $_GET["limit"]
+        : 20;
+
+    if ($page < 1) {
+        sendJson(400, [
+            "ok" => false,
+            "mensaje" => "La página debe ser mayor o igual a 1."
+        ]);
+    }
+
+    if ($limit < 1 || $limit > 100) {
+        sendJson(400, [
+            "ok" => false,
+            "mensaje" => "El límite debe estar entre 1 y 100."
+        ]);
+    }
+
+    $search = isset($_GET["search"])
+        ? trim((string) $_GET["search"])
+        : null;
+
+    if ($search === "") {
+        $search = null;
+    }
+
+    $estado = isset($_GET["estado"])
+        ? trim((string) $_GET["estado"])
+        : "all";
+
+    if ($estado === "") {
+        $estado = "all";
+    }
+
+    if (!in_array($estado, ["active", "inactive", "all"], true)) {
+        sendJson(400, [
+            "ok" => false,
+            "mensaje" => "El estado no es válido."
+        ]);
+    }
+
+    $idRol = optionalPositiveInt(
+        $_GET["id_rol"] ?? null,
+        "El rol"
+    );
+
     try {
         $db = Database::getConnection();
 
-        $stmt = $db->prepare(
-            "SELECT
-                f.id_func,
-                f.nombre,
-                f.correo,
-                f.activo,
-                r.id_rol,
-                r.nombre AS rol
-             FROM funcionario AS f
-             LEFT JOIN rol_usuario AS ru ON ru.id_func = f.id_func
-             LEFT JOIN rol AS r ON r.id_rol = ru.id_rol
-             WHERE f.activo = TRUE
-                OR EXISTS (
-                    SELECT 1
-                    FROM rol_usuario AS x
-                    WHERE x.id_func = f.id_func
-                )
-             ORDER BY f.nombre ASC, r.id_rol ASC"
+        $service = new UserQueryService($db);
+
+        $result = $service->getUsers(
+            $page,
+            $limit,
+            $search,
+            $estado,
+            $idRol
         );
-        $stmt->execute();
-
-        $users = [];
-
-        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $id = (int) $row["id_func"];
-
-            if (!isset($users[$id])) {
-                $users[$id] = [
-                    "id_func" => $id,
-                    "nombre" => $row["nombre"],
-                    "correo" => $row["correo"],
-                    "activo" => (bool) $row["activo"],
-                    "roles" => [],
-                ];
-            }
-
-            if ($row["id_rol"] !== null) {
-                $users[$id]["roles"][] = [
-                    "id_rol" => (int) $row["id_rol"],
-                    "nombre" => $row["rol"],
-                ];
-            }
-        }
 
         sendJson(200, [
             "ok" => true,
-            "usuarios" => array_values($users),
+            ...$result
         ]);
-    } catch (PDOException $e) {
+    } catch (Throwable $e) {
+        error_log(
+            "Error al obtener los usuarios: " . $e->getMessage()
+        );
+
         sendJson(500, [
             "ok" => false,
             "mensaje" => "Error al obtener los usuarios."
