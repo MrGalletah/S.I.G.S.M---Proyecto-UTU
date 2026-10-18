@@ -2,11 +2,10 @@ import {
   Box,
   Button,
   Card,
-  Checkbox,
   Chip,
   CircularProgress,
-  FormControlLabel,
   IconButton,
+  MenuItem,
   Pagination,
   Stack,
   Table,
@@ -170,11 +169,15 @@ export default function DocsCard({ variant }) {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [onlyActive, setOnlyActive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const filteredDocuments = documents.filter((documentItem) => {
     const searchText = search.toLowerCase();
-    const matchesStatus = !onlyActive || documentItem.state === "Activo";
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active"
+        ? documentItem.state === "Activo"
+        : documentItem.state !== "Activo");
     const matchesSearch =
       documentItem.document.toLowerCase().includes(searchText) ||
       documentItem.category.toLowerCase().includes(searchText) ||
@@ -253,8 +256,7 @@ export default function DocsCard({ variant }) {
           sx={{
             mb: 2,
             gap: 2,
-            alignItems: { xs: "flex-start", sm: "center" },
-            justifyContent: "space-between",
+            alignItems: { xs: "stretch", sm: "center" },
           }}
         >
           <TextField
@@ -266,7 +268,6 @@ export default function DocsCard({ variant }) {
               setPage(1);
             }}
             sx={{
-              mb: 2,
               width: {
                 xs: "100%",
                 sm: "250px",
@@ -274,24 +275,26 @@ export default function DocsCard({ variant }) {
             }}
           />
 
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={onlyActive}
-                onChange={(e) => {
-                  setOnlyActive(e.target.checked);
-                  setPage(1);
-                }}
-                sx={{
-                  color: "var(--primary-color)",
-                  "&.Mui-checked": {
-                    color: "var(--primary-color)",
-                  },
-                }}
-              />
-            }
-            label="Mostrar solo activos"
-          />
+          <TextField
+            select
+            size="small"
+            label="Estado"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            sx={{
+              width: {
+                xs: "100%",
+                sm: "160px",
+              },
+            }}
+          >
+            <MenuItem value="active">Activos</MenuItem>
+            <MenuItem value="inactive">Inactivos</MenuItem>
+            <MenuItem value="all">Todos</MenuItem>
+          </TextField>
         </Stack>
         {loading ? (
           <Box

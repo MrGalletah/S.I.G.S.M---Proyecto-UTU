@@ -24,6 +24,7 @@ import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 import { useEffect, useState } from "react";
 import {
+  getRoles,
   getUsers,
   setUserActive,
   updateUserRoles,
@@ -31,6 +32,7 @@ import {
 import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
 import DeactivateUserDialog from "../../modals/DeactivateUserDialog";
+import ActivateUserDialog from "../../modals/ActivateUserDialog";
 import EditUserRolesDialog from "../../modals/EditUserRolesDialog";
 
 export default function UsersCard({ variant }) {
@@ -45,13 +47,16 @@ export default function UsersCard({ variant }) {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [roles, setRoles] = useState([]);
   const [page, setPage] = useState(1);
 
   const [userToEdit, setUserToEdit] = useState(null);
   const [saving, setSaving] = useState(false);
   const [userToDeactivate, setUserToDeactivate] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
-  const [activatingId, setActivatingId] = useState(null);
+  const [userToActivate, setUserToActivate] = useState(null);
+  const [activating, setActivating] = useState(false);
 
   const fetchData = async (silent = false) => {
     try {
@@ -70,8 +75,22 @@ export default function UsersCard({ variant }) {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      const data = await getRoles();
+
+      if (data.ok) {
+        setRoles(data.roles);
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification("Error al obtener los roles.", "error");
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchRoles();
   }, []);
 
   const updateUserStatus = (idFunc, activo) => {
@@ -138,24 +157,29 @@ export default function UsersCard({ variant }) {
     }
   };
 
-  const handleActivate = async (user) => {
-    try {
-      setActivatingId(user.id_func);
+  const handleActivate = async () => {
+    if (!userToActivate) return;
 
-      const response = await setUserActive(user.id_func, true);
+    try {
+      setActivating(true);
+
+      const response = await setUserActive(userToActivate.id_func, true);
 
       showNotification(
         response.mensaje || "Usuario activado correctamente.",
         "success",
       );
 
-      updateUserStatus(user.id_func, true);
+      updateUserStatus(userToActivate.id_func, true);
+      setUserToActivate(null);
     } catch (error) {
       console.error(error);
 
       showNotification(error.message || "Error al activar el usuario.", "error");
+
+      setUserToActivate(null);
     } finally {
-      setActivatingId(null);
+      setActivating(false);
     }
   };
 
@@ -171,7 +195,11 @@ export default function UsersCard({ variant }) {
       statusFilter === "all" ||
       (statusFilter === "active" ? user.activo : !user.activo);
 
-    return matchesSearch && matchesStatus;
+    const matchesRole =
+      roleFilter === "all" ||
+      user.roles.some((role) => String(role.id_rol) === String(roleFilter));
+
+    return matchesSearch && matchesStatus && matchesRole;
   });
 
   const activeCount = users.filter((user) => user.activo).length;
@@ -286,6 +314,30 @@ export default function UsersCard({ variant }) {
             <MenuItem value="active">Activos</MenuItem>
             <MenuItem value="inactive">Inactivos</MenuItem>
             <MenuItem value="all">Todos</MenuItem>
+          </TextField>
+
+          <TextField
+            select
+            size="small"
+            label="Rol"
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPage(1);
+            }}
+            sx={{
+              width: {
+                xs: "100%",
+                sm: "180px",
+              },
+            }}
+          >
+            <MenuItem value="all">Todos</MenuItem>
+            {roles.map((role) => (
+              <MenuItem key={role.id_rol} value={role.id_rol}>
+                {role.nombre}
+              </MenuItem>
+            ))}
           </TextField>
         </Stack>
 
@@ -485,17 +537,12 @@ export default function UsersCard({ variant }) {
                             <span>
                               <IconButton
                                 size="small"
-                                disabled={activatingId === user.id_func}
-                                onClick={() => handleActivate(user)}
+                                onClick={() => setUserToActivate(user)}
                                 sx={{
                                   color: "var(--green-chip)",
                                 }}
                               >
-                                {activatingId === user.id_func ? (
-                                  <CircularProgress size={18} color="inherit" />
-                                ) : (
-                                  <CheckCircleOutlineIcon fontSize="small" />
-                                )}
+                                <CheckCircleOutlineIcon fontSize="small" />
                               </IconButton>
                             </span>
                           </Tooltip>
@@ -543,6 +590,14 @@ export default function UsersCard({ variant }) {
         loading={deactivating}
         onClose={() => setUserToDeactivate(null)}
         onConfirm={handleDeactivate}
+      />
+
+      <ActivateUserDialog
+        open={Boolean(userToActivate)}
+        user={userToActivate}
+        loading={activating}
+        onClose={() => setUserToActivate(null)}
+        onConfirm={handleActivate}
       />
 
       <NotificationSnackbar
