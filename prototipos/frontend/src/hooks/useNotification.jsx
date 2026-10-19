@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 export function useNotification() {
   const [notification, setNotification] = useState({
@@ -7,22 +7,22 @@ export function useNotification() {
     severity: "success",
   });
 
-  const showNotification = (message, severity = "success") => {
+  const showNotification = useCallback((message, severity = "success") => {
     setNotification({
       open: true,
       message,
       severity,
     });
-  };
+  }, []);
 
-  const closeNotification = (event, reason) => {
+  const closeNotification = useCallback((event, reason) => {
     if (reason === "clickaway") return;
 
     setNotification((prev) => ({
       ...prev,
       open: false,
     }));
-  };
+  }, []);
 
   return {
     notification,
