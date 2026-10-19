@@ -1,16 +1,22 @@
 import { Box, Stack } from "@mui/material";
-import StatCard from "../../utils/StatCard";
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import DescriptionIcon from "@mui/icons-material/Description";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import AssignmentIcon from "@mui/icons-material/Assignment";
+
+import StatCard from "../../utils/StatCard";
 import CategoriesCard from "./CategoriesCard";
-import SurveysCard from "../documents/SurveysCard";
+import SurveysCard from "./SurveysCard";
 import DocsCard from "./DocsCard";
-import { useEffect, useState } from "react";
+
 import { getAllDocuments } from "../../../apiCalls/documents/documentsApi";
 
 export default function DocsDashboard() {
+  const { t } = useTranslation("documents");
+
   const [categories, setCategories] = useState([]);
   const [activeDocuments, setActiveDocuments] = useState(0);
   const [totalDocuments, setTotalDocuments] = useState(0);
@@ -18,9 +24,8 @@ export default function DocsDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        //setLoading(true);
-
         const data = await getAllDocuments();
+
         if (data.ok) {
           const { totalDocuments, activeDocuments } = data.categorias.reduce(
             (acc, category) => {
@@ -44,38 +49,42 @@ export default function DocsDashboard() {
         }
       } catch (e) {
         console.error(e);
-        //showNotification("Error al obtener las categorías.", "error");
-      } finally {
-        //setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
   const cardsData = [
     {
-      label: categories.length === 1 ? "Categoría" : "Categorías",
+      label: t("dashboard.category", {
+        count: categories.length,
+      }),
       icon: <FolderOpenIcon />,
       value: categories.length,
       subtitle: undefined,
     },
     {
-      label: totalDocuments === 1 ? "Documento" : "Documentos",
+      label: t("dashboard.document", {
+        count: totalDocuments,
+      }),
       icon: <DescriptionIcon />,
       value: totalDocuments,
       subtitle: undefined,
     },
     {
-      label: "Documentos activos",
+      label: t("dashboard.activeDocuments"),
       icon: <TaskAltIcon />,
       value: activeDocuments,
       subtitle:
         activeDocuments === 0 && totalDocuments === 0
           ? ""
-          : `${Math.round((activeDocuments / totalDocuments) * 100)}% del total`,
+          : t("dashboard.percentageOfTotal", {
+              percentage: Math.round((activeDocuments / totalDocuments) * 100),
+            }),
     },
     {
-      label: "Encuestas activas",
+      label: t("dashboard.activeSurveys"),
       icon: <AssignmentIcon />,
       value: 12,
       subtitle: undefined,
@@ -84,8 +93,9 @@ export default function DocsDashboard() {
 
   return (
     <>
+      {/* Estadísticas */}
       <Stack
-        direction={"row"}
+        direction="row"
         spacing={2}
         sx={{
           flexWrap: "wrap",
@@ -94,13 +104,14 @@ export default function DocsDashboard() {
             md: "flex",
             xs: "none",
           },
-          // justifyContent: "space-evenly"
         }}
       >
-        {cardsData.map((item) => {
-          return <StatCard key={item.label} item={item} />;
-        })}
+        {cardsData.map((item) => (
+          <StatCard key={item.label} item={item} />
+        ))}
       </Stack>
+
+      {/* Tarjetas de gestión */}
       <Box
         sx={{
           display: "grid",
@@ -120,6 +131,7 @@ export default function DocsDashboard() {
         }}
       >
         <CategoriesCard />
+
         <SurveysCard />
 
         <Box

@@ -1,12 +1,19 @@
 import {
   Box,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Drawer,
   IconButton,
-  Slide,
-  Snackbar,
   Stack,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
+
+import { useTheme } from "@mui/material/styles";
 
 import MenuIcon from "@mui/icons-material/Menu";
 import CloseIcon from "@mui/icons-material/Close";
@@ -21,227 +28,234 @@ import LoginIcon from "@mui/icons-material/Login";
 import NoteAddIcon from "@mui/icons-material/NoteAdd";
 import PersonIcon from "@mui/icons-material/Person";
 import LogoutIcon from "@mui/icons-material/Logout";
-import { useLocation, useNavigate } from "react-router";
+import HistoryIcon from "@mui/icons-material/History";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+
+import { NavLink, useNavigate, useLocation } from "react-router";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import { logout } from "../../apiCalls/auth/authApi";
+import LanguageSwitcher from "../utils/LanguageSwitcher";
+
+const DRAWER_WIDTH = 240;
 
 const sections = [
   {
-    title: "Módulo de documentación",
+    titleKey: "sidebar.documentation",
     items: [
-      { label: "Inicio", icon: <HomeIcon />, to: "/documents/dashboard" },
       {
-        label: "Categorías",
+        labelKey: "sidebar.home",
+        icon: <HomeIcon />,
+        to: "/documents/dashboard",
+      },
+      {
+        labelKey: "sidebar.categories",
         icon: <FolderOpenIcon />,
         to: "/documents/categories",
       },
       {
-        label: "Documentos",
+        labelKey: "sidebar.documents",
         icon: <DescriptionIcon />,
         to: "/documents/files",
       },
       {
-        label: "Encuestas",
+        labelKey: "sidebar.surveys",
         icon: <AssignmentIcon />,
         to: "/documents/surveys",
       },
     ],
   },
   {
-    title: "Módulo de ambulancias",
+    titleKey: "sidebar.ambulances",
     items: [
-      { label: "Nuevo traslado", icon: <NoteAddIcon />, to: "/ambulances/new" },
       {
-        label: "Seguimiento",
+        labelKey: "sidebar.newTransfer",
+        icon: <NoteAddIcon />,
+        to: "/ambulances/new",
+      },
+      {
+        labelKey: "sidebar.followUp",
         icon: <QueuePlayNextIcon />,
         to: "/ambulances/follow-up",
+      },
+      {
+        labelKey: "sidebar.history",
+        icon: <HistoryIcon />,
+        to: "/ambulances/history",
+      },
+      {
+        labelKey: "sidebar.vehicles",
+        icon: <DirectionsCarIcon />,
+        to: "/ambulances/vehicles",
       },
     ],
   },
   {
-    title: "Administrador general",
+    titleKey: "sidebar.administration",
     items: [
       {
-        label: "Vista de usuarios",
+        labelKey: "sidebar.users",
+        icon: <PeopleIcon />,
+        to: "/admin/users",
+      },
+      {
+        labelKey: "sidebar.access",
+        icon: <LoginIcon />,
+        to: "/admin/access",
+      },
+      {
+        labelKey: "sidebar.userView",
         icon: <PeopleIcon />,
         to: "/documents/view",
       },
-      { label: "Usuarios", icon: <PeopleIcon />, to: "/admin/users" },
-      { label: "Acceso", icon: <LoginIcon />, to: "/admin/access" },
     ],
   },
 ];
 
 export default function Sidebar({ open, onOpen, onClose, user }) {
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("lg"));
+
   const navigate = useNavigate();
   const location = useLocation();
-  const [logoutSnackbarOpen, setLogoutSnackbarOpen] = useState(false);
+  const { t } = useTranslation();
+
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    const status = await logout();
+    try {
+      setLoggingOut(true);
 
-    if(status.ok){
-      navigate("/")
+      const status = await logout();
+
+      if (status.ok) {
+        setLogoutDialogOpen(false);
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    } finally {
+      setLoggingOut(false);
     }
   };
 
-  const handleOpen = () => {
-    setLogoutSnackbarOpen(true);
+  const handleCloseLogoutDialog = () => {
+    if (loggingOut) return;
+
+    setLogoutDialogOpen(false);
   };
 
-  const handleClose = (event, reason) => {
-    if (reason === "clickaway") {
+  const handleNavigation = (event) => {
+    // No cerrar el menú si se abre un enlace
+    // en otra pestaña mediante un modificador.
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
       return;
     }
 
-    setLogoutSnackbarOpen(false);
+    if (!isDesktop) {
+      onClose();
+    }
   };
 
-  const action = (
+  const drawerContent = (
     <>
-      <Button size="small" sx={{ color: "var(--text-main-color)" }} onClick={handleLogout}>
-        Si
-      </Button>
-      <IconButton size="small" aria-label="close" onClick={handleClose}>
-        <CloseIcon fontSize="small" />
-      </IconButton>
-    </>
-  );
-
-  return (
-    <>
-      {!open && (
-        <IconButton
-          onClick={onOpen}
-          aria-label="Abrir menú de navegación"
-          sx={{
-            display: { xs: "flex", lg: "none" },
-            position: "fixed",
-            top: 16,
-            left: 16,
-            bgcolor: "var(--primary-color)",
-            color: "var(--white-color)",
-            width: 48,
-            height: 48,
-            borderRadius: 2,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
-            zIndex: 10,
-            "&:hover": {
-              bgcolor: "var(--primary-color)",
-            },
-          }}
-        >
-          <MenuIcon />
-        </IconButton>
-      )}
-
-      <Box
-        component="nav"
-        aria-label="Menú principal"
-        sx={{
-          width: "240px",
-          height: "100dvh",
-          bgcolor: "var(--primary-color)",
-          color: "var(--white-color)",
-          p: 2.5,
-          position: { xs: "fixed", lg: "sticky" },
-          top: 0,
-          left: 0,
-          transform: {
-            xs: open ? "translateX(0)" : "translateX(-100%)",
-            lg: "translateX(0)",
-          },
-          transition: "transform 0.25s ease",
-          display: "flex",
-          flexDirection: "column",
-          zIndex: 10,
-          overflow: "hidden",
-        }}
-      >
+      {/* Cerrar menú en dispositivos móviles */}
+      {!isDesktop && (
         <IconButton
           onClick={onClose}
-          aria-label="Cerrar menú de navegación"
+          aria-label={t("sidebar.closeMenu")}
           sx={{
-            display: { xs: "inline-flex", lg: "none" },
             alignSelf: "flex-end",
             color: "var(--white-color)",
             mb: 2,
-            flexShrink: 0,
           }}
         >
           <CloseIcon />
         </IconButton>
+      )}
 
-        {/* Zona scrolleable */}
+      {/* Zona desplazable */}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          pr: 0.5,
+          pb: 2,
+
+          "&::-webkit-scrollbar": {
+            width: "6px",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            bgcolor: "rgba(255,255,255,0.25)",
+          },
+          "&::-webkit-scrollbar-thumb:hover": {
+            bgcolor: "rgba(255,255,255,0.4)",
+          },
+        }}
+      >
+        {/* Logo */}
         <Box
           sx={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            pr: 0.5,
-            pb: 2,
-
-            "&::-webkit-scrollbar": {
-              width: "6px",
-            },
-            "&::-webkit-scrollbar-thumb": {
-              bgcolor: "rgba(255,255,255,0.25)",
-              borderRadius: "999px",
-            },
-            "&::-webkit-scrollbar-thumb:hover": {
-              bgcolor: "rgba(255,255,255,0.4)",
-            },
+            display: "flex",
+            alignItems: "center",
+            gap: 1.2,
+            mb: 2.5,
           }}
         >
           <Box
             sx={{
+              width: 34,
+              height: 34,
               display: "flex",
               alignItems: "center",
-              gap: 1.2,
-              mb: 5,
+              justifyContent: "center",
+              flexShrink: 0,
             }}
           >
-            <Box
-              sx={{
-                width: 34,
-                height: 34,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <LocalHospitalIcon />
-            </Box>
-
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  lineHeight: 1,
-                }}
-              >
-                HC
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  lineHeight: 1.2,
-                  color: "rgba(255,255,255,0.9)",
-                }}
-              >
-                Hospital de Clínicas
-              </Typography>
-            </Box>
+            <LocalHospitalIcon />
           </Box>
 
-          <Stack spacing={3}>
-            {sections.map((section) => (
-              <Box key={section.title}>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: 22,
+                fontWeight: 800,
+                lineHeight: 1,
+              }}
+            >
+              HC
+            </Typography>
+
+            <Typography
+              sx={{
+                fontSize: 10,
+                fontWeight: 600,
+                lineHeight: 1.2,
+                color: "rgba(255,255,255,0.9)",
+              }}
+            >
+              Hospital de Clínicas
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Navegación */}
+        <Stack spacing={3}>
+          {sections.map((section, index) => {
+            const headingId = `sidebar-section-${index}`;
+
+            return (
+              <Box
+                component="section"
+                key={section.titleKey}
+                aria-labelledby={headingId}
+              >
                 <Typography
+                  component="h2"
+                  id={headingId}
                   sx={{
                     fontSize: 11,
                     fontWeight: 700,
@@ -249,163 +263,318 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
                     mb: 1,
                   }}
                 >
-                  {section.title}
+                  {t(section.titleKey)}
                 </Typography>
 
-                <Stack spacing={0.5}>
+                <Stack
+                  component="ul"
+                  spacing={0.5}
+                  sx={{
+                    m: 0,
+                    p: 0,
+                    listStyle: "none",
+                  }}
+                >
                   {section.items.map((item) => (
-                    <Button
-                      key={item.label}
-                      startIcon={item.icon}
-                      variant="text"
-                      sx={{
-                        color: "var(--white-color)",
-                        gap: 1,
-                        px: 3,
-                        display: "flex",
-                        justifyContent: "start",
-                        py: 0.8,
-                        borderRadius: 1.5,
-                        bgcolor:
-                          location.pathname === item.to
-                            ? "rgba(255,255,255,0.18)"
-                            : "transparent",
-                        cursor: "pointer",
-                        "& svg": {
-                          fontSize: 18,
-                        },
-                        "&:hover": {
-                          bgcolor: "rgba(255,255,255,0.12)",
-                        },
-                      }}
-                      onClick={() => {
-                        navigate(item.to);
-                        onClose();
-                      }}
-                    >
-                      <Typography
+                    <Box component="li" key={item.to}>
+                      <Button
+                        component={NavLink}
+                        to={item.to}
+                        onClick={handleNavigation}
+                        startIcon={item.icon}
+                        fullWidth
                         sx={{
-                          fontSize: 12,
-                          fontWeight: 700,
+                          color: "var(--white-color)",
+                          gap: 1,
+                          px: 3,
+                          display: "flex",
+                          justifyContent: "flex-start",
+                          py: 0.8,
+                          borderRadius: 1.5,
+                          textTransform: "none",
+
+                          bgcolor:
+                            location.pathname === item.to
+                              ? "rgba(255,255,255,0.18)"
+                              : "transparent",
+
+                          "& svg": {
+                            fontSize: 18,
+                          },
+
+                          "&:hover": {
+                            bgcolor: "rgba(255,255,255,0.12)",
+                          },
+
+                          "&.Mui-focusVisible": {
+                            outline: "2px solid white",
+                            outlineOffset: "2px",
+                            bgcolor: "rgba(255,255,255,0.18)",
+                          },
                         }}
                       >
-                        {item.label}
-                      </Typography>
-                    </Button>
+                        <Typography
+                          sx={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            textAlign: "left",
+                          }}
+                        >
+                          {t(item.labelKey)}
+                        </Typography>
+                      </Button>
+                    </Box>
                   ))}
                 </Stack>
               </Box>
-            ))}
-          </Stack>
-        </Box>
+            );
+          })}
+        </Stack>
+      </Box>
 
-        {/* Usuario fijo abajo */}
-        <Box
-          sx={{
-            width: "100%",
-            mt: 2,
-            borderRadius: 2,
-            p: 1,
-            bgcolor: "var(--white-color)28",
-            display: "flex",
-            gap: 3,
-            flexShrink: 0,
-          }}
+      {/* Selector de idioma */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          mb: 2,
+          flexShrink: 0,
+        }}
+      >
+        <LanguageSwitcher light />
+      </Box>
+      {/* Usuario */}
+      <Box
+        sx={{
+          width: "100%",
+          mt: 2,
+          p: 1.5,
+          borderRadius: 2.5,
+          bgcolor: "rgba(255,255,255,0.12)",
+          border: "1px solid rgba(255,255,255,0.15)",
+          flexShrink: 0,
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ width: "100%" }}
         >
-          <Stack
-            direction="row"
-            spacing={1.5}
+          {/* Icono de usuario */}
+          <Box
             sx={{
-              width: "100%",
-              justifyContent: "center",
+              width: 32,
+              height: 32,
+              borderRadius: 2,
+              bgcolor: "rgba(255,255,255,0.18)",
+              display: "flex",
               alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
             }}
           >
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <PersonIcon />
-            </Box>
+            <PersonIcon sx={{ fontSize: 19 }} />
+          </Box>
 
-            <Box
+          {/* Nombre y correo */}
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            <Typography
               sx={{
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: 12,
-                  fontWeight: 800,
-                  lineHeight: 1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {user.nombre}
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  lineHeight: 1.2,
-                  color: "rgba(216, 216, 216, 0.9)",
-                  mt: 0.3,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {user.correo}
-              </Typography>
-            </Box>
-
-            <IconButton
-              onClick={handleOpen}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
+                fontSize: 12,
+                fontWeight: 700,
+                lineHeight: 1.35,
                 color: "var(--white-color)",
+                whiteSpace: "normal",
+                overflowWrap: "anywhere",
               }}
             >
-              <LogoutIcon />
-            </IconButton>
-          </Stack>
-        </Box>
+              {user.nombre}
+            </Typography>
+
+            <Typography
+              sx={{
+                fontSize: 10,
+                fontWeight: 400,
+                lineHeight: 1.4,
+                mt: 0.3,
+                color: "rgba(255,255,255,0.75)",
+                whiteSpace: "normal",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {user.correo}
+            </Typography>
+          </Box>
+
+          {/* Cerrar sesión */}
+          <IconButton
+            onClick={() => setLogoutDialogOpen(true)}
+            aria-label={t("sidebar.logout")}
+            title={t("sidebar.logout")}
+            sx={{
+              width: 32,
+              height: 32,
+              flexShrink: 0,
+              color: "var(--white-color)",
+              borderRadius: 2,
+              bgcolor: "rgba(255,255,255,0.08)",
+              transition: "background-color 0.2s",
+
+              "&:hover": {
+                bgcolor: "rgba(255,255,255,0.22)",
+              },
+
+              "&.Mui-focusVisible": {
+                outline: "2px solid white",
+                outlineOffset: "2px",
+              },
+            }}
+          >
+            <LogoutIcon sx={{ fontSize: 19 }} />
+          </IconButton>
+        </Stack>
       </Box>
-      <Snackbar
-        open={logoutSnackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleClose}
-        message="¿Quieres cerrar sesión?"
-        action={action}
-        slots={{
-          transition: Slide,
+    </>
+  );
+
+  return (
+    <>
+      {/* Botón de apertura para móviles.
+          Se mantiene montado para restaurar
+          el foco al cerrar el Drawer. */}
+      <IconButton
+        onClick={onOpen}
+        aria-label={t("sidebar.openMenu")}
+        aria-expanded={!isDesktop && open}
+        aria-controls={!isDesktop && open ? "sigsm-sidebar" : undefined}
+        sx={{
+          display: {
+            xs: "flex",
+            lg: "none",
+          },
+          position: "fixed",
+          top: 16,
+          left: 16,
+          bgcolor: "var(--primary-color)",
+          color: "var(--white-color)",
+          width: 48,
+          height: 48,
+          borderRadius: 2,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
+          zIndex: 10,
+
+          "&:hover": {
+            bgcolor: "var(--primary-hover-color)",
+          },
+
+          "&.Mui-focusVisible": {
+            outline: "2px solid var(--primary-color)",
+            outlineOffset: "3px",
+          },
+        }}
+      >
+        <MenuIcon />
+      </IconButton>
+
+      <Drawer
+        variant={isDesktop ? "permanent" : "temporary"}
+        open={isDesktop || open}
+        onClose={onClose}
+        ModalProps={{
+          keepMounted: false,
         }}
         slotProps={{
-          transition: {
-            direction: "up",
+          paper: {
+            component: "nav",
+            id: "sigsm-sidebar",
+            "aria-label": t("sidebar.navigation"),
           },
-          content: {
-            sx: {
-              bgcolor: "white",
-              color: "var(--text-main-color)",
-              mb: 8,
+        }}
+        sx={{
+          width: isDesktop ? DRAWER_WIDTH : 0,
+          flexShrink: 0,
+
+          "& .MuiDrawer-paper": {
+            width: DRAWER_WIDTH,
+            boxSizing: "border-box",
+            height: "100dvh",
+            bgcolor: "var(--primary-color)",
+            color: "var(--white-color)",
+            p: 2.5,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+
+            "& .MuiButtonBase-root.Mui-focusVisible": {
+              outline: "2px solid white",
+              outlineOffset: "2px",
             },
           },
         }}
-      />
+      >
+        {drawerContent}
+      </Drawer>
+
+      {/* cierre de sesión */}
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={handleCloseLogoutDialog}
+        aria-labelledby="logout-dialog-title"
+        aria-describedby="logout-dialog-description"
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle
+          id="logout-dialog-title"
+          sx={{
+            fontWeight: 700,
+          }}
+        >
+          {t("sidebar.logoutTitle")}
+        </DialogTitle>
+
+        <DialogContent>
+          <DialogContentText id="logout-dialog-description">
+            {t("sidebar.logoutDescription")}
+          </DialogContentText>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={handleCloseLogoutDialog}
+            disabled={loggingOut}
+            sx={{
+              color: "var(--text-main-color)",
+              textTransform: "none",
+            }}
+          >
+            {t("sidebar.cancel")}
+          </Button>
+
+          <Button
+            onClick={handleLogout}
+            variant="contained"
+            disabled={loggingOut}
+            sx={{
+              bgcolor: "var(--primary-color)",
+              textTransform: "none",
+
+              "&:hover": {
+                bgcolor: "var(--primary-hover-color)",
+              },
+            }}
+          >
+            {t("sidebar.confirmLogout")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

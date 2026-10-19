@@ -4,8 +4,8 @@ import {
   Card,
   Chip,
   CircularProgress,
-  IconButton,
   MenuItem,
+  IconButton,
   Pagination,
   Stack,
   Table,
@@ -18,73 +18,100 @@ import {
   Typography,
 } from "@mui/material";
 
-
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import {
   createOrUpdateCategory,
   getAllCategories,
 } from "../../../apiCalls/categories/categoriesApi";
+
 import { formatDate } from "../../utils/formatDate";
 import CategoryModal from "../../modals/CategoryDialog";
 import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
 
 export default function CategoriesCard({ variant }) {
+  const { t } = useTranslation("documents");
+
   const { notification, showNotification, closeNotification } =
     useNotification();
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-
-      const data = await getAllCategories();
-
-      if (data.ok) {
-        setCategories(data.categorias);
-      }
-    } catch (e) {
-      console.error(e);
-      showNotification("Error al obtener las categorías.", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const [openCategoryModal, setOpenCategoryModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+
   const [categories, setCategories] = useState([]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const isFull = variant === "full";
+  const rowsPerPage = isFull ? 15 : 5;
+
+
+const fetchData = async () => {
+  setLoading(true);
+
+  try {
+    const data = await getAllCategories();
+
+    if (data.ok) {
+      setCategories(data.categorias);
+    }
+  } catch (error) {
+    console.error(error);
+    showNotification(t("categories.loadError"), "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  let cancelled = false;
+
+  getAllCategories()
+    .then((data) => {
+      if (!cancelled && data.ok) {
+        setCategories(data.categorias);
+      }
+    })
+    .catch((error) => {
+      if (cancelled) return;
+
+      console.error(error);
+      showNotification(t("categories.loadError"), "error");
+    })
+    .finally(() => {
+      if (!cancelled) {
+        setLoading(false);
+      }
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, [t, showNotification]);
 
   const handleSubmitCategory = async (data) => {
     try {
       setSaving(true);
 
       if (selectedCategory) {
-        // PATCH
-        const response = await createOrUpdateCategory(
-          data,
-          selectedCategory.id_cat,
-        );
+        // Actualizar categoría
+        await createOrUpdateCategory(data, selectedCategory.id_cat);
 
-        showNotification(
-          response.mensaje || "Categoría creada correctamente.",
-          "success",
-        );
+        showNotification(t("categories.updateSuccess"), "success");
       } else {
-        // POST
-        const response = await createOrUpdateCategory(data);
+        // Crear categoría
+        await createOrUpdateCategory(data);
 
-        showNotification(
-          response.mensaje || "Categoría creada correctamente.",
-          "success",
-        );
+        showNotification(t("categories.createSuccess"), "success");
       }
 
       setOpenCategoryModal(false);
@@ -94,10 +121,7 @@ export default function CategoriesCard({ variant }) {
     } catch (error) {
       console.error(error);
 
-      showNotification(
-        error.message || "Error al intentar guardar la categoría.",
-        "error",
-      );
+      showNotification(error.message || t("categories.saveError"), "error");
     } finally {
       setSaving(false);
     }
@@ -113,13 +137,6 @@ export default function CategoriesCard({ variant }) {
     setOpenCategoryModal(true);
   };
 
-  const isFull = variant === "full";
-  const rowsPerPage = isFull ? 15 : 5;
-
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-
   const filteredCategories = categories.filter((category) => {
     const searchText = search.toLowerCase();
 
@@ -129,9 +146,7 @@ export default function CategoriesCard({ variant }) {
 
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "active"
-        ? category.activo === 1
-        : category.activo !== 1);
+      (statusFilter === "active" ? category.activo === 1 : category.activo !== 1);
 
     return matchesSearch && matchesStatus;
   });
@@ -159,6 +174,7 @@ export default function CategoriesCard({ variant }) {
           minHeight: isFull ? 850 : 450,
         }}
       >
+        {/* Encabezado */}
         <Stack
           direction="row"
           sx={{
@@ -175,7 +191,7 @@ export default function CategoriesCard({ variant }) {
                 fontWeight: 700,
               }}
             >
-              Categorías
+              {t("categories.title")}
             </Typography>
 
             <Typography
@@ -184,43 +200,54 @@ export default function CategoriesCard({ variant }) {
                 color: "var(--text-muted-color)",
               }}
             >
-              Gestiona las categorías
+              {t("categories.description")}
             </Typography>
           </Box>
 
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => handleCreateCategory()}
+            onClick={handleCreateCategory}
             sx={{
               borderRadius: 2,
               textTransform: "none",
               bgcolor: "var(--primary-color)",
               whiteSpace: "nowrap",
+
               "&:hover": {
                 bgcolor: "var(--primary-hover-color)",
               },
             }}
           >
-            Agregar categoría
+            {t("categories.add")}
           </Button>
         </Stack>
 
+        {/* Búsqueda y filtros */}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           sx={{
             mb: 2,
             gap: 2,
-            alignItems: { xs: "stretch", sm: "center" },
+            alignItems: {
+              xs: "flex-start",
+              sm: "center",
+            },
+            justifyContent: "space-between",
           }}
         >
           <TextField
             size="small"
-            placeholder="Buscar categoría"
+            placeholder={t("categories.search")}
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
+            onChange={(event) => {
+              setSearch(event.target.value);
               setPage(1);
+            }}
+            slotProps={{
+              htmlInput: {
+                "aria-label": t("categories.search"),
+              },
             }}
             sx={{
               width: {
@@ -233,22 +260,17 @@ export default function CategoriesCard({ variant }) {
           <TextField
             select
             size="small"
-            label="Estado"
+            label={t("categories.status")}
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
               setPage(1);
             }}
-            sx={{
-              width: {
-                xs: "100%",
-                sm: "160px",
-              },
-            }}
+            sx={{ width: { xs: "100%", sm: "160px" } }}
           >
-            <MenuItem value="active">Activas</MenuItem>
-            <MenuItem value="inactive">Inactivas</MenuItem>
-            <MenuItem value="all">Todas</MenuItem>
+            <MenuItem value="all">{t("categories.all")}</MenuItem>
+            <MenuItem value="active">{t("categories.active")}</MenuItem>
+            <MenuItem value="inactive">{t("categories.inactive")}</MenuItem>
           </TextField>
         </Stack>
         {loading ? (
@@ -273,68 +295,77 @@ export default function CategoriesCard({ variant }) {
             <Table
               size="small"
               sx={{
-                minWidth: { xs: "650px", md: "100%" },
+                minWidth: {
+                  xs: "650px",
+                  md: "100%",
+                },
                 tableLayout: "fixed",
               }}
             >
               <TableHead>
                 <TableRow>
                   <TableCell
-                    sx={{ fontWeight: 700, width: isFull ? "20%" : "25%" }}
+                    sx={{
+                      fontWeight: 700,
+                      width: isFull ? "20%" : "25%",
+                    }}
                   >
-                    Categoría
+                    {t("categories.name")}
                   </TableCell>
 
                   <TableCell
-                    sx={{ fontWeight: 700, width: isFull ? "30%" : "35%" }}
+                    sx={{
+                      fontWeight: 700,
+                      width: isFull ? "30%" : "35%",
+                    }}
                   >
-                    Descripción
+                    {t("categories.details")}
                   </TableCell>
 
                   <TableCell
+                    align="center"
                     sx={{
                       fontWeight: 700,
                       width: "12%",
                       whiteSpace: "nowrap",
                     }}
-                    align="center"
                   >
-                    Documentos
+                    {t("categories.documents")}
                   </TableCell>
 
                   {isFull && (
                     <TableCell
+                      align="center"
                       sx={{
                         fontWeight: 700,
                         width: "14%",
                         whiteSpace: "nowrap",
                       }}
-                      align="center"
                     >
-                      Fecha de creación
+                      {t("categories.createdAt")}
                     </TableCell>
                   )}
 
                   <TableCell
+                    align="center"
                     sx={{
                       fontWeight: 700,
                       width: isFull ? "12%" : "13%",
                       whiteSpace: "nowrap",
                     }}
-                    align="center"
                   >
-                    Estado
+                    {t("categories.status")}
                   </TableCell>
 
                   <TableCell
+                    align="center"
                     sx={{
                       fontWeight: 700,
                       width: isFull ? "12%" : "15%",
                       whiteSpace: "nowrap",
                     }}
-                    align="center"
                   >
-                    Acciones
+                    {t("categories.actions")}
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -379,17 +410,23 @@ export default function CategoriesCard({ variant }) {
 
                     <TableCell align="center">
                       <Chip
-                        label={category.activo === 1 ? "Activa" : "Inactiva"}
+                        label={
+                          category.activo === 1
+                            ? t("categories.active")
+                            : t("categories.inactive")
+                        }
                         size="small"
                         sx={{
                           bgcolor:
                             category.activo === 1
                               ? "var(--primary-color)"
                               : "var(--inactive-chip)",
+
                           color:
                             category.activo === 1
                               ? "var(--white-color)"
                               : "var(--text-main-color)",
+
                           fontWeight: 600,
                           whiteSpace: "nowrap",
                           minWidth: category.activo === 0 ? 78 : 64,
@@ -398,22 +435,24 @@ export default function CategoriesCard({ variant }) {
                       />
                     </TableCell>
 
+                    {/* Acciones */}
                     <TableCell>
                       <Stack
                         direction="row"
                         spacing={0.5}
-                        sx={{ justifyContent: "center" }}
+                        sx={{
+                          justifyContent: "center",
+                        }}
                       >
                         <IconButton
                           size="small"
                           onClick={() => handleEditCategory(category)}
+                          aria-label={t("categories.edit", {
+                            name: category.nombre,
+                          })}
                         >
                           <EditOutlinedIcon fontSize="small" />
                         </IconButton>
-
-                        {/* <IconButton size="small" color="error">
-                          <DeleteOutlineOutlinedIcon fontSize="small" />
-                        </IconButton> */}
                       </Stack>
                     </TableCell>
                   </TableRow>
@@ -423,6 +462,7 @@ export default function CategoriesCard({ variant }) {
           </TableContainer>
         )}
 
+        {/* Paginación */}
         {!loading && showPagination && (
           <Stack
             direction="row"
@@ -442,6 +482,8 @@ export default function CategoriesCard({ variant }) {
           </Stack>
         )}
       </Card>
+
+      {/* Modal de creación / edición */}
       {openCategoryModal && (
         <CategoryModal
           open={openCategoryModal}
@@ -454,6 +496,7 @@ export default function CategoriesCard({ variant }) {
           loading={saving}
         />
       )}
+
       <NotificationSnackbar
         notification={notification}
         onClose={closeNotification}

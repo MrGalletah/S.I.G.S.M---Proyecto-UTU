@@ -16,6 +16,8 @@ import {
 } from "@mui/material";
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import { getAllCategories } from "../../apiCalls/categories/categoriesApi";
 
 export default function DocumentModal({
@@ -25,38 +27,56 @@ export default function DocumentModal({
   onSubmit,
   loading = false,
 }) {
+  const { t } = useTranslation("documents");
+
   const isEditing = Boolean(document);
 
   const [title, setTitle] = useState(document?.document ?? "");
+
   const [description, setDescription] = useState(document?.description ?? "");
+
   const [categoryId, setCategoryId] = useState(document?.idCat ?? "");
-  const [active, setActive] = useState(document?.state === "Activo");
+
+  const [active, setActive] = useState(Boolean(document?.active));
+
   const [file, setFile] = useState(null);
 
   const [categories, setCategories] = useState([]);
-  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoriesError, setCategoriesError] = useState(false);
 
+  // Las categorías se cargan al abrir el modal.
+  // No traducimos los nombres recibidos del backend.
   useEffect(() => {
     if (!open) return;
 
-    const fetchCategories = async () => {
-      try {
-        setLoadingCategories(true);
+    let cancelled = false;
 
-        const data = await getAllCategories();
-        setCategories(data.categorias);
-      } catch (error) {
+    getAllCategories()
+      .then((data) => {
+        if (!cancelled && data.ok) {
+          setCategories(data.categorias);
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+
         console.error("Error cargando categorías:", error);
-      } finally {
-        setLoadingCategories(false);
-      }
-    };
+        setCategoriesError(true);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingCategories(false);
+        }
+      });
 
-    fetchCategories();
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     const data = {
       titulo: title.trim(),
@@ -89,29 +109,35 @@ export default function DocumentModal({
     >
       <form onSubmit={handleSubmit}>
         <DialogTitle>
-          {isEditing ? "Editar documento" : "Nuevo documento"}
+          {isEditing
+            ? t("files.dialog.editTitle")
+            : t("files.dialog.createTitle")}
         </DialogTitle>
 
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
+            {/* Título */}
             <TextField
-              label="Título"
+              label={t("files.dialog.name")}
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(event) => setTitle(event.target.value)}
               required
               fullWidth
               autoFocus
             />
 
+            {/* Categoría */}
             <FormControl fullWidth required>
-              <InputLabel id="category-label">Categoría</InputLabel>
+              <InputLabel id="document-category-label">
+                {t("files.dialog.category")}
+              </InputLabel>
 
               <Select
-                labelId="category-label"
+                labelId="document-category-label"
                 value={categoryId}
-                label="Categoría"
-                onChange={(e) => setCategoryId(e.target.value)}
-                disabled={loadingCategories}
+                label={t("files.dialog.category")}
+                onChange={(event) => setCategoryId(event.target.value)}
+                disabled={loadingCategories || categoriesError}
               >
                 {categories.map((category) => (
                   <MenuItem key={category.id_cat} value={category.id_cat}>
@@ -121,54 +147,69 @@ export default function DocumentModal({
               </Select>
             </FormControl>
 
+            {categoriesError && (
+              <Typography variant="body2" color="error" role="alert">
+                {t("files.dialog.categoryLoadError")}
+              </Typography>
+            )}
+
+            {/* Descripción */}
             <TextField
-              label="Descripción"
+              label={t("files.dialog.description")}
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(event) => setDescription(event.target.value)}
               multiline
               rows={4}
               fullWidth
               required
             />
 
+            {/* Archivo PDF */}
             <Stack spacing={1}>
               <Button variant="outlined" component="label" disabled={loading}>
                 {file
-                  ? "Cambiar archivo"
+                  ? t("files.dialog.changeFile")
                   : isEditing
-                    ? "Reemplazar archivo"
-                    : "Seleccionar archivo"}
+                    ? t("files.dialog.replaceFile")
+                    : t("files.dialog.selectFile")}
 
                 <input
                   type="file"
                   hidden
                   accept="application/pdf"
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 />
               </Button>
 
               {file && (
                 <Typography variant="body2" color="text.secondary">
-                  Archivo seleccionado: {file.name}
+                  {t("files.dialog.selectedFile", {
+                    name: file.name,
+                  })}
                 </Typography>
               )}
 
               {isEditing && !file && document?.path && (
                 <Typography variant="body2" color="text.secondary">
-                  Archivo actual: {document.path.split("/").pop()}
+                  {t("files.dialog.currentFile", {
+                    name: document.path.split("/").pop(),
+                  })}
                 </Typography>
               )}
             </Stack>
 
+            {/* Estado: solo durante edición */}
             {isEditing && (
               <FormControlLabel
                 control={
                   <Switch
                     checked={active}
-                    onChange={(e) => setActive(e.target.checked)}
+                    onChange={(event) => setActive(event.target.checked)}
                   />
                 }
-                label={active ? "Documento activo" : "Documento inactivo"}
+                label={
+                  active ? t("files.dialog.active") : t("files.dialog.inactive")
+                }
               />
             )}
           </Stack>
@@ -176,7 +217,7 @@ export default function DocumentModal({
 
         <DialogActions>
           <Button onClick={onClose} disabled={loading}>
-            Cancelar
+            {t("files.dialog.cancel")}
           </Button>
 
           <Button
@@ -192,10 +233,10 @@ export default function DocumentModal({
             }
           >
             {loading
-              ? "Guardando..."
+              ? t("files.dialog.saving")
               : isEditing
-                ? "Guardar cambios"
-                : "Subir documento"}
+                ? t("files.dialog.save")
+                : t("files.dialog.upload")}
           </Button>
         </DialogActions>
       </form>

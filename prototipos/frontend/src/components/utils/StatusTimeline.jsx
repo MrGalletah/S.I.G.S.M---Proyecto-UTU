@@ -1,5 +1,7 @@
-import { Box, Step, StepConnector, StepLabel, Stepper, Typography } from "@mui/material";
-import TransferStepIcon from "./TransferStepIcon";
+import { Box, Tooltip, Typography } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
+
+import { formatDate } from "./formatDate";
 
 const transferSteps = [
   "Registrado",
@@ -9,137 +11,225 @@ const transferSteps = [
   "Completado",
 ];
 
+function formatDateTime(value) {
+  if (!value) return "-";
+
+  const [date, time] = String(value).replace("T", " ").split(" ");
+
+  return formatDate(date) + (time ? ` - ${time.slice(0, 5)}` : "");
+}
 
 export default function StatusTimeline({ transfer }) {
-  const currentStepIndex = Math.max(transferSteps.indexOf(transfer.estado), 0);
-  const date = "16/06/2026";
+  const currentStepIndex = transferSteps.indexOf(transfer.estado);
+
+  const history = transfer.historial ?? [];
 
   return (
     <Box sx={{ width: "100%" }}>
       <Typography
         sx={{
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: 800,
           mb: 2,
         }}
       >
-        Estado actual
+        Seguimiento del traslado
       </Typography>
 
-      <Stepper
-        activeStep={currentStepIndex}
-        orientation="vertical"
-        connector={
-          <StepConnector
+      {transferSteps.map((step, index) => {
+        const isDone = index <= currentStepIndex;
+
+        const isCompleted =
+          index < currentStepIndex ||
+          (index === currentStepIndex && step === "Completado");
+
+        const isCurrent = index === currentStepIndex && !isCompleted;
+
+        const entry = history.find((item) => item.estado === step);
+
+        const fechaHora =
+          entry?.fechaHora ?? (index === 0 ? transfer.fechaSolicitud : null);
+
+        const funcionario =
+          entry?.funcionario ?? (index === 0 ? transfer.solicitante : null);
+
+        const observacion = entry?.observacion?.trim();
+
+        return (
+          <Box
+            key={step}
             sx={{
-              ml: "12px",
-
-              "& .MuiStepConnector-line": {
-                borderColor: "rgba(0,0,0,0.12)",
-                minHeight: 24,
-              },
+              display: "grid",
+              gridTemplateColumns: "26px minmax(0, 1fr)",
+              columnGap: 1.5,
+              minHeight: 58,
             }}
-          />
-        }
-        sx={{
-          "& .MuiStep-root": {
-            pb: 0,
-          },
+          >
+            {/* CÍRCULO Y CONECTOR */}
 
-          "& .MuiStepLabel-root": {
-            alignItems: "flex-start",
-            p: 0,
-          },
+            <Box
+              sx={{
+                position: "relative",
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              {/* LÍNEA VERTICAL */}
 
-          "& .MuiStepLabel-iconContainer": {
-            p: 0,
-            pr: 2,
-          },
-
-          "& .MuiStepLabel-labelContainer": {
-            width: "100%",
-          },
-
-          "& .MuiStepLabel-label": {
-            mt: 0,
-          },
-        }}
-      >
-        {transferSteps.map((step, index) => {
-          const isCompleted = index < currentStepIndex;
-          const isCurrent = index === currentStepIndex;
-          const isDone = isCompleted || isCurrent;
-
-          return (
-            <Step key={step} completed={isCompleted}>
-              <StepLabel StepIconComponent={TransferStepIcon}>
+              {index < transferSteps.length - 1 && (
                 <Box
                   sx={{
-                    pb: 1.5,
-                    borderBottom:
-                      index !== transferSteps.length - 1
-                        ? "1px solid rgba(0,0,0,0.1)"
-                        : "none",
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "1fr",
-                      md: index === 0 ? "1fr 1fr" : "1fr",
-                    },
-                    gap: 2,
-                    minHeight: 44,
+                    position: "absolute",
+                    top: 26,
+                    bottom: 0,
+                    width: 2,
+
+                    bgcolor: isCompleted
+                      ? "var(--green-chip)"
+                      : "rgba(0,0,0,0.14)",
+                  }}
+                />
+              )}
+
+              {/* INDICADOR DEL ESTADO */}
+
+              <Box
+                sx={{
+                  position: "relative",
+                  zIndex: 1,
+
+                  width: 26,
+                  height: 26,
+                  flexShrink: 0,
+                  borderRadius: "50%",
+
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+
+                  bgcolor: isCompleted
+                    ? "var(--green-chip)"
+                    : isCurrent
+                      ? "var(--primary-color)"
+                      : "var(--inactive-chip)",
+
+                  color: isDone
+                    ? "var(--white-color)"
+                    : "var(--text-muted-color)",
+
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                {isCompleted ? <CheckIcon sx={{ fontSize: 16 }} /> : index + 1}
+              </Box>
+            </Box>
+
+            {/* INFORMACIÓN DEL ESTADO */}
+
+            <Box
+              sx={{
+                minWidth: 0,
+                pb: index === transferSteps.length - 1 ? 0 : 2,
+              }}
+            >
+              {/* ESTADO Y FECHA */}
+
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  columnGap: 1.5,
+                  rowGap: 0.25,
+                  minHeight: 26,
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: 13,
+                    fontWeight: 800,
+
+                    color: isCurrent
+                      ? "var(--primary-color)"
+                      : isDone
+                        ? "var(--text-main-color)"
+                        : "var(--text-muted-color)",
                   }}
                 >
-                  <Box>
-                    <Typography
-                      sx={{
-                        fontSize: 14,
-                        fontWeight: 800,
-                      }}
-                    >
-                      {step}
-                    </Typography>
+                  {step}
+                </Typography>
 
-                    <Typography
-                      sx={{
-                        fontSize: 11,
-                        color: "text.secondary",
-                      }}
-                    >
-                      {isDone
-                        ? `${date} - ${
-                            index === 0 ? "10:25" : transfer.horaSalida
-                          }`
-                        : "Pendiente"}
-                    </Typography>
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    color: "text.secondary",
+                  }}
+                >
+                  {isDone ? formatDateTime(fechaHora) : "Pendiente"}
+                </Typography>
+              </Box>
+
+              {/* FUNCIONARIO */}
+
+              {isDone && funcionario && (
+                <Typography
+                  sx={{
+                    fontSize: 11,
+                    color: "text.secondary",
+                    mt: 0.25,
+                  }}
+                >
+                  {index === 0 ? "Registrado por: " : "Actualizado por: "}
+
+                  <Box
+                    component="span"
+                    sx={{
+                      fontWeight: 700,
+                      color: "var(--text-main-color)",
+                    }}
+                  >
+                    {funcionario}
                   </Box>
+                </Typography>
+              )}
 
-                  {index === 0 && (
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontSize: 12,
-                          fontWeight: 800,
-                        }}
-                      >
-                        Traslado registrado en el sistema por
-                      </Typography>
+              {/* OBSERVACIÓN */}
 
-                      <Typography
-                        sx={{
-                          fontSize: 11,
-                          color: "text.secondary",
-                        }}
-                      >
-                        Juan Pérez
-                      </Typography>
+              {isDone && observacion && (
+                <Tooltip title={observacion} arrow placement="top">
+                  <Typography
+                    sx={{
+                      fontSize: 12,
+                      color: "text.secondary",
+                      mt: 0.75,
+                      lineHeight: 1.5,
+
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    <Box
+                      component="span"
+                      sx={{
+                        fontWeight: 700,
+                        color: "var(--primary-color)",
+                      }}
+                    >
+                      Observación:{" "}
                     </Box>
-                  )}
-                </Box>
-              </StepLabel>
-            </Step>
-          );
-        })}
-      </Stepper>
+
+                    {observacion}
+                  </Typography>
+                </Tooltip>
+              )}
+            </Box>
+          </Box>
+        );
+      })}
     </Box>
   );
 }

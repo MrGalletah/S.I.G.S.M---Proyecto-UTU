@@ -4,8 +4,8 @@ import {
   Card,
   Chip,
   CircularProgress,
-  IconButton,
   MenuItem,
+  IconButton,
   Pagination,
   Stack,
   Table,
@@ -22,7 +22,9 @@ import AddIcon from "@mui/icons-material/Add";
 import RemoveRedEyeIcon from "@mui/icons-material/RemoveRedEye";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   createOrUpdateDocument,
@@ -30,6 +32,7 @@ import {
   getAllDocuments,
   updateDocument,
 } from "../../../apiCalls/documents/documentsApi";
+
 import PdfSvg from "../../utils/PdfSvg";
 import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
@@ -37,10 +40,48 @@ import { formatDate } from "../../utils/formatDate";
 import DocumentModal from "../../modals/DocumentDialog";
 import DeleteConfirmDialog from "../../modals/DeleteConfirmDialog";
 
+// Adaptamos la respuesta del backend al formato
+// que utiliza la tabla, sin traducir los datos.
+function formatDocuments(categories) {
+  return categories.flatMap((category) =>
+    category.documentos.map((document) => ({
+      id: document.id_doc,
+      category: category.nombre,
+      idUser: document.id_func,
+      idCat: category.id_cat,
+      document: document.titulo,
+      uploadedAt: formatDate(document.fecha_subida),
+      active: Boolean(document.activo),
+      description: document.descripcion,
+      path: document.ruta,
+    })),
+  );
+}
+
 export default function DocsCard({ variant }) {
+  const { t } = useTranslation("documents");
+
   const { notification, showNotification, closeNotification } =
     useNotification();
 
+  const [openDocumentModal, setOpenDocumentModal] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [documents, setDocuments] = useState([]);
+
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const [documentToDelete, setDocumentToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const isFull = variant === "full";
+  const rowsPerPage = isFull ? 15 : 4;
+
+  // Recarga manual tras crear, editar o eliminar.
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -48,42 +89,45 @@ export default function DocsCard({ variant }) {
       const data = await getAllDocuments();
 
       if (data.ok) {
-        const formattedDocuments = data.categorias.flatMap((category) =>
-          category.documentos.map((document) => ({
-            id: document.id_doc,
-            category: category.nombre,
-            idUser: document.id_func,
-            idCat: category.id_cat,
-            document: document.titulo,
-            uploadedAt: formatDate(document.fecha_subida),
-            state: document.activo ? "Activo" : "Inactivo",
-
-            description: document.descripcion,
-            path: document.ruta,
-          })),
-        );
-
-        setDocuments(formattedDocuments);
+        setDocuments(formatDocuments(data.categorias));
       }
-    } catch (e) {
-      console.error(e);
-      showNotification("Error al obtener los documentos.", "error");
+    } catch (error) {
+      console.error(error);
+
+      showNotification(t("files.loadError"), "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const [openDocumentModal, setOpenDocumentModal] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState(null);
-  const [documents, setDocuments] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [documentToDelete, setDocumentToDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
+  // Carga inicial: actualizaciones asíncronas
+  // para evitar react-hooks/set-state-in-effect.
   useEffect(() => {
-    fetchData();
-  }, []);
+    let cancelled = false;
+
+    getAllDocuments()
+      .then((data) => {
+        if (!cancelled && data.ok) {
+          setDocuments(formatDocuments(data.categorias));
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+
+        console.error(error);
+
+        showNotification(t("files.loadError"), "error");
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [t, showNotification]);
 
   const handleDocumentSubmit = async (data) => {
     try {
@@ -92,21 +136,21 @@ export default function DocsCard({ variant }) {
       let response;
 
       if (!selectedDocument) {
-        // Crear
+        // Crear documento con archivo.
         response = await createOrUpdateDocument(data);
       } else if (data.archivo) {
-        // Editar y reemplazar archivo
+        // Editar y reemplazar archivo.
         response = await createOrUpdateDocument(data, selectedDocument.id);
       } else {
-        // Editar sin reemplazar archivo
+        // Editar solo los metadatos.
         response = await updateDocument(data, selectedDocument.id);
       }
 
       if (response.ok) {
         showNotification(
           selectedDocument
-            ? "Documento actualizado correctamente."
-            : "Documento creado correctamente.",
+            ? t("files.updateSuccess")
+            : t("files.createSuccess"),
           "success",
         );
 
@@ -119,9 +163,7 @@ export default function DocsCard({ variant }) {
       console.error(error);
 
       showNotification(
-        selectedDocument
-          ? "Error al actualizar el documento."
-          : "Error al crear el documento.",
+        selectedDocument ? t("files.updateError") : t("files.createError"),
         "error",
       );
     } finally {
@@ -137,7 +179,7 @@ export default function DocsCard({ variant }) {
 
       await deleteDocument(documentToDelete.id);
 
-      showNotification("Documento eliminado correctamente.", "success");
+      showNotification(t("files.deleteSuccess"), "success");
 
       setDocumentToDelete(null);
 
@@ -145,10 +187,7 @@ export default function DocsCard({ variant }) {
     } catch (error) {
       console.error(error);
 
-      showNotification(
-        error.message || "Error al eliminar el documento.",
-        "error",
-      );
+      showNotification(error.message || t("files.deleteError"), "error");
     } finally {
       setDeleting(false);
     }
@@ -164,26 +203,25 @@ export default function DocsCard({ variant }) {
     setOpenDocumentModal(true);
   };
 
-  const isFull = variant === "full";
-  const rowsPerPage = isFull ? 15 : 4;
-
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-
+  // Solo traducimos el estado al mostrarlo.
   const filteredDocuments = documents.filter((documentItem) => {
     const searchText = search.toLowerCase();
+
+    const stateLabel = documentItem.active
+      ? t("files.active")
+      : t("files.inactive");
+
     const matchesStatus =
       statusFilter === "all" ||
-      (statusFilter === "active"
-        ? documentItem.state === "Activo"
-        : documentItem.state !== "Activo");
+      (statusFilter === "active" ? documentItem.active : !documentItem.active);
+
     const matchesSearch =
       documentItem.document.toLowerCase().includes(searchText) ||
       documentItem.category.toLowerCase().includes(searchText) ||
       documentItem.uploadedAt.toLowerCase().includes(searchText) ||
-      documentItem.state.toLowerCase().includes(searchText);
-    return matchesSearch && matchesStatus;
+      stateLabel.toLowerCase().includes(searchText);
+
+    return matchesStatus && matchesSearch;
   });
 
   const totalPages = Math.ceil(filteredDocuments.length / rowsPerPage);
@@ -194,6 +232,7 @@ export default function DocsCard({ variant }) {
   const visibleDocuments = filteredDocuments.slice(startIndex, endIndex);
 
   const showPagination = filteredDocuments.length > rowsPerPage;
+
   return (
     <>
       <Card
@@ -205,6 +244,7 @@ export default function DocsCard({ variant }) {
           overflow: "hidden",
         }}
       >
+        {/* Encabezado */}
         <Stack
           direction="row"
           sx={{
@@ -215,13 +255,8 @@ export default function DocsCard({ variant }) {
           }}
         >
           <Box>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 700,
-              }}
-            >
-              Documentos
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {t("files.title")}
             </Typography>
 
             <Typography
@@ -230,7 +265,7 @@ export default function DocsCard({ variant }) {
                 color: "var(--text-muted-color)",
               }}
             >
-              Añade nuevos documentos y gestiona los existentes
+              {t("files.description")}
             </Typography>
           </Box>
 
@@ -243,31 +278,44 @@ export default function DocsCard({ variant }) {
               textTransform: "none",
               bgcolor: "var(--primary-color)",
               whiteSpace: "nowrap",
+
               "&:hover": {
                 bgcolor: "var(--primary-hover-color)",
               },
             }}
           >
-            Añadir documento
+            {t("files.add")}
           </Button>
         </Stack>
+
+        {/* Búsqueda y filtros */}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           sx={{
             mb: 2,
             gap: 2,
-            alignItems: { xs: "stretch", sm: "center" },
+            alignItems: {
+              xs: "flex-start",
+              sm: "center",
+            },
+            justifyContent: "space-between",
           }}
         >
           <TextField
             size="small"
-            placeholder="Buscar documento"
+            placeholder={t("files.search")}
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
+            onChange={(event) => {
+              setSearch(event.target.value);
               setPage(1);
             }}
+            slotProps={{
+              htmlInput: {
+                "aria-label": t("files.search"),
+              },
+            }}
             sx={{
+              mb: 2,
               width: {
                 xs: "100%",
                 sm: "250px",
@@ -278,24 +326,21 @@ export default function DocsCard({ variant }) {
           <TextField
             select
             size="small"
-            label="Estado"
+            label={t("files.status")}
             value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
               setPage(1);
             }}
-            sx={{
-              width: {
-                xs: "100%",
-                sm: "160px",
-              },
-            }}
+            sx={{ width: { xs: "100%", sm: "160px" } }}
           >
-            <MenuItem value="active">Activos</MenuItem>
-            <MenuItem value="inactive">Inactivos</MenuItem>
-            <MenuItem value="all">Todos</MenuItem>
+            <MenuItem value="all">{t("files.all")}</MenuItem>
+            <MenuItem value="active">{t("files.active")}</MenuItem>
+            <MenuItem value="inactive">{t("files.inactive")}</MenuItem>
           </TextField>
         </Stack>
+
+        {/* Contenido */}
         {loading ? (
           <Box
             sx={{
@@ -318,55 +363,64 @@ export default function DocsCard({ variant }) {
             <Table
               size="small"
               sx={{
-                minWidth: { xs: "650px", md: "100%" },
+                minWidth: {
+                  xs: "650px",
+                  md: "100%",
+                },
                 tableLayout: "fixed",
               }}
             >
               <TableHead>
                 <TableRow>
                   <TableCell
-                    sx={{ fontWeight: 700, width: isFull ? "30%" : "35%" }}
+                    sx={{
+                      fontWeight: 700,
+                      width: isFull ? "30%" : "35%",
+                    }}
                   >
-                    Documento
+                    {t("files.name")}
                   </TableCell>
 
                   <TableCell
-                    sx={{ fontWeight: 700, width: isFull ? "20%" : "20%" }}
+                    sx={{
+                      fontWeight: 700,
+                      width: "20%",
+                    }}
                   >
-                    Categoría
+                    {t("files.category")}
                   </TableCell>
 
                   <TableCell
+                    align="center"
                     sx={{
                       fontWeight: 700,
                       width: "15%",
                       whiteSpace: "nowrap",
                     }}
-                    align="center"
                   >
-                    Fecha de subida
+                    {t("files.uploadedAt")}
                   </TableCell>
 
                   <TableCell
+                    align="center"
                     sx={{
                       fontWeight: 700,
                       width: isFull ? "12%" : "13%",
                       whiteSpace: "nowrap",
                     }}
-                    align="center"
                   >
-                    Estado
+                    {t("files.status")}
                   </TableCell>
 
                   <TableCell
+                    align="center"
                     sx={{
                       fontWeight: 700,
                       width: isFull ? "12%" : "15%",
                       whiteSpace: "nowrap",
                     }}
-                    align="center"
                   >
-                    Acciones
+                    {t("files.actions")}
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -374,11 +428,17 @@ export default function DocsCard({ variant }) {
               <TableBody>
                 {visibleDocuments.map((documentItem) => (
                   <TableRow key={documentItem.id}>
+                    {/* Título original */}
                     <TableCell>
                       <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 2,
+                        }}
                       >
                         <PdfSvg />
+
                         <Typography
                           variant="body2"
                           sx={{
@@ -393,6 +453,7 @@ export default function DocsCard({ variant }) {
                       </Box>
                     </TableCell>
 
+                    {/* Categoría original */}
                     <TableCell>
                       <Typography
                         variant="body2"
@@ -411,44 +472,59 @@ export default function DocsCard({ variant }) {
                       {documentItem.uploadedAt}
                     </TableCell>
 
+                    {/* Estado traducido */}
                     <TableCell align="center">
                       <Chip
-                        label={documentItem.state}
+                        label={
+                          documentItem.active
+                            ? t("files.active")
+                            : t("files.inactive")
+                        }
                         size="small"
                         sx={{
-                          bgcolor:
-                            documentItem.state === "Activo"
-                              ? "var(--primary-color)"
-                              : "var(--inactive-chip)",
-                          color:
-                            documentItem.state === "Activo"
-                              ? "var(--white-color)"
-                              : "var(--text-main-color)",
+                          bgcolor: documentItem.active
+                            ? "var(--primary-color)"
+                            : "var(--inactive-chip)",
+
+                          color: documentItem.active
+                            ? "var(--white-color)"
+                            : "var(--text-main-color)",
+
                           fontWeight: 600,
                           whiteSpace: "nowrap",
-                          minWidth: documentItem.state === "Inactiva" ? 78 : 64,
+                          minWidth: documentItem.active ? 64 : 78,
                           justifyContent: "center",
                         }}
                       />
                     </TableCell>
 
+                    {/* Acciones */}
                     <TableCell>
                       <Stack
                         direction="row"
                         spacing={0.5}
-                        sx={{ justifyContent: "center" }}
+                        sx={{
+                          justifyContent: "center",
+                        }}
                       >
                         <IconButton
                           size="small"
                           href={`/api/documents/view.php?id=${documentItem.id}&includeInactive=true`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          aria-label={t("files.view", {
+                            name: documentItem.document,
+                          })}
                         >
                           <RemoveRedEyeIcon fontSize="small" />
                         </IconButton>
+
                         <IconButton
                           size="small"
                           onClick={() => handleEditDocument(documentItem)}
+                          aria-label={t("files.edit", {
+                            name: documentItem.document,
+                          })}
                         >
                           <EditOutlinedIcon fontSize="small" />
                         </IconButton>
@@ -457,6 +533,9 @@ export default function DocsCard({ variant }) {
                           size="small"
                           color="error"
                           onClick={() => setDocumentToDelete(documentItem)}
+                          aria-label={t("files.delete", {
+                            name: documentItem.document,
+                          })}
                         >
                           <DeleteOutlineOutlinedIcon fontSize="small" />
                         </IconButton>
@@ -469,7 +548,8 @@ export default function DocsCard({ variant }) {
           </TableContainer>
         )}
 
-        {showPagination && (
+        {/* Paginación */}
+        {!loading && showPagination && (
           <Stack
             direction="row"
             sx={{
@@ -487,21 +567,28 @@ export default function DocsCard({ variant }) {
           </Stack>
         )}
       </Card>
+
       <NotificationSnackbar
         notification={notification}
         onClose={closeNotification}
       />
-      <DocumentModal
-        key={selectedDocument?.id ?? "new"}
-        open={openDocumentModal}
-        onClose={() => {
-          setOpenDocumentModal(false);
-          setSelectedDocument(null);
-        }}
-        document={selectedDocument}
-        loading={saving}
-        onSubmit={handleDocumentSubmit}
-      />
+
+      {/* Crear y editar documentos */}
+      {openDocumentModal && (
+        <DocumentModal
+          key={selectedDocument?.id ?? "new"}
+          open={openDocumentModal}
+          onClose={() => {
+            setOpenDocumentModal(false);
+            setSelectedDocument(null);
+          }}
+          document={selectedDocument}
+          loading={saving}
+          onSubmit={handleDocumentSubmit}
+        />
+      )}
+
+      {/* Confirmación de borrado */}
       <DeleteConfirmDialog
         open={Boolean(documentToDelete)}
         documentTitle={documentToDelete?.document}

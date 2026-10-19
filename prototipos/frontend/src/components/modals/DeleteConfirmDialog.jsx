@@ -12,6 +12,7 @@ import {
 
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 
+import { useTranslation } from "react-i18next";
 
 export default function DeleteConfirmDialog({
   open,
@@ -20,12 +21,16 @@ export default function DeleteConfirmDialog({
   onClose,
   onConfirm,
 }) {
+  const { t } = useTranslation("documents");
+
   return (
     <Dialog
       open={open}
       onClose={loading ? undefined : onClose}
       maxWidth="xs"
       fullWidth
+      aria-labelledby="delete-document-title"
+      aria-describedby="delete-document-description"
       PaperProps={{
         sx: {
           borderRadius: 4,
@@ -34,7 +39,7 @@ export default function DeleteConfirmDialog({
         },
       }}
     >
-      <DialogTitle sx={{ pb: 1 }}>
+      <DialogTitle id="delete-document-title" sx={{ pb: 1 }}>
         <Stack direction="row" spacing={2} alignItems="center">
           <Box>
             <Typography
@@ -44,7 +49,7 @@ export default function DeleteConfirmDialog({
                 color: "var(--text-main-color)",
               }}
             >
-              Eliminar documento
+              {t("files.deleteDialog.title")}
             </Typography>
 
             <Typography
@@ -54,7 +59,7 @@ export default function DeleteConfirmDialog({
                 mt: 0.3,
               }}
             >
-              Esta acción no se puede deshacer
+              {t("files.deleteDialog.warning")}
             </Typography>
           </Box>
         </Stack>
@@ -62,15 +67,17 @@ export default function DeleteConfirmDialog({
 
       <DialogContent sx={{ pt: 2 }}>
         <Typography
+          id="delete-document-description"
           variant="body2"
           sx={{
             color: "var(--text-main-color)",
             lineHeight: 1.6,
           }}
         >
-          ¿Seguro que quieres eliminar definitivamente este documento?
+          {t("files.deleteDialog.question")}
         </Typography>
 
+        {/* Título original del documento */}
         {documentTitle && (
           <Box
             sx={{
@@ -103,8 +110,7 @@ export default function DeleteConfirmDialog({
             color: "var(--text-muted-color)",
           }}
         >
-          Se eliminará tanto el registro del sistema como el archivo PDF
-          almacenado.
+          {t("files.deleteDialog.description")}
         </Typography>
       </DialogContent>
 
@@ -126,7 +132,7 @@ export default function DeleteConfirmDialog({
             px: 2,
           }}
         >
-          Cancelar
+          {t("files.deleteDialog.cancel")}
         </Button>
 
         <Button
@@ -145,12 +151,15 @@ export default function DeleteConfirmDialog({
             textTransform: "none",
             bgcolor: "var(--warning)",
             px: 2,
+
             "&:hover": {
               bgcolor: "#bd0000",
             },
           }}
         >
-          {loading ? "Eliminando..." : "Eliminar definitivamente"}
+          {loading
+            ? t("files.deleteDialog.deleting")
+            : t("files.deleteDialog.confirm")}
         </Button>
       </DialogActions>
     </Dialog>

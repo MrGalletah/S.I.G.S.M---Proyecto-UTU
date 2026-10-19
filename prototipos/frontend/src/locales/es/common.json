@@ -1,0 +1,24 @@
+{
+  "sidebar": {
+    "documentation": "Módulo de documentación",
+    "home": "Inicio",
+    "categories": "Categorías",
+    "documents": "Documentos",
+    "surveys": "Encuestas",
+    "ambulances": "Módulo de traslados",
+    "newTransfer": "Nuevo traslado",
+    "followUp": "Seguimiento",
+    "history": "Historial",
+    "administration": "Administración general",
+    "userView": "Vista de usuarios",
+    "users": "Usuarios",
+    "access": "Acceso",
+    "logoutConfirm": "¿Quieres cerrar sesión?",
+    "yes": "Sí",
+    "logoutTitle": "Cerrar sesión",
+    "logoutDescription": "¿Estás seguro de que deseas cerrar tu sesión?",
+    "cancel": "Cancelar",
+    "confirmLogout": "Cerrar sesión",
+    "vehicles": "Vehículos"
+  }
+}

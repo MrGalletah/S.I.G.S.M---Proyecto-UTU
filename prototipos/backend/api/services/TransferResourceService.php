@@ -1,3 +1,4 @@
+
 <?php
 
 class TransferResourceService
@@ -9,15 +10,12 @@ class TransferResourceService
         $this->db = $db;
     }
 
-
     public function getAvailableResources(
         int $idTraslado,
         string $inicio,
         string $fin
     ): array {
-        $transfer = $this->getTransferContext(
-            $idTraslado
-        );
+        $transfer = $this->getTransferContext($idTraslado);
 
         if ($transfer === null) {
             throw new InvalidArgumentException(
@@ -32,21 +30,14 @@ class TransferResourceService
         }
 
         if ($transfer["estado"] !== "Registrado") {
-            throw new InvalidArgumentException(
-                "Solo se pueden asignar recursos a traslados en estado Registrado."
-            );
-        }
-
-        if ($this->isAlreadyAssigned($transfer)) {
             throw new RuntimeException(
-                "El traslado ya fue asignado.",
+                "Solo se pueden consultar recursos para traslados en estado Registrado.",
                 409
             );
         }
 
         $requiresNurse =
             $transfer["tipo_elemento"] === "Paciente";
-
 
         return [
             "traslado" => [
@@ -59,13 +50,11 @@ class TransferResourceService
                 "tipo_elemento" => [
                     "id_tipo_elemento" =>
                     (int) $transfer["id_tipo_elemento"],
-
                     "nombre" =>
                     $transfer["tipo_elemento"]
                 ],
 
-                "requiere_enfermero" =>
-                $requiresNurse
+                "requiere_enfermero" => $requiresNurse
             ],
 
             "intervalo" => [
@@ -73,16 +62,14 @@ class TransferResourceService
                 "fin" => $fin
             ],
 
-            "vehiculos" =>
-            $this->getAvailableVehicles(
+            "vehiculos" => $this->getAvailableVehicles(
                 (int) $transfer["id_tipo_elemento"],
                 $idTraslado,
                 $inicio,
                 $fin
             ),
 
-            "conductores" =>
-            $this->getAvailableEmployees(
+            "conductores" => $this->getAvailableEmployees(
                 "Conductor",
                 "id_conductor",
                 $idTraslado,
@@ -90,8 +77,7 @@ class TransferResourceService
                 $fin
             ),
 
-            "enfermeros" =>
-            $this->getAvailableEmployees(
+            "enfermeros" => $this->getAvailableEmployees(
                 "Enfermero",
                 "id_enfermero",
                 $idTraslado,
@@ -101,61 +87,32 @@ class TransferResourceService
         ];
     }
 
-
     private function getTransferContext(
         int $idTraslado
     ): ?array {
-        $sql = "
-    SELECT
-        t.id_traslado,
-        t.version,
-        t.activo,
-
-        t.id_tipo_elemento,
-        te.nombre AS tipo_elemento,
-
-        t.id_vehiculo,
-        t.id_conductor,
-        t.id_enfermero,
-
-        t.id_func_gestor,
-        t.fecha_gestion,
-
-        t.hora_salida_estimada,
-        t.hora_llegada_estimada,
-
-        et.nombre AS estado
-
-    FROM traslado t
-
-    INNER JOIN tipo_elemento te
-        ON te.id_tipo_elemento =
-            t.id_tipo_elemento
-
-    INNER JOIN estado_traslado et
-        ON et.id_estado =
-            t.id_estado
-
-    WHERE t.id_traslado = :id_traslado
-
-    LIMIT 1
-";
-
-        $stmt = $this->db->prepare($sql);
-
-        $stmt->bindValue(
-            ":id_traslado",
-            $idTraslado,
-            PDO::PARAM_INT
+        $stmt = $this->db->prepare(
+            "SELECT
+                t.id_traslado,
+                t.version,
+                t.activo,
+                t.id_tipo_elemento,
+                te.nombre AS tipo_elemento,
+                et.nombre AS estado
+            FROM traslado t
+            INNER JOIN tipo_elemento te
+                ON te.id_tipo_elemento = t.id_tipo_elemento
+            INNER JOIN estado_traslado et
+                ON et.id_estado = t.id_estado
+            WHERE t.id_traslado = :id_traslado
+            LIMIT 1"
         );
 
-        $stmt->execute();
+        $stmt->execute([
+            "id_traslado" => $idTraslado
+        ]);
 
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        return $row ?: null;
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
-
 
     private function getAvailableVehicles(
         int $idTipoElemento,
@@ -163,113 +120,71 @@ class TransferResourceService
         string $inicio,
         string $fin
     ): array {
-        $sql = "
-            SELECT
+        $stmt = $this->db->prepare(
+            "SELECT
                 v.id_vehiculo,
                 v.matricula,
                 v.modelo,
-
                 tv.id_tipo_vehiculo,
                 tv.nombre AS tipo_vehiculo
-
             FROM vehiculo v
-
             INNER JOIN tipo_vehiculo tv
-                ON tv.id_tipo_vehiculo =
-                    v.id_tipo_vehiculo
-
+                ON tv.id_tipo_vehiculo = v.id_tipo_vehiculo
             INNER JOIN compatibilidad_transporte ct
-                ON ct.id_tipo_vehiculo =
-                    v.id_tipo_vehiculo
-
+                ON ct.id_tipo_vehiculo = v.id_tipo_vehiculo
             WHERE
-                ct.id_tipo_elemento =
-                    :id_tipo_elemento
-
+                ct.id_tipo_elemento = :id_tipo_elemento
                 AND v.estado = 'OPERATIVO'
-
                 AND NOT EXISTS (
                     SELECT 1
-
                     FROM traslado t
-
                     INNER JOIN estado_traslado et
-                        ON et.id_estado =
-                            t.id_estado
-
+                        ON et.id_estado = t.id_estado
                     WHERE
-                        t.id_vehiculo =
-                            v.id_vehiculo
-
-                        AND t.id_traslado
-                            <> :id_traslado
-
+                        t.id_vehiculo = v.id_vehiculo
+                        AND t.id_traslado <> :id_traslado
                         AND t.activo = TRUE
-
-                        AND et.nombre
-                            <> 'Completado'
-
-                        AND t.hora_salida_estimada
-                            IS NOT NULL
-
-                        AND t.hora_llegada_estimada
-                            IS NOT NULL
-
-                        AND t.hora_salida_estimada
-                            < :fin
-
-                        AND t.hora_llegada_estimada
-                            > :inicio
-                )
-
-            ORDER BY
-                tv.nombre,
-                v.matricula
-        ";
-
-        $stmt = $this->db->prepare($sql);
+                        AND (
+                            et.nombre IN (
+                                'En camino',
+                                'Llegó al destino',
+                                'Retornando'
+                            )
+                            OR (
+                                et.nombre = 'Registrado'
+                                AND t.hora_salida_estimada IS NOT NULL
+                                AND t.hora_llegada_estimada IS NOT NULL
+                                AND t.hora_salida_estimada < :fin
+                                AND t.hora_llegada_estimada > :inicio
+                            )
+                        )
+                    )
+            ORDER BY tv.nombre, v.matricula"
+        );
 
         $stmt->execute([
-            "id_tipo_elemento" =>
-            $idTipoElemento,
-
-            "id_traslado" =>
-            $idTraslado,
-
-            "inicio" =>
-            $inicio,
-
-            "fin" =>
-            $fin
+            "id_tipo_elemento" => $idTipoElemento,
+            "id_traslado" => $idTraslado,
+            "inicio" => $inicio,
+            "fin" => $fin
         ]);
 
-        $rows = $stmt->fetchAll(
-            PDO::FETCH_ASSOC
-        );
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(
             fn(array $row) => [
-                "id_vehiculo" =>
-                (int) $row["id_vehiculo"],
-
-                "matricula" =>
-                $row["matricula"],
-
-                "modelo" =>
-                $row["modelo"],
-
+                "id_vehiculo" => (int) $row["id_vehiculo"],
+                "matricula" => $row["matricula"],
+                "modelo" => $row["modelo"],
                 "tipo" => [
                     "id_tipo_vehiculo" =>
                     (int) $row["id_tipo_vehiculo"],
-
-                    "nombre" =>
-                    $row["tipo_vehiculo"]
+                    "nombre" => $row["tipo_vehiculo"]
                 ]
             ],
             $rows
         );
     }
-
 
     private function getAvailableEmployees(
         string $role,
@@ -293,106 +208,62 @@ class TransferResourceService
             );
         }
 
-
         $sql = "
             SELECT DISTINCT
                 f.id_func,
                 f.nombre
-
             FROM funcionario f
-
             INNER JOIN rol_usuario ru
-                ON ru.id_func =
-                    f.id_func
-
+                ON ru.id_func = f.id_func
             INNER JOIN rol r
-                ON r.id_rol =
-                    ru.id_rol
-
+                ON r.id_rol = ru.id_rol
             WHERE
                 f.activo = TRUE
-
                 AND r.nombre = :rol
-
                 AND NOT EXISTS (
                     SELECT 1
-
                     FROM traslado t
-
                     INNER JOIN estado_traslado et
-                        ON et.id_estado =
-                            t.id_estado
-
+                        ON et.id_estado = t.id_estado
                     WHERE
-                        t.$transferColumn =
-                            f.id_func
-
-                        AND t.id_traslado
-                            <> :id_traslado
-
+                        t.$transferColumn = f.id_func
+                        AND t.id_traslado <> :id_traslado
                         AND t.activo = TRUE
-
-                        AND et.nombre
-                            <> 'Completado'
-
-                        AND t.hora_salida_estimada
-                            IS NOT NULL
-
-                        AND t.hora_llegada_estimada
-                            IS NOT NULL
-
-                        AND t.hora_salida_estimada
-                            < :fin
-
-                        AND t.hora_llegada_estimada
-                            > :inicio
+                        AND (
+                            et.nombre IN (
+                                'En camino',
+                                'Llegó al destino',
+                                'Retornando'
+                            )
+                            OR (
+                                et.nombre = 'Registrado'
+                                AND t.hora_salida_estimada IS NOT NULL
+                                AND t.hora_llegada_estimada IS NOT NULL
+                                AND t.hora_salida_estimada < :fin
+                                AND t.hora_llegada_estimada > :inicio
+                            )
+                        )
                 )
-
             ORDER BY f.nombre
         ";
 
         $stmt = $this->db->prepare($sql);
 
         $stmt->execute([
-            "rol" =>
-            $role,
-
-            "id_traslado" =>
-            $idTraslado,
-
-            "inicio" =>
-            $inicio,
-
-            "fin" =>
-            $fin
+            "rol" => $role,
+            "id_traslado" => $idTraslado,
+            "inicio" => $inicio,
+            "fin" => $fin
         ]);
 
-        $rows = $stmt->fetchAll(
-            PDO::FETCH_ASSOC
-        );
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(
             fn(array $row) => [
-                "id_func" =>
-                (int) $row["id_func"],
-
-                "nombre" =>
-                $row["nombre"]
+                "id_func" => (int) $row["id_func"],
+                "nombre" => $row["nombre"]
             ],
             $rows
         );
-    }
-
-    private function isAlreadyAssigned(
-        array $transfer
-    ): bool {
-        return
-            $transfer["id_func_gestor"] !== null
-            || $transfer["fecha_gestion"] !== null
-            || $transfer["id_vehiculo"] !== null
-            || $transfer["id_conductor"] !== null
-            || $transfer["id_enfermero"] !== null
-            || $transfer["hora_salida_estimada"] !== null
-            || $transfer["hora_llegada_estimada"] !== null;
     }
 }

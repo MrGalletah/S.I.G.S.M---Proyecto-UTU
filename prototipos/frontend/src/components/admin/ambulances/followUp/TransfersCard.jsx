@@ -2,13 +2,8 @@ import {
   Box,
   Card,
   Chip,
-  FormControl,
   IconButton,
-  InputAdornment,
-  InputLabel,
-  MenuItem,
   Pagination,
-  Select,
   Stack,
   Table,
   TableBody,
@@ -16,430 +11,361 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
+  TableSortLabel,
   Tooltip,
   Typography,
 } from "@mui/material";
 
-import SearchIcon from "@mui/icons-material/Search";
 import RemoveRedEyeIcon from "@mui/icons-material/RemoveRedEye";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 
-function formatTime(dateTime) {
-  if (!dateTime) {
-    return "-";
-  }
+import TransferFilters from "./TransferFilters";
 
-  const normalized = dateTime.replace(" ", "T");
+// COLORES DESDE LAS VARIABLES GLOBALES
 
-  const date = new Date(normalized);
+const stateColors = {
+  Registrado: ["var(--state-registered-bg)", "var(--state-registered-text)"],
+  "En camino": ["var(--state-on-route-bg)", "var(--state-on-route-text)"],
+  "Llegó al destino": ["var(--state-arrived-bg)", "var(--state-arrived-text)"],
+  Retornando: ["var(--state-returning-bg)", "var(--state-returning-text)"],
+  Completado: ["var(--state-completed-bg)", "var(--state-completed-text)"],
+};
 
-  if (Number.isNaN(date.getTime())) {
-    return dateTime;
-  }
+const priorityColors = {
+  Urgente: ["var(--priority-urgent-bg)", "var(--priority-urgent-text)"],
+  Normal: ["var(--priority-normal-bg)", "var(--priority-normal-text)"],
+};
 
-  return date.toLocaleTimeString("es-UY", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+// FECHA Y HORA
+
+function DateCell({ value }) {
+  if (!value) return "-";
+
+  const text = String(value);
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (!match) return text;
+
+  const [, year, month, day] = match;
+  const time = text.match(/[T ](\d{2}:\d{2})/)?.[1];
+
+  return (
+    <Box>
+      <Typography
+        sx={{
+          fontSize: 13,
+          fontWeight: 600,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {day}/{month}/{year}
+      </Typography>
+
+      {time && (
+        <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+          {time}
+        </Typography>
+      )}
+    </Box>
+  );
 }
 
-function getTransferSubject(transfer) {
-  if (transfer.tipoElemento === "Paciente") {
-    return transfer.cedulaPaciente || "-";
-  }
+// CHIP DE ESTADO O PRIORIDAD
 
-  return transfer.elemento || "-";
+function TransferChip({ label, colors }) {
+  return (
+    <Chip
+      label={label}
+      size="small"
+      sx={{
+        bgcolor: colors?.[0] ?? "var(--inactive-chip)",
+        color: colors?.[1] ?? "var(--text-main-color)",
+        fontWeight: 700,
+        borderRadius: 2,
+        height: 27,
+      }}
+    />
+  );
+}
+
+// ENCABEZADO ORDENABLE
+
+function SortHeader({ label, field, width, sort, onSortChange }) {
+  return (
+    <TableCell
+      sx={{
+        fontWeight: 700,
+        width,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <TableSortLabel
+        active={sort.key === field}
+        direction={sort.key === field ? sort.direction : "asc"}
+        onClick={() => onSortChange(field)}
+        sx={{
+          fontWeight: 700,
+          "&.Mui-active": {
+            color: "var(--primary-color)",
+          },
+          "&.Mui-active .MuiTableSortLabel-icon": {
+            color: "var(--primary-color) !important",
+          },
+        }}
+      >
+        {label}
+      </TableSortLabel>
+    </TableCell>
+  );
 }
 
 export default function TransfersCard({
   visibleTransfers,
+  totalTransfers,
+  filteredCount,
   selectedTransferId,
-  setSelectedTransferId,
   setEditTransferId,
-  showPagination,
-  totalPages,
+  onViewTransfer,
   page,
   setPage,
+  totalPages,
+  rowsPerPage,
+  search,
+  onSearchChange,
+  filters,
+  onFilterChange,
+  sort,
+  onSortChange,
+  onClearFilters,
+  hasActiveFilters,
+  onCancelTransfer,
 }) {
+  const headers = [
+    ["Código", "codigo", 95],
+    ["Fecha requerida", "fechaRequerida", 145],
+    ["Salida estimada", "horaSalidaEstimada", 145],
+    ["Estado", "estado", 165],
+    ["Prioridad", "prioridad", 110],
+  ];
+
+  const sortHeader = (index) => {
+    const [label, field, width] = headers[index];
+
+    return (
+      <SortHeader
+        key={field}
+        label={label}
+        field={field}
+        width={width}
+        sort={sort}
+        onSortChange={onSortChange}
+      />
+    );
+  };
+
   return (
-    <>
-      <Card
+    <Card
+      sx={{
+        borderRadius: 4,
+        p: { xs: 2, md: 3 },
+        boxShadow: "var(--card-shadow)",
+        minWidth: 0,
+        overflow: "hidden",
+        mt: 2,
+      }}
+    >
+      {/* BUSCADOR Y FILTROS */}
+
+      <TransferFilters
+        search={search}
+        onSearchChange={onSearchChange}
+        filters={filters}
+        onFilterChange={onFilterChange}
+        total={totalTransfers}
+        filteredCount={filteredCount}
+        onClear={onClearFilters}
+        hasActiveFilters={hasActiveFilters}
+      />
+
+      {/* TABLA */}
+
+      <TableContainer
         sx={{
-          borderRadius: 4,
-          p: 3,
-          boxShadow: "var(--card-shadow)",
-          minWidth: 0,
-          overflow: "hidden",
-          mt: 2,
+          width: "100%",
+          maxWidth: "100%",
+          overflowX: "auto",
+          overflowY: "hidden",
+          mt: 1.5,
+          "&::-webkit-scrollbar": { height: 8 },
+          "&::-webkit-scrollbar-thumb": {
+            bgcolor: "rgba(0,0,0,0.25)",
+            borderRadius: 999,
+          },
         }}
       >
-        {/* CABECERA */}
-
-        <Stack
-          direction="row"
+        <Table
+          size="small"
           sx={{
-            justifyContent: "space-between",
-
-            alignItems: "center",
+            minWidth: 1230,
+            tableLayout: "fixed",
           }}
         >
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-            }}
-          >
-            Traslados en curso
-          </Typography>
+          {/* CABECERA */}
 
-          <Box
-            sx={{
-              display: "flex",
-              gap: 3,
-            }}
-          >
-            {/* BUSCADOR */}
+          <TableHead sx={{ bgcolor: "#F8FAFC" }}>
+            <TableRow>
+              {sortHeader(0)}
 
-            <TextField
-              placeholder="Buscar traslado, paciente o código"
-              size="small"
-              sx={{
-                width: {
-                  lg: 350,
-                  md: 250,
-                },
-              }}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
+              <TableCell sx={{ fontWeight: 700, width: 155 }}>
+                Paciente / Elemento
+              </TableCell>
 
-            {/* FILTROS */}
+              <TableCell sx={{ fontWeight: 700, width: 145 }}>Origen</TableCell>
 
-            <FormControl
-              size="small"
-              sx={{
-                width: 125,
-              }}
-            >
-              <InputLabel id="filters">Filtros</InputLabel>
+              <TableCell sx={{ fontWeight: 700, width: 145 }}>
+                Destino
+              </TableCell>
 
-              <Select
-                labelId="filters"
-                id="filtersSelect"
-                label="Filtros"
-                defaultValue={0}
-              >
-                <MenuItem value={0}>Ninguno</MenuItem>
+              {sortHeader(1)}
+              {sortHeader(2)}
+              {sortHeader(3)}
+              {sortHeader(4)}
 
-                <MenuItem value={1}>Agrupar por estado</MenuItem>
+              <TableCell align="center" sx={{ fontWeight: 700, width: 125 }}>
+                Acciones
+              </TableCell>
+            </TableRow>
+          </TableHead>
 
-                <MenuItem value={2}>Agrupar por prioridad</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </Stack>
+          {/* CUERPO */}
 
-        {/* TABLA */}
-
-        <TableContainer
-          sx={{
-            width: "100%",
-            maxWidth: "100%",
-            minWidth: 0,
-            overflowX: "auto",
-            overflowY: "hidden",
-            mt: 3,
-
-            "&::-webkit-scrollbar": {
-              height: 8,
-            },
-
-            "&::-webkit-scrollbar-thumb": {
-              bgcolor: "rgba(0,0,0,0.25)",
-
-              borderRadius: 999,
-            },
-          }}
-        >
-          <Table
-            size="small"
-            sx={{
-              minWidth: {
-                xs: 850,
-                sm: 950,
-                md: 1000,
-                lg: "100%",
-              },
-
-              tableLayout: "fixed",
-            }}
-          >
-            {/* CABECERA TABLA */}
-
-            <TableHead>
+          <TableBody>
+            {visibleTransfers.length === 0 ? (
               <TableRow>
                 <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: 90,
-                  }}
-                >
-                  Código
-                </TableCell>
-
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: 160,
-                  }}
-                >
-                  Paciente / Elemento
-                </TableCell>
-
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: 150,
-                  }}
-                >
-                  Origen
-                </TableCell>
-
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: 150,
-                  }}
-                >
-                  Destino
-                </TableCell>
-
-                <TableCell
+                  colSpan={9}
                   align="center"
-                  sx={{
-                    fontWeight: 700,
-                    width: 130,
-                    whiteSpace: "nowrap",
-                  }}
+                  sx={{ py: 6, color: "text.secondary" }}
                 >
-                  Hora de salida
-                </TableCell>
-
-                <TableCell
-                  align="center"
-                  sx={{
-                    fontWeight: 700,
-                    width: 140,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Estado
-                </TableCell>
-
-                <TableCell
-                  sx={{
-                    fontWeight: 700,
-                    width: 120,
-                  }}
-                >
-                  Prioridad
-                </TableCell>
-
-                <TableCell
-                  align="center"
-                  sx={{
-                    fontWeight: 700,
-                    width: 130,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Acciones
+                  {totalTransfers === 0
+                    ? "No hay traslados activos."
+                    : "No se encontraron traslados con los filtros seleccionados."}
                 </TableCell>
               </TableRow>
-            </TableHead>
-
-            {/* CUERPO TABLA */}
-
-            <TableBody>
-              {visibleTransfers.length === 0 ? (
-                <TableRow>
+            ) : (
+              visibleTransfers.map((transfer) => (
+                <TableRow
+                  key={transfer.id}
+                  hover
+                  selected={selectedTransferId === transfer.id}
+                  sx={{
+                    "&.Mui-selected": {
+                      bgcolor: "rgba(15, 124, 113, 0.08)",
+                    },
+                    "&.Mui-selected:hover": {
+                      bgcolor: "rgba(15, 124, 113, 0.12)",
+                    },
+                    "& td": { py: 1.5 },
+                  }}
+                >
                   <TableCell
-                    colSpan={8}
-                    align="center"
                     sx={{
-                      py: 5,
-                      color: "text.secondary",
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    No hay traslados activos.
+                    {transfer.codigo}
                   </TableCell>
-                </TableRow>
-              ) : (
-                visibleTransfers.map((transfer) => (
-                  <TableRow
-                    key={transfer.id}
-                    selected={selectedTransferId === transfer.id}
-                    sx={{
-                      "&.Mui-selected": {
-                        bgcolor: "rgba(15, 124, 113, 0.08)",
-                      },
 
-                      "&.Mui-selected:hover": {
-                        bgcolor: "rgba(15, 124, 113, 0.12)",
-                      },
-                    }}
-                  >
-                    {/* CÓDIGO */}
+                  <TableCell>
+                    {transfer.tipoElemento === "Paciente"
+                      ? transfer.cedulaPaciente || "-"
+                      : transfer.elemento || "-"}
+                  </TableCell>
 
-                    <TableCell>{transfer.codigo}</TableCell>
+                  <TableCell>{transfer.origen}</TableCell>
+                  <TableCell>{transfer.destino}</TableCell>
 
-                    {/* PACIENTE / ELEMENTO */}
+                  <TableCell>
+                    <DateCell value={transfer.fechaRequerida} />
+                  </TableCell>
 
-                    <TableCell>{getTransferSubject(transfer)}</TableCell>
+                  <TableCell>
+                    <DateCell value={transfer.horaSalidaEstimada} />
+                  </TableCell>
 
-                    {/* ORIGEN */}
+                  <TableCell>
+                    <TransferChip
+                      label={transfer.estado}
+                      colors={stateColors[transfer.estado]}
+                    />
+                  </TableCell>
 
-                    <TableCell>{transfer.origen}</TableCell>
+                  <TableCell>
+                    <TransferChip
+                      label={transfer.prioridad}
+                      colors={priorityColors[transfer.prioridad]}
+                    />
+                  </TableCell>
 
-                    {/* DESTINO */}
+                  <TableCell>
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
+                      sx={{ justifyContent: "center" }}
+                    >
+                      <Tooltip title="Gestionar traslado">
+                        <IconButton
+                          size="small"
+                          onClick={() => setEditTransferId(transfer.id)}
+                        >
+                          <EditOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
 
-                    <TableCell>{transfer.destino}</TableCell>
+                      <Tooltip title="Ver detalle">
+                        <IconButton
+                          size="small"
+                          onClick={() => onViewTransfer(transfer.id)}
+                        >
+                          <RemoveRedEyeIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
 
-                    {/* HORA SALIDA */}
-
-                    <TableCell align="center">
-                      {formatTime(transfer.horaSalidaEstimada)}
-                    </TableCell>
-
-                    {/* ESTADO */}
-
-                    <TableCell align="center">
-                      <Chip
-                        label={transfer.estado}
-                        size="small"
-                        sx={{
-                          bgcolor:
-                            transfer.estado === "En camino"
-                              ? "var(--primary-color)"
-                              : transfer.estado === "Llegó al destino"
-                                ? "var(--green-chip)"
-                                : transfer.estado === "Retornando"
-                                  ? "var(--organe-chip)"
-                                  : transfer.estado === "Registrado"
-                                    ? "var(--violet-chip)"
-                                    : "var(--inactive-chip)",
-
-                          color:
-                            transfer.estado === "En camino" ||
-                            transfer.estado === "Llegó al destino" ||
-                            transfer.estado === "Retornando"
-                              ? "var(--white-color)"
-                              : "var(--text-main-color)",
-
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-                          justifyContent: "center",
-
-                          borderRadius: 2,
-                        }}
-                      />
-                    </TableCell>
-
-                    {/* PRIORIDAD */}
-
-                    <TableCell>
-                      <Chip
-                        label={transfer.prioridad}
-                        size="small"
-                        sx={{
-                          bgcolor:
-                            transfer.prioridad === "Urgente"
-                              ? "var(--warning)"
-                              : "var(--green-chip)",
-
-                          color: "var(--white-color)",
-
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-
-                          justifyContent: "center",
-
-                          borderRadius: 2,
-                        }}
-                      />
-                    </TableCell>
-
-                    {/* ACCIONES */}
-
-                    <TableCell>
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        sx={{
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Tooltip title="Gestionar traslado">
-                          <IconButton
-                            size="small"
-                            onClick={() => setEditTransferId(transfer.id)}
-                          >
-                            <EditOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-
-                        <Tooltip title="Ver detalle">
-                          <IconButton
-                            size="small"
-                            onClick={() => setSelectedTransferId(transfer.id)}
-                          >
-                            <RemoveRedEyeIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-
+                      {transfer.anulable && (
                         <Tooltip title="Anular solicitud">
-                          <IconButton size="small" color="error">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => onCancelTransfer(transfer)}
+                          >
                             <DeleteOutlineOutlinedIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                      )}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-        {/* PAGINACIÓN */}
+      {/* PAGINACIÓN */}
 
-        {showPagination && (
-          <Stack
-            direction="row"
-            sx={{
-              justifyContent: "center",
-              mt: 2,
-            }}
-          >
-            <Pagination
-              count={totalPages}
-              page={page}
-              onChange={(event, value) => setPage(value)}
-              size="small"
-              shape="rounded"
-            />
-          </Stack>
-        )}
-      </Card>
-    </>
+      {filteredCount > rowsPerPage && (
+        <Stack sx={{ alignItems: "center", mt: 2.5 }}>
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={(event, value) => setPage(value)}
+            size="small"
+            shape="rounded"
+          />
+        </Stack>
+      )}
+    </Card>
   );
 }
