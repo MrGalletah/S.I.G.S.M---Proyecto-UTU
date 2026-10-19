@@ -2,10 +2,32 @@ import { processResponse } from "../../components/utils/processApiResponse";
 
 const usersUrl = "/api/users";
 
-export async function getUsers() {
-    const req = await fetch(`${usersUrl}`, {
+export async function getUsers({
+    page = 1,
+    limit = 20,
+    search = "",
+    estado = "all",
+    id_rol = null,
+    signal,
+} = {}) {
+    const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        estado,
+    });
+
+    if (search.trim()) {
+        params.set("search", search.trim());
+    }
+
+    if (id_rol !== null && id_rol !== "all") {
+        params.set("id_rol", String(id_rol));
+    }
+
+    const req = await fetch(`${usersUrl}?${params.toString()}`, {
         method: "GET",
         credentials: "include",
+        signal,
     });
 
     return processResponse(req);
