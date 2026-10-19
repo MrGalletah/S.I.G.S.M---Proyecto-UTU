@@ -26,6 +26,9 @@
     "createSuccess": "Category created successfully.",
     "updateSuccess": "Category updated successfully.",
     "loadError": "Couldn't load categories.",
+    "all": "All",
+    "activePlural": "Active",
+    "inactivePlural": "Inactive",
     "saveError": "Couldn't save the category.",
     "dialog": {
       "createTitle": "New category",
@@ -63,6 +66,9 @@
     "createError": "Couldn't add the document.",
     "updateError": "Couldn't update the document.",
     "deleteError": "Couldn't delete the document.",
+    "all": "All",
+    "activePlural": "Active",
+    "inactivePlural": "Inactive",
     "dialog": {
       "createTitle": "New document",
       "editTitle": "Edit document",

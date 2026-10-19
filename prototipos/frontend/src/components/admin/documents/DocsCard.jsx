@@ -2,11 +2,10 @@ import {
   Box,
   Button,
   Card,
-  Checkbox,
   Chip,
   CircularProgress,
-  FormControlLabel,
   IconButton,
+  MenuItem,
   Pagination,
   Stack,
   Table,
@@ -24,7 +23,7 @@ import RemoveRedEyeIcon from "@mui/icons-material/RemoveRedEye";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -41,8 +40,7 @@ import { formatDate } from "../../utils/formatDate";
 import DocumentModal from "../../modals/DocumentDialog";
 import DeleteConfirmDialog from "../../modals/DeleteConfirmDialog";
 
-// Adaptamos la respuesta del backend al formato
-// que utiliza la tabla, sin traducir los datos.
+// ADAPTACIÓN DE DATOS
 function formatDocuments(categories) {
   return categories.flatMap((category) =>
     category.documentos.map((document) => ({
@@ -52,7 +50,7 @@ function formatDocuments(categories) {
       idCat: category.id_cat,
       document: document.titulo,
       uploadedAt: formatDate(document.fecha_subida),
-      active: Boolean(document.activo),
+      active: document.activo === true || Number(document.activo) === 1,
       description: document.descripcion,
       path: document.ruta,
     })),
@@ -65,24 +63,35 @@ export default function DocsCard({ variant }) {
   const { notification, showNotification, closeNotification } =
     useNotification();
 
-  const [openDocumentModal, setOpenDocumentModal] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState(null);
+  // DOCUMENTOS
   const [documents, setDocuments] = useState([]);
-
-  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // CREACIÓN Y EDICIÓN
+  const [openDocumentModal, setOpenDocumentModal] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  // ELIMINACIÓN
   const [documentToDelete, setDocumentToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // FILTROS Y PAGINACIÓN
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
-  const [onlyActive, setOnlyActive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const isFull = variant === "full";
   const rowsPerPage = isFull ? 15 : 4;
 
-  // Recarga manual tras crear, editar o eliminar.
+  // REFERENCIA ESTABLE PARA NOTIFICACIONES
+  const notificationRef = useRef(showNotification);
+
+  useEffect(() => {
+    notificationRef.current = showNotification;
+  }, [showNotification]);
+
+  // RECARGA MANUAL
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -101,8 +110,7 @@ export default function DocsCard({ variant }) {
     }
   };
 
-  // Carga inicial: actualizaciones asíncronas
-  // para evitar react-hooks/set-state-in-effect.
+  // CARGA INICIAL
   useEffect(() => {
     let cancelled = false;
 
@@ -117,7 +125,7 @@ export default function DocsCard({ variant }) {
 
         console.error(error);
 
-        showNotification(t("files.loadError"), "error");
+        notificationRef.current(t("files.loadError"), "error");
       })
       .finally(() => {
         if (!cancelled) {
@@ -128,8 +136,9 @@ export default function DocsCard({ variant }) {
     return () => {
       cancelled = true;
     };
-  }, [t, showNotification]);
+  }, [t]);
 
+  // CREAR O ACTUALIZAR DOCUMENTO
   const handleDocumentSubmit = async (data) => {
     try {
       setSaving(true);
@@ -137,13 +146,13 @@ export default function DocsCard({ variant }) {
       let response;
 
       if (!selectedDocument) {
-        // Crear documento con archivo.
+        // Crear documento.
         response = await createOrUpdateDocument(data);
       } else if (data.archivo) {
         // Editar y reemplazar archivo.
         response = await createOrUpdateDocument(data, selectedDocument.id);
       } else {
-        // Editar solo los metadatos.
+        // Modificar solo los metadatos.
         response = await updateDocument(data, selectedDocument.id);
       }
 
@@ -172,6 +181,7 @@ export default function DocsCard({ variant }) {
     }
   };
 
+  // ELIMINAR DOCUMENTO
   const handleDeleteDocument = async () => {
     if (!documentToDelete) return;
 
@@ -204,7 +214,7 @@ export default function DocsCard({ variant }) {
     setOpenDocumentModal(true);
   };
 
-  // Solo traducimos el estado al mostrarlo.
+  // FILTROS
   const filteredDocuments = documents.filter((documentItem) => {
     const searchText = search.toLowerCase();
 
@@ -212,25 +222,30 @@ export default function DocsCard({ variant }) {
       ? t("files.active")
       : t("files.inactive");
 
-    const matchesStatus = !onlyActive || documentItem.active;
-
     const matchesSearch =
       documentItem.document.toLowerCase().includes(searchText) ||
       documentItem.category.toLowerCase().includes(searchText) ||
       documentItem.uploadedAt.toLowerCase().includes(searchText) ||
       stateLabel.toLowerCase().includes(searchText);
 
-    return matchesStatus && matchesSearch;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" ? documentItem.active : !documentItem.active);
+
+    return matchesSearch && matchesStatus;
   });
 
+  // PAGINACIÓN
   const totalPages = Math.ceil(filteredDocuments.length / rowsPerPage);
 
-  const startIndex = (page - 1) * rowsPerPage;
+  const currentPage = Math.min(page, Math.max(totalPages, 1));
+
+  const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
 
   const visibleDocuments = filteredDocuments.slice(startIndex, endIndex);
 
-  const showPagination = filteredDocuments.length > rowsPerPage;
+  const showPagination = totalPages > 1;
 
   return (
     <>
@@ -243,7 +258,7 @@ export default function DocsCard({ variant }) {
           overflow: "hidden",
         }}
       >
-        {/* Encabezado */}
+        {/* ENCABEZADO */}
         <Stack
           direction="row"
           sx={{
@@ -277,7 +292,6 @@ export default function DocsCard({ variant }) {
               textTransform: "none",
               bgcolor: "var(--primary-color)",
               whiteSpace: "nowrap",
-
               "&:hover": {
                 bgcolor: "var(--primary-hover-color)",
               },
@@ -287,17 +301,16 @@ export default function DocsCard({ variant }) {
           </Button>
         </Stack>
 
-        {/* Búsqueda y filtros */}
+        {/* BÚSQUEDA Y FILTROS */}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           sx={{
             mb: 2,
             gap: 2,
             alignItems: {
-              xs: "flex-start",
+              xs: "stretch",
               sm: "center",
             },
-            justifyContent: "space-between",
           }}
         >
           <TextField
@@ -314,7 +327,6 @@ export default function DocsCard({ variant }) {
               },
             }}
             sx={{
-              mb: 2,
               width: {
                 xs: "100%",
                 sm: "250px",
@@ -322,28 +334,31 @@ export default function DocsCard({ variant }) {
             }}
           />
 
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={onlyActive}
-                onChange={(event) => {
-                  setOnlyActive(event.target.checked);
-                  setPage(1);
-                }}
-                sx={{
-                  color: "var(--primary-color)",
+          <TextField
+            select
+            size="small"
+            label={t("files.status")}
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              setPage(1);
+            }}
+            sx={{
+              width: {
+                xs: "100%",
+                sm: "160px",
+              },
+            }}
+          >
+            <MenuItem value="all">{t("files.all")}</MenuItem>
 
-                  "&.Mui-checked": {
-                    color: "var(--primary-color)",
-                  },
-                }}
-              />
-            }
-            label={t("files.onlyActive")}
-          />
+            <MenuItem value="active">{t("files.activePlural")}</MenuItem>
+
+            <MenuItem value="inactive">{t("files.inactivePlural")}</MenuItem>
+          </TextField>
         </Stack>
 
-        {/* Contenido */}
+        {/* CONTENIDO */}
         {loading ? (
           <Box
             sx={{
@@ -431,7 +446,7 @@ export default function DocsCard({ variant }) {
               <TableBody>
                 {visibleDocuments.map((documentItem) => (
                   <TableRow key={documentItem.id}>
-                    {/* Título original */}
+                    {/* DOCUMENTO */}
                     <TableCell>
                       <Box
                         sx={{
@@ -456,7 +471,7 @@ export default function DocsCard({ variant }) {
                       </Box>
                     </TableCell>
 
-                    {/* Categoría original */}
+                    {/* CATEGORÍA */}
                     <TableCell>
                       <Typography
                         variant="body2"
@@ -471,11 +486,12 @@ export default function DocsCard({ variant }) {
                       </Typography>
                     </TableCell>
 
+                    {/* FECHA */}
                     <TableCell align="center">
                       {documentItem.uploadedAt}
                     </TableCell>
 
-                    {/* Estado traducido */}
+                    {/* ESTADO */}
                     <TableCell align="center">
                       <Chip
                         label={
@@ -501,7 +517,7 @@ export default function DocsCard({ variant }) {
                       />
                     </TableCell>
 
-                    {/* Acciones */}
+                    {/* ACCIONES */}
                     <TableCell>
                       <Stack
                         direction="row"
@@ -510,6 +526,7 @@ export default function DocsCard({ variant }) {
                           justifyContent: "center",
                         }}
                       >
+                        {/* VER PDF */}
                         <IconButton
                           size="small"
                           href={`/api/documents/view.php?id=${documentItem.id}&includeInactive=true`}
@@ -522,6 +539,7 @@ export default function DocsCard({ variant }) {
                           <RemoveRedEyeIcon fontSize="small" />
                         </IconButton>
 
+                        {/* EDITAR */}
                         <IconButton
                           size="small"
                           onClick={() => handleEditDocument(documentItem)}
@@ -532,6 +550,7 @@ export default function DocsCard({ variant }) {
                           <EditOutlinedIcon fontSize="small" />
                         </IconButton>
 
+                        {/* ELIMINAR */}
                         <IconButton
                           size="small"
                           color="error"
@@ -551,7 +570,7 @@ export default function DocsCard({ variant }) {
           </TableContainer>
         )}
 
-        {/* Paginación */}
+        {/* PAGINACIÓN */}
         {!loading && showPagination && (
           <Stack
             direction="row"
@@ -562,7 +581,7 @@ export default function DocsCard({ variant }) {
           >
             <Pagination
               count={totalPages}
-              page={page}
+              page={currentPage}
               onChange={(event, value) => setPage(value)}
               size="small"
               shape="rounded"
@@ -571,12 +590,13 @@ export default function DocsCard({ variant }) {
         )}
       </Card>
 
+      {/* NOTIFICACIONES */}
       <NotificationSnackbar
         notification={notification}
         onClose={closeNotification}
       />
 
-      {/* Crear y editar documentos */}
+      {/* CREAR O EDITAR DOCUMENTO */}
       {openDocumentModal && (
         <DocumentModal
           key={selectedDocument?.id ?? "new"}
@@ -591,7 +611,7 @@ export default function DocsCard({ variant }) {
         />
       )}
 
-      {/* Confirmación de borrado */}
+      {/* CONFIRMACIÓN DE ELIMINACIÓN */}
       <DeleteConfirmDialog
         open={Boolean(documentToDelete)}
         documentTitle={documentToDelete?.document}

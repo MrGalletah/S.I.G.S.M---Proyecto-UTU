@@ -19,6 +19,22 @@ export async function login(mail, pwd) {
 }
 
 
+export async function requestAccess(nombre, mail, pwd) {
+    const req = await fetch(`${authUrl}/register.php`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            nombre,
+            correo: mail,
+            password: pwd
+        }),
+    });
+
+    return processResponse(req);
+}
+
 export async function getCurrentUser() {
     const req = await fetch(`${authUrl}/me.php`,
         {

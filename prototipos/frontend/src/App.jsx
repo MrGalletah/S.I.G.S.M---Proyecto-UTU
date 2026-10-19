@@ -10,22 +10,27 @@ import DocsCard from "./components/admin/documents/DocsCard";
 import SurveysCard from "./components/admin/documents/SurveysCard";
 
 import UserView from "./components/admin/general/UserView";
+
 import NewTransfer from "./components/admin/ambulances/transfer/NewTansfer";
 import FollowUp from "./components/admin/ambulances/followUp/FollowUp";
 import TransferHistory from "./components/admin/ambulances/history/TransferHistory";
 
 import VehiclesPage from "./components/admin/vehicles/VehiclesPage";
 
+import UsersCard from "./components/admin/users/UsersCard";
+import AccessRequestsCard from "./components/admin/access/AccessRequestsCard";
+
 function App() {
   return (
     <Routes>
-      {/* Pública */}
+      {/* Públicas */}
       <Route path="/login" element={<Login />} />
       <Route path="/documents/view" element={<UserView />} />
 
       {/* Privadas */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminDashboard />}>
+          {/* Documentación */}
           <Route path="documents/dashboard" element={<DocsDashboard />} />
           <Route
             path="documents/categories"
@@ -37,24 +42,22 @@ function App() {
             element={<SurveysCard variant="full" />}
           />
 
+          {/* Traslados */}
           <Route path="ambulances/new" element={<NewTransfer />} />
           <Route path="ambulances/follow-up" element={<FollowUp />} />
           <Route path="ambulances/history" element={<TransferHistory />} />
           <Route path="ambulances/vehicles" element={<VehiclesPage />} />
 
-          <Route
-            path="admin/users"
-            element={<div> Gestión de usuarios - En construcción</div>}
-          />
+          {/* Administración */}
+          <Route path="admin/users" element={<UsersCard variant="full" />} />
           <Route
             path="admin/access"
-            element={<div> Conceder acceso - En construcción</div>}
+            element={<AccessRequestsCard variant="full" />}
           />
         </Route>
       </Route>
 
       <Route path="/" element={<Navigate to="/login" replace />} />
-
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
