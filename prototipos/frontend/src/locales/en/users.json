@@ -1,0 +1,88 @@
+{
+  "title": "Users",
+  "description": "System staff members and their access status",
+  "activeCount_one": "{{count}} active user",
+  "activeCount_other": "{{count}} active users",
+  "filters": {
+    "search": "Search by name, email or role",
+    "status": "Status",
+    "role": "Role",
+    "all": "All",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "table": {
+    "name": "Name",
+    "email": "Email",
+    "roles": "Roles",
+    "status": "Status",
+    "actions": "Actions",
+    "noRoles": "No roles assigned",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "empty": {
+    "noUsers": "No users registered.",
+    "noResults": "No users match your search."
+  },
+  "actions": {
+    "editRoles": "Edit roles",
+    "activate": "Activate user",
+    "deactivate": "Deactivate user"
+  },
+  "messages": {
+    "loadUsersError": "Unable to load users.",
+    "loadRolesError": "Unable to load roles.",
+    "rolesUpdated": "Roles updated successfully.",
+    "rolesUpdateError": "Unable to update user roles.",
+    "activated": "User activated successfully.",
+    "activateError": "Unable to activate user.",
+    "deactivated": "User deactivated successfully.",
+    "deactivateError": "Unable to deactivate user."
+  },
+  "dialogs": {
+    "cancel": "Cancel",
+    "editRoles": {
+      "title": "Edit roles",
+      "description": "Select the roles assigned to this user",
+      "required": "Select at least one role.",
+      "save": "Save changes",
+      "saving": "Saving..."
+    },
+    "activate": {
+      "title": "Activate user",
+      "description": "This user will regain access to the system",
+      "question": "Are you sure you want to activate this user?",
+      "hint": "The user will be able to sign in again with their previously assigned roles.",
+      "loading": "Activating..."
+    },
+    "deactivate": {
+      "title": "Deactivate user",
+      "description": "This user will lose access to the system",
+      "question": "Are you sure you want to deactivate this user?",
+      "hint": "No data will be deleted. The user will keep their details and roles, and you can reactivate them at any time.",
+      "loading": "Deactivating..."
+    }
+  },
+  "roleNames": {
+    "Administrador": "Administrator",
+    "Gestor de documentación": "Documentation manager",
+    "Solicitante de traslado": "Transfer requester",
+    "Gestor de traslados": "Transfer manager",
+    "Conductor": "Driver",
+    "Enfermero": "Nurse",
+    "Médico": "Physician",
+    "Administrativo": "Administrative staff"
+  },
+
+  "roleDescriptions": {
+    "Administrador": "Can manage staff, roles, and access different sections of the system.",
+    "Gestor de documentación": "Can manage document categories, files, and surveys.",
+    "Solicitante de traslado": "Can submit new patient transport requests.",
+    "Gestor de traslados": "Can manage transport requests, assign resources, and update their status.",
+    "Conductor": "Authorized to drive institutional vehicles.",
+    "Enfermero": "Nursing staff who can accompany patient transfers.",
+    "Médico": "Hospital physician.",
+    "Administrativo": "Hospital administrative staff."
+  }
+}

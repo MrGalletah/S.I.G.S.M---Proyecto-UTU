@@ -15,7 +15,10 @@ import {
 } from "@mui/material";
 
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
+
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import { getRoles } from "../../apiCalls/access/accessApi";
 
 export default function AcceptAccessDialog({
@@ -25,26 +28,43 @@ export default function AcceptAccessDialog({
   onClose,
   onConfirm,
 }) {
+  const { t } = useTranslation("access");
+  const { t: tUsers } = useTranslation("users");
+
+  // ROLES
   const [roles, setRoles] = useState([]);
   const [selected, setSelected] = useState([]);
-  const [loadingRoles, setLoadingRoles] = useState(false);
-  const [rolesError, setRolesError] = useState("");
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  const [rolesError, setRolesError] = useState(false);
 
+  // CARGAR ROLES DISPONIBLES
   useEffect(() => {
-    if (!open) return;
-
-    setSelected([]);
-    setRolesError("");
-    setLoadingRoles(true);
+    let cancelled = false;
 
     getRoles()
-      .then((data) => setRoles(data.roles))
-      .catch((error) =>
-        setRolesError(error.message || "Error al obtener los roles."),
-      )
-      .finally(() => setLoadingRoles(false));
-  }, [open]);
+      .then((data) => {
+        if (cancelled) return;
 
+        setRoles(data.roles);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+
+        console.error(error);
+        setRolesError(true);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingRoles(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // SELECCIONAR O QUITAR ROL
   const toggleRole = (idRol) => {
     setSelected((prev) =>
       prev.includes(idRol)
@@ -59,14 +79,17 @@ export default function AcceptAccessDialog({
       onClose={loading ? undefined : onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 4,
-          boxShadow: "var(--card-shadow)",
-          overflow: "hidden",
+      slotProps={{
+        paper: {
+          sx: {
+            borderRadius: 4,
+            boxShadow: "var(--card-shadow)",
+            overflow: "hidden",
+          },
         },
       }}
     >
+      {/* ENCABEZADO */}
       <DialogTitle sx={{ pb: 1 }}>
         <Typography
           variant="h6"
@@ -75,7 +98,7 @@ export default function AcceptAccessDialog({
             color: "var(--text-main-color)",
           }}
         >
-          Aceptar solicitud
+          {t("dialogs.accept.title")}
         </Typography>
 
         <Typography
@@ -85,11 +108,13 @@ export default function AcceptAccessDialog({
             mt: 0.3,
           }}
         >
-          Selecciona los roles que tendrá el usuario
+          {t("dialogs.accept.description")}
         </Typography>
       </DialogTitle>
 
+      {/* CONTENIDO */}
       <DialogContent sx={{ pt: 2 }}>
+        {/* INFORMACIÓN DEL SOLICITANTE */}
         {request && (
           <Box
             sx={{
@@ -123,6 +148,7 @@ export default function AcceptAccessDialog({
           </Box>
         )}
 
+        {/* LISTADO DE ROLES */}
         {loadingRoles ? (
           <Box
             sx={{
@@ -141,7 +167,7 @@ export default function AcceptAccessDialog({
               mt: 2,
             }}
           >
-            {rolesError}
+            {t("messages.rolesError")}
           </Typography>
         ) : (
           <List
@@ -150,7 +176,10 @@ export default function AcceptAccessDialog({
               mt: 2,
               maxHeight: 320,
               overflowY: "auto",
-              border: "var(--border-gray)",
+              border:
+                selected.length === 0
+                  ? "1px solid var(--warning)"
+                  : "var(--border-gray)",
               borderRadius: 2,
             }}
           >
@@ -160,9 +189,17 @@ export default function AcceptAccessDialog({
                 dense
                 disabled={loading}
                 onClick={() => toggleRole(role.id_rol)}
-                sx={{ alignItems: "flex-start", py: 1 }}
+                sx={{
+                  alignItems: "flex-start",
+                  py: 1,
+                }}
               >
-                <ListItemIcon sx={{ minWidth: 38, mt: 0.3 }}>
+                <ListItemIcon
+                  sx={{
+                    minWidth: 38,
+                    mt: 0.3,
+                  }}
+                >
                   <Checkbox
                     edge="start"
                     size="small"
@@ -180,12 +217,18 @@ export default function AcceptAccessDialog({
                 </ListItemIcon>
 
                 <ListItemText
-                  primary={role.nombre}
-                  secondary={role.descripcion}
+                  primary={tUsers(`roleNames.${role.nombre}`, {
+                    defaultValue: role.nombre,
+                  })}
+                  secondary={tUsers(`roleDescriptions.${role.nombre}`, {
+                    defaultValue: role.descripcion || "",
+                  })}
                   slotProps={{
                     primary: {
                       variant: "body2",
-                      sx: { fontWeight: 600 },
+                      sx: {
+                        fontWeight: 600,
+                      },
                     },
                     secondary: {
                       variant: "caption",
@@ -196,8 +239,23 @@ export default function AcceptAccessDialog({
             ))}
           </List>
         )}
+
+        {/* VALIDACIÓN */}
+        {!loadingRoles && !rolesError && selected.length === 0 && (
+          <Typography
+            variant="caption"
+            sx={{
+              display: "block",
+              mt: 1,
+              color: "var(--warning)",
+            }}
+          >
+            {t("dialogs.accept.required")}
+          </Typography>
+        )}
       </DialogContent>
 
+      {/* BOTONES */}
       <DialogActions
         sx={{
           px: 3,
@@ -216,13 +274,15 @@ export default function AcceptAccessDialog({
             px: 2,
           }}
         >
-          Cancelar
+          {t("dialogs.cancel")}
         </Button>
 
         <Button
           variant="contained"
           onClick={() => onConfirm(selected)}
-          disabled={loading || loadingRoles || selected.length === 0}
+          disabled={
+            loading || loadingRoles || rolesError || selected.length === 0
+          }
           startIcon={
             loading ? (
               <CircularProgress size={16} color="inherit" />
@@ -240,7 +300,7 @@ export default function AcceptAccessDialog({
             },
           }}
         >
-          {loading ? "Aceptando..." : "Aceptar solicitud"}
+          {loading ? t("dialogs.accept.loading") : t("dialogs.accept.confirm")}
         </Button>
       </DialogActions>
     </Dialog>

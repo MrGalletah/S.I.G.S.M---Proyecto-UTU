@@ -15,7 +15,10 @@ import {
 } from "@mui/material";
 
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
+
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import { getRoles } from "../../apiCalls/users/usersApi";
 
 export default function EditUserRolesDialog({
@@ -25,26 +28,41 @@ export default function EditUserRolesDialog({
   onClose,
   onConfirm,
 }) {
+  const { t } = useTranslation("users");
+
   const [roles, setRoles] = useState([]);
-  const [selected, setSelected] = useState([]);
-  const [loadingRoles, setLoadingRoles] = useState(false);
-  const [rolesError, setRolesError] = useState("");
+  const [selected, setSelected] = useState(
+    () => user?.roles.map((role) => role.id_rol) ?? [],
+  );
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  const [rolesError, setRolesError] = useState(null);
 
   useEffect(() => {
-    if (!open || !user) return;
-
-    setSelected(user.roles.map((role) => role.id_rol));
-    setRolesError("");
-    setLoadingRoles(true);
+    let cancelled = false;
 
     getRoles()
-      .then((data) => setRoles(data.roles))
-      .catch((error) =>
-        setRolesError(error.message || "Error al obtener los roles."),
-      )
-      .finally(() => setLoadingRoles(false));
-  }, [open, user]);
+      .then((data) => {
+        if (cancelled) return;
 
+        setRoles(data.roles);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+
+        setRolesError(error.message || true);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingRoles(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // SELECCIONAR O QUITAR ROL
   const toggleRole = (idRol) => {
     setSelected((prev) =>
       prev.includes(idRol)
@@ -55,6 +73,7 @@ export default function EditUserRolesDialog({
 
   const currentRoles = user ? user.roles.map((role) => role.id_rol) : [];
 
+  // DETECTAR SI HUBO CAMBIOS
   const unchanged =
     selected.length === currentRoles.length &&
     selected.every((id) => currentRoles.includes(id));
@@ -65,14 +84,17 @@ export default function EditUserRolesDialog({
       onClose={loading ? undefined : onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 4,
-          boxShadow: "var(--card-shadow)",
-          overflow: "hidden",
+      slotProps={{
+        paper: {
+          sx: {
+            borderRadius: 4,
+            boxShadow: "var(--card-shadow)",
+            overflow: "hidden",
+          },
         },
       }}
     >
+      {/* ENCABEZADO */}
       <DialogTitle sx={{ pb: 1 }}>
         <Typography
           variant="h6"
@@ -81,7 +103,7 @@ export default function EditUserRolesDialog({
             color: "var(--text-main-color)",
           }}
         >
-          Editar roles
+          {t("dialogs.editRoles.title")}
         </Typography>
 
         <Typography
@@ -91,11 +113,12 @@ export default function EditUserRolesDialog({
             mt: 0.3,
           }}
         >
-          Selecciona los roles que tendrá el usuario
+          {t("dialogs.editRoles.description")}
         </Typography>
       </DialogTitle>
 
       <DialogContent sx={{ pt: 2 }}>
+        {/* INFORMACIÓN DEL USUARIO */}
         {user && (
           <Box
             sx={{
@@ -129,6 +152,7 @@ export default function EditUserRolesDialog({
           </Box>
         )}
 
+        {/* LISTADO DE ROLES */}
         {loadingRoles ? (
           <Box
             sx={{
@@ -147,7 +171,7 @@ export default function EditUserRolesDialog({
               mt: 2,
             }}
           >
-            {rolesError}
+            {rolesError === true ? t("messages.loadRolesError") : rolesError}
           </Typography>
         ) : (
           <List
@@ -169,7 +193,10 @@ export default function EditUserRolesDialog({
                 dense
                 disabled={loading}
                 onClick={() => toggleRole(role.id_rol)}
-                sx={{ alignItems: "flex-start", py: 1 }}
+                sx={{
+                  alignItems: "flex-start",
+                  py: 1,
+                }}
               >
                 <ListItemIcon sx={{ minWidth: 38, mt: 0.3 }}>
                   <Checkbox
@@ -189,8 +216,12 @@ export default function EditUserRolesDialog({
                 </ListItemIcon>
 
                 <ListItemText
-                  primary={role.nombre}
-                  secondary={role.descripcion}
+                  primary={t(`roleNames.${role.nombre}`, {
+                    defaultValue: role.nombre,
+                  })}
+                  secondary={t(`roleDescriptions.${role.nombre}`, {
+                    defaultValue: role.descripcion || "",
+                  })}
                   slotProps={{
                     primary: {
                       variant: "body2",
@@ -206,6 +237,7 @@ export default function EditUserRolesDialog({
           </List>
         )}
 
+        {/* VALIDACIÓN */}
         {!loadingRoles && !rolesError && selected.length === 0 && (
           <Typography
             variant="caption"
@@ -215,11 +247,12 @@ export default function EditUserRolesDialog({
               color: "var(--warning)",
             }}
           >
-            Debes seleccionar al menos un rol.
+            {t("dialogs.editRoles.required")}
           </Typography>
         )}
       </DialogContent>
 
+      {/* ACCIONES */}
       <DialogActions
         sx={{
           px: 3,
@@ -238,14 +271,18 @@ export default function EditUserRolesDialog({
             px: 2,
           }}
         >
-          Cancelar
+          {t("dialogs.cancel")}
         </Button>
 
         <Button
           variant="contained"
           onClick={() => onConfirm(selected)}
           disabled={
-            loading || loadingRoles || selected.length === 0 || unchanged
+            loading ||
+            loadingRoles ||
+            Boolean(rolesError) ||
+            selected.length === 0 ||
+            unchanged
           }
           startIcon={
             loading ? (
@@ -264,7 +301,9 @@ export default function EditUserRolesDialog({
             },
           }}
         >
-          {loading ? "Guardando..." : "Guardar cambios"}
+          {loading
+            ? t("dialogs.editRoles.saving")
+            : t("dialogs.editRoles.save")}
         </Button>
       </DialogActions>
     </Dialog>

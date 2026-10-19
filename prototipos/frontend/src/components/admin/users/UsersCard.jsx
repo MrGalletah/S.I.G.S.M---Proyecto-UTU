@@ -22,26 +22,34 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlin
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
+
 import { useEffect, useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
+
 import {
   getRoles,
   getUsers,
   setUserActive,
   updateUserRoles,
 } from "../../../apiCalls/users/usersApi";
+
 import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
+
 import DeactivateUserDialog from "../../modals/DeactivateUserDialog";
 import ActivateUserDialog from "../../modals/ActivateUserDialog";
 import EditUserRolesDialog from "../../modals/EditUserRolesDialog";
 
 export default function UsersCard({ variant }) {
+  const { t } = useTranslation("users");
+
   const { notification, showNotification, closeNotification } =
     useNotification();
 
   const isFull = variant === "full";
   const rowsPerPage = isFull ? 15 : 5;
 
+  // USUARIOS
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,12 +79,17 @@ export default function UsersCard({ variant }) {
   const [userToActivate, setUserToActivate] = useState(null);
   const [activating, setActivating] = useState(false);
 
-  // REFERENCIA ESTABLE PARA NOTIFICACIONES
+  // REFERENCIAS ESTABLES PARA LOS EFECTOS
   const notificationRef = useRef(showNotification);
+  const tRef = useRef(t);
 
   useEffect(() => {
     notificationRef.current = showNotification;
   }, [showNotification]);
+
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   // DEBOUNCE DEL BUSCADOR
   useEffect(() => {
@@ -123,7 +136,10 @@ export default function UsersCard({ variant }) {
 
         console.error(error);
 
-        notificationRef.current("Error al obtener los usuarios.", "error");
+        notificationRef.current(
+          tRef.current("messages.loadUsersError"),
+          "error",
+        );
 
         setUsers([]);
         setTotalPages(0);
@@ -166,7 +182,10 @@ export default function UsersCard({ variant }) {
 
         console.error(error);
 
-        notificationRef.current("Error al obtener los roles.", "error");
+        notificationRef.current(
+          tRef.current("messages.loadRolesError"),
+          "error",
+        );
       }
     };
 
@@ -184,12 +203,9 @@ export default function UsersCard({ variant }) {
     try {
       setSaving(true);
 
-      const response = await updateUserRoles(userToEdit.id_func, roleIds);
+      await updateUserRoles(userToEdit.id_func, roleIds);
 
-      showNotification(
-        response.mensaje || "Roles actualizados correctamente.",
-        "success",
-      );
+      showNotification(t("messages.rolesUpdated"), "success");
 
       setUserToEdit(null);
       setRefreshKey((prev) => prev + 1);
@@ -197,7 +213,7 @@ export default function UsersCard({ variant }) {
       console.error(error);
 
       showNotification(
-        error.message || "Error al actualizar los roles del usuario.",
+        error.message || t("messages.rolesUpdateError"),
         "error",
       );
     } finally {
@@ -212,22 +228,16 @@ export default function UsersCard({ variant }) {
     try {
       setDeactivating(true);
 
-      const response = await setUserActive(userToDeactivate.id_func, false);
+      await setUserActive(userToDeactivate.id_func, false);
 
-      showNotification(
-        response.mensaje || "Usuario desactivado correctamente.",
-        "success",
-      );
+      showNotification(t("messages.deactivated"), "success");
 
       setUserToDeactivate(null);
       setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error(error);
 
-      showNotification(
-        error.message || "Error al desactivar el usuario.",
-        "error",
-      );
+      showNotification(error.message || t("messages.deactivateError"), "error");
 
       setUserToDeactivate(null);
     } finally {
@@ -242,22 +252,16 @@ export default function UsersCard({ variant }) {
     try {
       setActivating(true);
 
-      const response = await setUserActive(userToActivate.id_func, true);
+      await setUserActive(userToActivate.id_func, true);
 
-      showNotification(
-        response.mensaje || "Usuario activado correctamente.",
-        "success",
-      );
+      showNotification(t("messages.activated"), "success");
 
       setUserToActivate(null);
       setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error(error);
 
-      showNotification(
-        error.message || "Error al activar el usuario.",
-        "error",
-      );
+      showNotification(error.message || t("messages.activateError"), "error");
 
       setUserToActivate(null);
     } finally {
@@ -265,7 +269,9 @@ export default function UsersCard({ variant }) {
     }
   };
 
+  // PAGINACIÓN
   const currentPage = Math.min(page, Math.max(totalPages, 1));
+
   const showPagination = totalPages > 1;
 
   return (
@@ -282,6 +288,7 @@ export default function UsersCard({ variant }) {
           minHeight: isFull ? 850 : 450,
         }}
       >
+        {/* ENCABEZADO */}
         <Stack
           direction="row"
           sx={{
@@ -298,7 +305,7 @@ export default function UsersCard({ variant }) {
                 fontWeight: 700,
               }}
             >
-              Usuarios
+              {t("title")}
             </Typography>
 
             <Typography
@@ -307,13 +314,15 @@ export default function UsersCard({ variant }) {
                 color: "var(--text-muted-color)",
               }}
             >
-              Funcionarios del sistema y su estado de acceso
+              {t("description")}
             </Typography>
           </Box>
 
           {activeCount > 0 && (
             <Chip
-              label={`${activeCount} activo${activeCount === 1 ? "" : "s"}`}
+              label={t("activeCount", {
+                count: activeCount,
+              })}
               size="small"
               sx={{
                 bgcolor: "var(--green-chip)",
@@ -325,21 +334,31 @@ export default function UsersCard({ variant }) {
           )}
         </Stack>
 
+        {/* BÚSQUEDA Y FILTROS */}
         <Stack
           direction={{ xs: "column", sm: "row" }}
           sx={{
             mb: 2,
             gap: 2,
-            alignItems: { xs: "stretch", sm: "center" },
+            alignItems: {
+              xs: "stretch",
+              sm: "center",
+            },
           }}
         >
+          {/* BUSCADOR */}
           <TextField
             size="small"
-            placeholder="Buscar por nombre, correo o rol"
+            placeholder={t("filters.search")}
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
+            }}
+            slotProps={{
+              htmlInput: {
+                "aria-label": t("filters.search"),
+              },
             }}
             sx={{
               width: {
@@ -349,10 +368,11 @@ export default function UsersCard({ variant }) {
             }}
           />
 
+          {/* FILTRO POR ESTADO */}
           <TextField
             select
             size="small"
-            label="Estado"
+            label={t("filters.status")}
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
@@ -365,15 +385,18 @@ export default function UsersCard({ variant }) {
               },
             }}
           >
-            <MenuItem value="active">Activos</MenuItem>
-            <MenuItem value="inactive">Inactivos</MenuItem>
-            <MenuItem value="all">Todos</MenuItem>
+            <MenuItem value="active">{t("filters.active")}</MenuItem>
+
+            <MenuItem value="inactive">{t("filters.inactive")}</MenuItem>
+
+            <MenuItem value="all">{t("filters.all")}</MenuItem>
           </TextField>
 
+          {/* FILTRO POR ROL */}
           <TextField
             select
             size="small"
-            label="Rol"
+            label={t("filters.role")}
             value={roleFilter}
             onChange={(e) => {
               setRoleFilter(e.target.value);
@@ -386,15 +409,19 @@ export default function UsersCard({ variant }) {
               },
             }}
           >
-            <MenuItem value="all">Todos</MenuItem>
+            <MenuItem value="all">{t("filters.all")}</MenuItem>
+
             {roles.map((role) => (
               <MenuItem key={role.id_rol} value={role.id_rol}>
-                {role.nombre}
+                {t(`roleNames.${role.nombre}`, {
+                  defaultValue: role.nombre,
+                })}
               </MenuItem>
             ))}
           </TextField>
         </Stack>
 
+        {/* CONTENIDO */}
         {loading ? (
           <Box
             sx={{
@@ -408,6 +435,7 @@ export default function UsersCard({ variant }) {
             <CircularProgress />
           </Box>
         ) : users.length === 0 ? (
+          /* ESTADO VACÍO */
           <Box
             sx={{
               flexGrow: 1,
@@ -420,22 +448,28 @@ export default function UsersCard({ variant }) {
             }}
           >
             <PeopleOutlineOutlinedIcon
-              sx={{ fontSize: 36, color: "var(--text-muted-color)" }}
+              sx={{
+                fontSize: 36,
+                color: "var(--text-muted-color)",
+              }}
             />
 
             <Typography
               variant="body2"
-              sx={{ color: "var(--text-muted-color)" }}
+              sx={{
+                color: "var(--text-muted-color)",
+              }}
             >
               {totalUsers === 0 &&
               statusFilter === "all" &&
               roleFilter === "all" &&
               !debouncedSearch
-                ? "No hay usuarios registrados."
-                : "No se encontraron usuarios que coincidan con la búsqueda."}
+                ? t("empty.noUsers")
+                : t("empty.noResults")}
             </Typography>
           </Box>
         ) : (
+          /* TABLA DE USUARIOS */
           <TableContainer
             sx={{
               minWidth: "100%",
@@ -445,37 +479,60 @@ export default function UsersCard({ variant }) {
             <Table
               size="small"
               sx={{
-                minWidth: { xs: "800px", md: "100%" },
+                minWidth: {
+                  xs: "800px",
+                  md: "100%",
+                },
                 tableLayout: "fixed",
               }}
             >
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700, width: "22%" }}>
-                    Nombre
-                  </TableCell>
-
-                  <TableCell sx={{ fontWeight: 700, width: "26%" }}>
-                    Correo
-                  </TableCell>
-
-                  <TableCell sx={{ fontWeight: 700, width: "24%" }}>
-                    Roles
-                  </TableCell>
-
-                  <TableCell sx={{ fontWeight: 700, width: "12%" }}>
-                    Estado
+                  <TableCell
+                    sx={{
+                      fontWeight: 700,
+                      width: "22%",
+                    }}
+                  >
+                    {t("table.name")}
                   </TableCell>
 
                   <TableCell
                     sx={{
                       fontWeight: 700,
+                      width: "26%",
+                    }}
+                  >
+                    {t("table.email")}
+                  </TableCell>
+
+                  <TableCell
+                    sx={{
+                      fontWeight: 700,
+                      width: "24%",
+                    }}
+                  >
+                    {t("table.roles")}
+                  </TableCell>
+
+                  <TableCell
+                    sx={{
+                      fontWeight: 700,
+                      width: "12%",
+                    }}
+                  >
+                    {t("table.status")}
+                  </TableCell>
+
+                  <TableCell
+                    align="center"
+                    sx={{
+                      fontWeight: 700,
                       width: "16%",
                       whiteSpace: "nowrap",
                     }}
-                    align="center"
                   >
-                    Acciones
+                    {t("table.actions")}
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -483,6 +540,7 @@ export default function UsersCard({ variant }) {
               <TableBody>
                 {users.map((user) => (
                   <TableRow key={user.id_func}>
+                    {/* NOMBRE */}
                     <TableCell>
                       <Typography
                         variant="body2"
@@ -497,6 +555,7 @@ export default function UsersCard({ variant }) {
                       </Typography>
                     </TableCell>
 
+                    {/* CORREO */}
                     <TableCell>
                       <Typography
                         variant="body2"
@@ -510,23 +569,31 @@ export default function UsersCard({ variant }) {
                       </Typography>
                     </TableCell>
 
+                    {/* ROLES */}
                     <TableCell>
                       {user.roles.length === 0 ? (
                         <Typography
                           variant="body2"
-                          sx={{ color: "var(--text-muted-color)" }}
+                          sx={{
+                            color: "var(--text-muted-color)",
+                          }}
                         >
-                          Sin roles
+                          {t("table.noRoles")}
                         </Typography>
                       ) : (
                         <Stack
                           direction="row"
-                          sx={{ flexWrap: "wrap", gap: 0.5 }}
+                          sx={{
+                            flexWrap: "wrap",
+                            gap: 0.5,
+                          }}
                         >
                           {user.roles.map((role) => (
                             <Chip
                               key={role.id_rol}
-                              label={role.nombre}
+                              label={t(`roleNames.${role.nombre}`, {
+                                defaultValue: role.nombre,
+                              })}
                               size="small"
                               sx={{
                                 bgcolor: "var(--violet-chip)",
@@ -539,33 +606,43 @@ export default function UsersCard({ variant }) {
                       )}
                     </TableCell>
 
+                    {/* ESTADO */}
                     <TableCell>
                       <Chip
-                        label={user.activo ? "Activo" : "Inactivo"}
+                        label={
+                          user.activo ? t("table.active") : t("table.inactive")
+                        }
                         size="small"
                         sx={{
                           bgcolor: user.activo
                             ? "var(--green-chip)"
                             : "var(--inactive-chip)",
+
                           color: user.activo
                             ? "var(--white-color)"
                             : "var(--text-main-color)",
+
                           fontWeight: 600,
                         }}
                       />
                     </TableCell>
 
+                    {/* ACCIONES */}
                     <TableCell>
                       <Stack
                         direction="row"
                         spacing={0.5}
-                        sx={{ justifyContent: "center" }}
+                        sx={{
+                          justifyContent: "center",
+                        }}
                       >
-                        <Tooltip title="Editar roles">
+                        {/* EDITAR ROLES */}
+                        <Tooltip title={t("actions.editRoles")}>
                           <span>
                             <IconButton
                               size="small"
                               onClick={() => setUserToEdit(user)}
+                              aria-label={t("actions.editRoles")}
                               sx={{
                                 color: "var(--primary-color)",
                               }}
@@ -575,12 +652,14 @@ export default function UsersCard({ variant }) {
                           </span>
                         </Tooltip>
 
+                        {/* DESACTIVAR USUARIO */}
                         {user.activo ? (
-                          <Tooltip title="Desactivar usuario">
+                          <Tooltip title={t("actions.deactivate")}>
                             <span>
                               <IconButton
                                 size="small"
                                 onClick={() => setUserToDeactivate(user)}
+                                aria-label={t("actions.deactivate")}
                                 sx={{
                                   color: "var(--warning)",
                                 }}
@@ -590,11 +669,13 @@ export default function UsersCard({ variant }) {
                             </span>
                           </Tooltip>
                         ) : (
-                          <Tooltip title="Activar usuario">
+                          /* ACTIVAR USUARIO */
+                          <Tooltip title={t("actions.activate")}>
                             <span>
                               <IconButton
                                 size="small"
                                 onClick={() => setUserToActivate(user)}
+                                aria-label={t("actions.activate")}
                                 sx={{
                                   color: "var(--green-chip)",
                                 }}
@@ -613,6 +694,7 @@ export default function UsersCard({ variant }) {
           </TableContainer>
         )}
 
+        {/* PAGINACIÓN */}
         {!loading && showPagination && (
           <Stack
             direction="row"
@@ -633,14 +715,19 @@ export default function UsersCard({ variant }) {
         )}
       </Card>
 
-      <EditUserRolesDialog
-        open={Boolean(userToEdit)}
-        user={userToEdit}
-        loading={saving}
-        onClose={() => setUserToEdit(null)}
-        onConfirm={handleSaveRoles}
-      />
+      {/* MODAL DE EDICIÓN DE ROLES */}
+      {userToEdit && (
+        <EditUserRolesDialog
+          key={userToEdit.id_func}
+          open={true}
+          user={userToEdit}
+          loading={saving}
+          onClose={() => setUserToEdit(null)}
+          onConfirm={handleSaveRoles}
+        />
+      )}
 
+      {/* MODAL DE DESACTIVACIÓN */}
       <DeactivateUserDialog
         open={Boolean(userToDeactivate)}
         user={userToDeactivate}
@@ -649,6 +736,7 @@ export default function UsersCard({ variant }) {
         onConfirm={handleDeactivate}
       />
 
+      {/* MODAL DE ACTIVACIÓN */}
       <ActivateUserDialog
         open={Boolean(userToActivate)}
         user={userToActivate}
@@ -657,6 +745,7 @@ export default function UsersCard({ variant }) {
         onConfirm={handleActivate}
       />
 
+      {/* NOTIFICACIONES */}
       <NotificationSnackbar
         notification={notification}
         onClose={closeNotification}

@@ -11,6 +11,12 @@ import enAuth from "./locales/en/auth.json";
 import esDocuments from "./locales/es/documents.json";
 import enDocuments from "./locales/en/documents.json";
 
+import esUsers from "./locales/es/users.json";
+import enUsers from "./locales/en/users.json";
+
+import esAccess from "./locales/es/access.json";
+import enAccess from "./locales/en/access.json";
+
 const savedLanguage = localStorage.getItem("sigsm-language");
 
 i18n.use(initReactI18next).init({
@@ -19,11 +25,15 @@ i18n.use(initReactI18next).init({
       common: esCommon,
       auth: esAuth,
       documents: esDocuments,
+      users: esUsers,
+      access: esAccess,
     },
     en: {
       common: enCommon,
       auth: enAuth,
       documents: enDocuments,
+      users: enUsers,
+       access: enAccess,
     },
   },
 

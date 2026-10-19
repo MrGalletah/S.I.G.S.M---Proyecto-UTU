@@ -11,6 +11,8 @@ import {
 
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 
+import { useTranslation } from "react-i18next";
+
 export default function ActivateUserDialog({
   open,
   user,
@@ -18,20 +20,25 @@ export default function ActivateUserDialog({
   onClose,
   onConfirm,
 }) {
+  const { t } = useTranslation("users");
+
   return (
     <Dialog
       open={open}
       onClose={loading ? undefined : onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 4,
-          boxShadow: "var(--card-shadow)",
-          overflow: "hidden",
+      slotProps={{
+        paper: {
+          sx: {
+            borderRadius: 4,
+            boxShadow: "var(--card-shadow)",
+            overflow: "hidden",
+          },
         },
       }}
     >
+      {/* ENCABEZADO */}
       <DialogTitle sx={{ pb: 1 }}>
         <Typography
           variant="h6"
@@ -40,7 +47,7 @@ export default function ActivateUserDialog({
             color: "var(--text-main-color)",
           }}
         >
-          Activar usuario
+          {t("dialogs.activate.title")}
         </Typography>
 
         <Typography
@@ -50,10 +57,11 @@ export default function ActivateUserDialog({
             mt: 0.3,
           }}
         >
-          El usuario recuperará el acceso al sistema
+          {t("dialogs.activate.description")}
         </Typography>
       </DialogTitle>
 
+      {/* CONTENIDO */}
       <DialogContent sx={{ pt: 2 }}>
         <Typography
           variant="body2"
@@ -62,9 +70,10 @@ export default function ActivateUserDialog({
             lineHeight: 1.6,
           }}
         >
-          ¿Seguro que quieres activar a este usuario?
+          {t("dialogs.activate.question")}
         </Typography>
 
+        {/* INFORMACIÓN DEL USUARIO */}
         {user && (
           <Box
             sx={{
@@ -107,11 +116,11 @@ export default function ActivateUserDialog({
             color: "var(--text-muted-color)",
           }}
         >
-          El usuario podrá volver a iniciar sesión con los roles que ya tenía
-          asignados.
+          {t("dialogs.activate.hint")}
         </Typography>
       </DialogContent>
 
+      {/* ACCIONES */}
       <DialogActions
         sx={{
           px: 3,
@@ -130,7 +139,7 @@ export default function ActivateUserDialog({
             px: 2,
           }}
         >
-          Cancelar
+          {t("dialogs.cancel")}
         </Button>
 
         <Button
@@ -155,7 +164,9 @@ export default function ActivateUserDialog({
             },
           }}
         >
-          {loading ? "Activando..." : "Activar usuario"}
+          {loading
+            ? t("dialogs.activate.loading")
+            : t("dialogs.activate.title")}
         </Button>
       </DialogActions>
     </Dialog>

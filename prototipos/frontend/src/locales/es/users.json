@@ -1,0 +1,77 @@
+{
+  "title": "Usuarios",
+  "description": "Funcionarios del sistema y su estado de acceso",
+  "activeCount_one": "{{count}} activo",
+  "activeCount_other": "{{count}} activos",
+  "filters": {
+    "search": "Buscar por nombre, correo o rol",
+    "status": "Estado",
+    "role": "Rol",
+    "all": "Todos",
+    "active": "Activos",
+    "inactive": "Inactivos"
+  },
+  "table": {
+    "name": "Nombre",
+    "email": "Correo",
+    "roles": "Roles",
+    "status": "Estado",
+    "actions": "Acciones",
+    "noRoles": "Sin roles",
+    "active": "Activo",
+    "inactive": "Inactivo"
+  },
+  "empty": {
+    "noUsers": "No hay usuarios registrados.",
+    "noResults": "No se encontraron usuarios que coincidan con la búsqueda."
+  },
+  "actions": {
+    "editRoles": "Editar roles",
+    "activate": "Activar usuario",
+    "deactivate": "Desactivar usuario"
+  },
+  "messages": {
+    "loadUsersError": "Error al obtener los usuarios.",
+    "loadRolesError": "Error al obtener los roles.",
+    "rolesUpdated": "Roles actualizados correctamente.",
+    "rolesUpdateError": "Error al actualizar los roles del usuario.",
+    "activated": "Usuario activado correctamente.",
+    "activateError": "Error al activar el usuario.",
+    "deactivated": "Usuario desactivado correctamente.",
+    "deactivateError": "Error al desactivar el usuario."
+  },
+  "dialogs": {
+    "cancel": "Cancelar",
+    "editRoles": {
+      "title": "Editar roles",
+      "description": "Selecciona los roles que tendrá el usuario",
+      "required": "Debes seleccionar al menos un rol.",
+      "save": "Guardar cambios",
+      "saving": "Guardando..."
+    },
+    "activate": {
+      "title": "Activar usuario",
+      "description": "El usuario recuperará el acceso al sistema",
+      "question": "¿Seguro que quieres activar a este usuario?",
+      "hint": "El usuario podrá volver a iniciar sesión con los roles que ya tenía asignados.",
+      "loading": "Activando..."
+    },
+    "deactivate": {
+      "title": "Desactivar usuario",
+      "description": "El usuario perderá el acceso al sistema",
+      "question": "¿Seguro que quieres desactivar a este usuario?",
+      "hint": "No se elimina nada: el usuario conserva sus datos y sus roles, y podrás volver a activarlo cuando quieras.",
+      "loading": "Desactivando..."
+    }
+  },
+  "roleNames": {
+  "Administrador": "Administrador",
+  "Gestor de documentación": "Gestor de documentación",
+  "Solicitante de traslado": "Solicitante de traslado",
+  "Gestor de traslados": "Gestor de traslados",
+  "Conductor": "Conductor",
+  "Enfermero": "Enfermero",
+  "Médico": "Médico",
+  "Administrativo": "Administrativo"
+}
+}

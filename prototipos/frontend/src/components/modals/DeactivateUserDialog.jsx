@@ -11,6 +11,8 @@ import {
 
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
 
+import { useTranslation } from "react-i18next";
+
 export default function DeactivateUserDialog({
   open,
   user,
@@ -18,20 +20,25 @@ export default function DeactivateUserDialog({
   onClose,
   onConfirm,
 }) {
+  const { t } = useTranslation("users");
+
   return (
     <Dialog
       open={open}
       onClose={loading ? undefined : onClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 4,
-          boxShadow: "var(--card-shadow)",
-          overflow: "hidden",
+      slotProps={{
+        paper: {
+          sx: {
+            borderRadius: 4,
+            boxShadow: "var(--card-shadow)",
+            overflow: "hidden",
+          },
         },
       }}
     >
+      {/* ENCABEZADO */}
       <DialogTitle sx={{ pb: 1 }}>
         <Typography
           variant="h6"
@@ -40,7 +47,7 @@ export default function DeactivateUserDialog({
             color: "var(--text-main-color)",
           }}
         >
-          Desactivar usuario
+          {t("dialogs.deactivate.title")}
         </Typography>
 
         <Typography
@@ -50,10 +57,11 @@ export default function DeactivateUserDialog({
             mt: 0.3,
           }}
         >
-          El usuario perderá el acceso al sistema
+          {t("dialogs.deactivate.description")}
         </Typography>
       </DialogTitle>
 
+      {/* CONTENIDO */}
       <DialogContent sx={{ pt: 2 }}>
         <Typography
           variant="body2"
@@ -62,9 +70,10 @@ export default function DeactivateUserDialog({
             lineHeight: 1.6,
           }}
         >
-          ¿Seguro que quieres desactivar a este usuario?
+          {t("dialogs.deactivate.question")}
         </Typography>
 
+        {/* INFORMACIÓN DEL USUARIO */}
         {user && (
           <Box
             sx={{
@@ -107,11 +116,11 @@ export default function DeactivateUserDialog({
             color: "var(--text-muted-color)",
           }}
         >
-          No se elimina nada: el usuario conserva sus datos y sus roles, y
-          podrás volver a activarlo cuando quieras.
+          {t("dialogs.deactivate.hint")}
         </Typography>
       </DialogContent>
 
+      {/* ACCIONES */}
       <DialogActions
         sx={{
           px: 3,
@@ -130,7 +139,7 @@ export default function DeactivateUserDialog({
             px: 2,
           }}
         >
-          Cancelar
+          {t("dialogs.cancel")}
         </Button>
 
         <Button
@@ -154,7 +163,9 @@ export default function DeactivateUserDialog({
             },
           }}
         >
-          {loading ? "Desactivando..." : "Desactivar usuario"}
+          {loading
+            ? t("dialogs.deactivate.loading")
+            : t("dialogs.deactivate.title")}
         </Button>
       </DialogActions>
     </Dialog>

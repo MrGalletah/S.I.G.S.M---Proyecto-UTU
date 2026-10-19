@@ -1,0 +1,47 @@
+
+{
+  "title": "Solicitudes de acceso",
+  "description": "Usuarios que solicitaron acceso al sistema y aún no fueron habilitados",
+  "pendingCount_one": "{{count}} pendiente",
+  "pendingCount_other": "{{count}} pendientes",
+  "search": "Buscar por nombre o correo",
+  "table": {
+    "name": "Nombre",
+    "email": "Correo",
+    "actions": "Acciones"
+  },
+  "empty": {
+    "noRequests": "No hay solicitudes de acceso pendientes.",
+    "noResults": "No se encontraron solicitudes que coincidan con la búsqueda."
+  },
+  "actions": {
+    "accept": "Aceptar solicitud",
+    "reject": "Rechazar solicitud"
+  },
+  "messages": {
+    "loadError": "Error al obtener las solicitudes de acceso.",
+    "rolesError": "Error al obtener los roles.",
+    "acceptSuccess": "Acceso concedido correctamente.",
+    "acceptError": "Error al aceptar la solicitud de acceso.",
+    "rejectSuccess": "Solicitud de acceso rechazada.",
+    "rejectError": "Error al rechazar la solicitud de acceso."
+  },
+  "dialogs": {
+    "cancel": "Cancelar",
+    "accept": {
+      "title": "Aceptar solicitud",
+      "description": "Selecciona los roles que tendrá el usuario",
+      "required": "Debes seleccionar al menos un rol.",
+      "confirm": "Aceptar solicitud",
+      "loading": "Aceptando..."
+    },
+    "reject": {
+      "title": "Rechazar solicitud",
+      "description": "Esta acción no se puede deshacer",
+      "question": "¿Seguro que quieres rechazar esta solicitud de acceso?",
+      "hint": "Se eliminará el usuario de la base de datos y deberá volver a solicitar acceso si quiere ingresar más adelante.",
+      "confirm": "Rechazar solicitud",
+      "loading": "Rechazando..."
+    }
+  }
+}

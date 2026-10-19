@@ -1,0 +1,46 @@
+{
+  "title": "Access requests",
+  "description": "Users who requested access to the system and are awaiting approval",
+  "pendingCount_one": "{{count}} pending request",
+  "pendingCount_other": "{{count}} pending requests",
+  "search": "Search by name or email",
+  "table": {
+    "name": "Name",
+    "email": "Email",
+    "actions": "Actions"
+  },
+  "empty": {
+    "noRequests": "There are no pending access requests.",
+    "noResults": "No access requests match your search."
+  },
+  "actions": {
+    "accept": "Approve request",
+    "reject": "Reject request"
+  },
+  "messages": {
+    "loadError": "Unable to load access requests.",
+    "rolesError": "Unable to load roles.",
+    "acceptSuccess": "Access granted successfully.",
+    "acceptError": "Unable to approve the access request.",
+    "rejectSuccess": "Access request rejected.",
+    "rejectError": "Unable to reject the access request."
+  },
+  "dialogs": {
+    "cancel": "Cancel",
+    "accept": {
+      "title": "Approve request",
+      "description": "Select the roles to assign to this user",
+      "required": "Select at least one role.",
+      "confirm": "Approve request",
+      "loading": "Approving..."
+    },
+    "reject": {
+      "title": "Reject request",
+      "description": "This action cannot be undone",
+      "question": "Are you sure you want to reject this access request?",
+      "hint": "The user will be deleted from the database and will need to submit a new access request to join the system later.",
+      "confirm": "Reject request",
+      "loading": "Rejecting..."
+    }
+  }
+}
