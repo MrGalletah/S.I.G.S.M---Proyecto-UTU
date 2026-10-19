@@ -22,7 +22,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlineOutlin
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import PeopleOutlineOutlinedIcon from "@mui/icons-material/PeopleOutlineOutlined";
 import PersonOffOutlinedIcon from "@mui/icons-material/PersonOffOutlined";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getRoles,
   getUsers,
@@ -44,8 +44,13 @@ export default function UsersCard({ variant }) {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const requestIdRef = useRef(0);
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [roleFilter, setRoleFilter] = useState("all");
   const [roles, setRoles] = useState([]);
@@ -58,48 +63,74 @@ export default function UsersCard({ variant }) {
   const [userToActivate, setUserToActivate] = useState(null);
   const [activating, setActivating] = useState(false);
 
-  const fetchData = async (silent = false) => {
+  // La búsqueda se envía al servidor tras una breve pausa al escribir.
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timeoutId);
+  }, [search]);
+
+  const fetchData = useCallback(async (silent = false) => {
+    // Ignora respuestas de peticiones anteriores al cambiar los filtros.
+    const requestId = ++requestIdRef.current;
+
     try {
       if (!silent) setLoading(true);
 
-      const data = await getUsers();
+      const data = await getUsers({
+        page,
+        limit: rowsPerPage,
+        search: debouncedSearch,
+        estado: statusFilter,
+        id_rol: roleFilter === "all" ? null : roleFilter,
+      });
 
-      if (data.ok) {
-        setUsers(data.usuarios);
-      }
-    } catch (e) {
-      console.error(e);
+      if (requestId !== requestIdRef.current) return;
+
+      setUsers(data.usuarios);
+      setTotalPages(data.paginacion.total_paginas);
+      setTotalUsers(data.paginacion.total);
+      setActiveCount(data.total_activos);
+
+      // Si una edición vació la última página, volver a la última disponible.
+      const lastPage = Math.max(1, data.paginacion.total_paginas);
+      if (page > lastPage) setPage(lastPage);
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return;
+      console.error(error);
       showNotification("Error al obtener los usuarios.", "error");
+      setUsers([]);
+      setTotalPages(0);
+      setTotalUsers(0);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-  };
-
-  const fetchRoles = async () => {
-    try {
-      const data = await getRoles();
-
-      if (data.ok) {
-        setRoles(data.roles);
-      }
-    } catch (e) {
-      console.error(e);
-      showNotification("Error al obtener los roles.", "error");
-    }
-  };
+  }, [debouncedSearch, page, roleFilter, rowsPerPage, showNotification, statusFilter]);
 
   useEffect(() => {
     fetchData();
-    fetchRoles();
-  }, []);
+    return () => {
+      // Invalidar respuestas si cambian los parámetros o se desmonta el componente.
+      requestIdRef.current += 1;
+    };
+  }, [fetchData]);
 
-  const updateUserStatus = (idFunc, activo) => {
-    setUsers((prev) =>
-      prev.map((item) =>
-        item.id_func === idFunc ? { ...item, activo } : item,
-      ),
-    );
-  };
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchRoles = async () => {
+      try {
+        const data = await getRoles();
+        if (mounted) setRoles(data.roles);
+      } catch (error) {
+        if (!mounted) return;
+        console.error(error);
+        showNotification("Error al obtener los roles.", "error");
+      }
+    };
+
+    fetchRoles();
+    return () => { mounted = false; };
+  }, [showNotification]);
 
   const handleSaveRoles = async (roleIds) => {
     if (!userToEdit) return;
@@ -141,8 +172,8 @@ export default function UsersCard({ variant }) {
         "success",
       );
 
-      updateUserStatus(userToDeactivate.id_func, false);
       setUserToDeactivate(null);
+      await fetchData(true);
     } catch (error) {
       console.error(error);
 
@@ -170,8 +201,8 @@ export default function UsersCard({ variant }) {
         "success",
       );
 
-      updateUserStatus(userToActivate.id_func, true);
       setUserToActivate(null);
+      await fetchData(true);
     } catch (error) {
       console.error(error);
 
@@ -183,36 +214,8 @@ export default function UsersCard({ variant }) {
     }
   };
 
-  const filteredUsers = users.filter((user) => {
-    const searchText = search.toLowerCase();
-
-    const matchesSearch =
-      user.nombre.toLowerCase().includes(searchText) ||
-      user.correo.toLowerCase().includes(searchText) ||
-      user.roles.some((role) => role.nombre.toLowerCase().includes(searchText));
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" ? user.activo : !user.activo);
-
-    const matchesRole =
-      roleFilter === "all" ||
-      user.roles.some((role) => String(role.id_rol) === String(roleFilter));
-
-    return matchesSearch && matchesStatus && matchesRole;
-  });
-
-  const activeCount = users.filter((user) => user.activo).length;
-
-  const totalPages = Math.ceil(filteredUsers.length / rowsPerPage);
   const currentPage = Math.min(page, Math.max(totalPages, 1));
-
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
-
-  const visibleUsers = filteredUsers.slice(startIndex, endIndex);
-
-  const showPagination = filteredUsers.length > rowsPerPage;
+  const showPagination = totalPages > 1;
 
   return (
     <>
@@ -353,7 +356,7 @@ export default function UsersCard({ variant }) {
           >
             <CircularProgress />
           </Box>
-        ) : filteredUsers.length === 0 ? (
+        ) : users.length === 0 ? (
           <Box
             sx={{
               flexGrow: 1,
@@ -373,7 +376,7 @@ export default function UsersCard({ variant }) {
               variant="body2"
               sx={{ color: "var(--text-muted-color)" }}
             >
-              {users.length === 0
+              {totalUsers === 0 && statusFilter === "all" && roleFilter === "all" && !debouncedSearch
                 ? "No hay usuarios registrados."
                 : "No se encontraron usuarios que coincidan con la búsqueda."}
             </Typography>
@@ -424,7 +427,7 @@ export default function UsersCard({ variant }) {
               </TableHead>
 
               <TableBody>
-                {visibleUsers.map((user) => (
+                {users.map((user) => (
                   <TableRow key={user.id_func}>
                     <TableCell>
                       <Typography
