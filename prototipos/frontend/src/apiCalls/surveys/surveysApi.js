@@ -99,3 +99,37 @@ export async function reorderSurveyQuestions(idEncuesta, preguntas) {
 
     return processResponse(response);
 }
+
+export async function getPublicSurveys() {
+
+    const response = await fetch("/api/surveys/", {
+        method: "GET",
+    });
+
+    return processResponse(response);
+}
+
+export async function getPublicSurveyDetail(surveyId) {
+
+    const response = await fetch(
+        `/api/surveys/detail.php?id=${surveyId}`,
+        {
+            method: "GET",
+        }
+    );
+
+    return processResponse(response);
+}
+
+export async function submitPublicSurvey(data) {
+
+    const response = await fetch("/api/surveys/responses.php", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+    });
+
+    return processResponse(response);
+}
