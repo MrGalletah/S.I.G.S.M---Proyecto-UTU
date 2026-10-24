@@ -1,8 +1,10 @@
+USE sigsm;
+
 -- ENCUESTA
 
 CREATE TABLE encuesta (
     id_encuesta INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    id_cat INT UNSIGNED NOT NULL,
+    id_cat INT UNSIGNED NULL,
     id_func INT UNSIGNED NOT NULL,
 
     titulo VARCHAR(150) NOT NULL,
