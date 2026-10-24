@@ -24,6 +24,9 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
 
+import BarChartIcon from "@mui/icons-material/BarChart";
+
+import SurveyResultsDialog from "../../modals/SurveyResultsDialog";
 import SurveyQuestionsDialog from "../../modals/SurveyQuestionsDialog";
 import SurveyDialog from "../../modals/SurveyDialog";
 
@@ -45,7 +48,10 @@ export default function SurveysCard({ variant }) {
   const [openSurveyDialog, setOpenSurveyDialog] = useState(false);
   const [selectedSurvey, setSelectedSurvey] = useState(null);
   const [saving, setSaving] = useState(false);
-  
+
+  // RESULTADOS
+  const [selectedSurveyForResults, setSelectedSurveyForResults] =
+    useState(null);
 
   // NOTIFICACIONES
 
@@ -481,6 +487,24 @@ export default function SurveysCard({ variant }) {
                           >
                             <EditOutlinedIcon fontSize="small" />
                           </IconButton>
+
+                          <IconButton
+                            size="small"
+                            onClick={() => setSelectedSurveyForResults(survey)}
+                            aria-label={`Ver resultados de ${survey.titulo}`}
+                            title="Ver resultados"
+                            sx={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: "50%",
+
+                              "&:hover": {
+                                bgcolor: "action.selected",
+                              },
+                            }}
+                          >
+                            <BarChartIcon fontSize="small" />
+                          </IconButton>
                         </Stack>
                       </TableCell>
                     </TableRow>
@@ -529,6 +553,15 @@ export default function SurveysCard({ variant }) {
           open
           onClose={handleCloseQuestions}
           survey={selectedSurveyForQuestions}
+        />
+      )}
+
+      {selectedSurveyForResults && (
+        <SurveyResultsDialog
+          key={selectedSurveyForResults.id_encuesta}
+          open
+          survey={selectedSurveyForResults}
+          onClose={() => setSelectedSurveyForResults(null)}
         />
       )}
 

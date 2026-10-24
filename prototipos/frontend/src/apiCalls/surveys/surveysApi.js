@@ -133,3 +133,15 @@ export async function submitPublicSurvey(data) {
 
     return processResponse(response);
 }
+
+export async function getSurveyResults(surveyId) {
+    const response = await fetch(
+        `/api/surveys/results.php?id=${surveyId}`,
+        {
+            method: "GET",
+            credentials: "include",
+        }
+    );
+
+    return processResponse(response);
+}
