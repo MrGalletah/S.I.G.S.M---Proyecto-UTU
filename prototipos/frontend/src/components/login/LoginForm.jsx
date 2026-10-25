@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
+import { getHomeRoute } from "../../utils/permissions";
 
 import { login, requestAccess } from "../../apiCalls/auth/authApi";
 import { useNotification } from "../../hooks/useNotification";
@@ -86,9 +87,12 @@ export default function LoginForm() {
         setRequestingAccess(false);
       } else {
         // INICIO DE SESIÓN
-        await login(mail, pwd);
+        const response = await login(mail, pwd);
 
-        navigate("/documents/dashboard");
+        // Obtener la primera ruta permitida según los roles
+        const homeRoute = getHomeRoute(response.usuario);
+
+        navigate(homeRoute, { replace: true });
       }
     } catch (error) {
       const message =

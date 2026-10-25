@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . "/../../utils/jsonResponse.php";
-require_once __DIR__ . "/../../middleware/requireAuth.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 
 require_once __DIR__ . "/get.php";
 require_once __DIR__ . "/postUpdate.php";
@@ -15,6 +15,8 @@ switch ($method) {
 
     case "GET":
 
+        // La función comprueba los roles cuando
+        // se solicita incluir documentos inactivos.
         getDocuments();
 
         break;
@@ -22,11 +24,13 @@ switch ($method) {
 
     case "POST":
 
-        $user = requireAuth();
+        $user = requireRole([
+            "Administrador",
+            "Gestor de documentación"
+        ]);
 
-        // Si se manda id actualizamos el documento
+        // Si se manda un ID, actualizamos el documento.
         if (isset($_GET["id"])) {
-
 
             $idDoc = requirePositiveInt(
                 $_GET["id"],
@@ -36,7 +40,6 @@ switch ($method) {
             updateDocumentWithFile($idDoc);
         } else {
 
-
             createDocument((int) $user["id_func"]);
         }
 
@@ -45,7 +48,10 @@ switch ($method) {
 
     case "PATCH":
 
-        requireAuth();
+        requireRole([
+            "Administrador",
+            "Gestor de documentación"
+        ]);
 
         $idDoc = requirePositiveInt(
             $_GET["id"] ?? null,
@@ -56,10 +62,13 @@ switch ($method) {
 
         break;
 
+
     case "DELETE":
 
-
-        requireAuth();
+        requireRole([
+            "Administrador",
+            "Gestor de documentación"
+        ]);
 
         $idDoc = requirePositiveInt(
             $_GET["id"] ?? null,
@@ -69,6 +78,7 @@ switch ($method) {
         deleteDocument($idDoc);
 
         break;
+
 
     default:
 

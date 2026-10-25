@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-function sendJson(int $statusCode, array $data): void
+function sendJson(int $statusCode, array $data): never
 {
     http_response_code($statusCode);
 

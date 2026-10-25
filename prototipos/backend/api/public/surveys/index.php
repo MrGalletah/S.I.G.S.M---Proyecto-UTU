@@ -2,7 +2,7 @@
 <?php
 
 require_once __DIR__ . "/../../utils/jsonResponse.php";
-require_once __DIR__ . "/../../middleware/requireAuth.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 
 require_once __DIR__ . "/../../handlers/surveys/getSurveys.php";
 require_once __DIR__ . "/../../handlers/surveys/createSurvey.php";
@@ -13,23 +13,35 @@ switch ($_SERVER["REQUEST_METHOD"]) {
 
     case "GET":
 
+        // Acceso público para encuestas activas.
+        // El handler controla includeInactive.
         handleGetSurveys();
         break;
 
+
     case "POST":
 
-        $user = requireAuth();
+        $user = requireRole([
+            "Administrador",
+            "Gestor de documentación"
+        ]);
 
         handleCreateSurvey(
             (int) $user["id_func"]
         );
         break;
 
+
     case "PATCH":
 
-        requireAuth();
+        requireRole([
+            "Administrador",
+            "Gestor de documentación"
+        ]);
+
         handleUpdateSurvey();
         break;
+
 
     default:
 

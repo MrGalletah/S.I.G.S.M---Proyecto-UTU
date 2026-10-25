@@ -19,6 +19,10 @@
     "logoutDescription": "¿Estás seguro de que deseas cerrar tu sesión?",
     "cancel": "Cancelar",
     "confirmLogout": "Cerrar sesión",
-    "vehicles": "Vehículos"
+    "vehicles": "Vehículos",
+    "logout": "Cerrar sesión",
+    "openMenu": "Abrir menú de navegación",
+    "closeMenu": "Cerrar menú de navegación",
+    "navigation": "Navegación principal"
   }
 }

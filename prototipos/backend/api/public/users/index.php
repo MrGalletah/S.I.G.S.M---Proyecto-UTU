@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../config/Database.php";
-require_once __DIR__ . "/../../middleware/requireAuth.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 require_once __DIR__ . "/../../utils/getJsonBody.php";
 require_once __DIR__ . "/../../utils/validation.php";
 require_once __DIR__ . "/../../services/UserQueryService.php";
@@ -14,46 +14,66 @@ $method = $_SERVER["REQUEST_METHOD"];
 switch ($method) {
 
     case "GET":
-        requireAuth();
+
+        requireRole(["Administrador"]);
 
         if (isset($_GET["roles"])) {
             getRoles();
         } else {
             getUsers();
         }
+
         break;
 
+
     case "PATCH":
-        $currentUser = requireAuth();
+
+        $currentUser = requireRole([
+            "Administrador"
+        ]);
 
         $idFunc = filter_var(
-            $_GET['id'] ?? null,
+            $_GET["id"] ?? null,
             FILTER_VALIDATE_INT
         );
 
-        if ($idFunc === false || $idFunc === null || $idFunc < 1) {
+        if (
+            $idFunc === false ||
+            $idFunc === null ||
+            $idFunc < 1
+        ) {
             sendJson(400, [
-                'ok' => false,
-                'mensaje' => 'El ID del usuario no es válido.',
+                "ok" => false,
+                "mensaje" => "El ID del usuario no es válido."
             ]);
-            exit;
         }
 
         $data = getJsonBody();
 
         if (array_key_exists("activo", $data)) {
-            setUserActive($idFunc, $data["activo"], (int) $currentUser['id_func']);
+
+            setUserActive(
+                $idFunc,
+                $data["activo"],
+                (int) $currentUser["id_func"]
+            );
+
         } else {
+
             updateUserRoles($idFunc, $data);
         }
+
         break;
 
+
     default:
+
         sendJson(405, [
             "ok" => false,
             "mensaje" => "Método no permitido."
         ]);
 }
+
 
 function getUsers(): void
 {

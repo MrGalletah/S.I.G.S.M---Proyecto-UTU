@@ -38,7 +38,12 @@ import { useTranslation } from "react-i18next";
 import { logout } from "../../apiCalls/auth/authApi";
 import LanguageSwitcher from "../utils/LanguageSwitcher";
 
+// PERMISOS
+import { ACCESS, hasAccess } from "../../utils/permissions";
+
 const DRAWER_WIDTH = 240;
+
+// SECCIONES DEL SIDEBAR
 
 const sections = [
   {
@@ -48,21 +53,25 @@ const sections = [
         labelKey: "sidebar.home",
         icon: <HomeIcon />,
         to: "/documents/dashboard",
+        allowedRoles: ACCESS.documentation,
       },
       {
         labelKey: "sidebar.categories",
         icon: <FolderOpenIcon />,
         to: "/documents/categories",
+        allowedRoles: ACCESS.documentation,
       },
       {
         labelKey: "sidebar.documents",
         icon: <DescriptionIcon />,
         to: "/documents/files",
+        allowedRoles: ACCESS.documentation,
       },
       {
         labelKey: "sidebar.surveys",
         icon: <AssignmentIcon />,
         to: "/documents/surveys",
+        allowedRoles: ACCESS.documentation,
       },
     ],
   },
@@ -73,21 +82,25 @@ const sections = [
         labelKey: "sidebar.newTransfer",
         icon: <NoteAddIcon />,
         to: "/ambulances/new",
+        allowedRoles: ACCESS.newTransfer,
       },
       {
         labelKey: "sidebar.followUp",
         icon: <QueuePlayNextIcon />,
         to: "/ambulances/follow-up",
+        allowedRoles: ACCESS.manageTransfers,
       },
       {
         labelKey: "sidebar.history",
         icon: <HistoryIcon />,
         to: "/ambulances/history",
+        allowedRoles: ACCESS.manageTransfers,
       },
       {
         labelKey: "sidebar.vehicles",
         icon: <DirectionsCarIcon />,
         to: "/ambulances/vehicles",
+        allowedRoles: ACCESS.manageTransfers,
       },
     ],
   },
@@ -98,20 +111,78 @@ const sections = [
         labelKey: "sidebar.users",
         icon: <PeopleIcon />,
         to: "/admin/users",
+        allowedRoles: ACCESS.administration,
       },
       {
         labelKey: "sidebar.access",
         icon: <LoginIcon />,
         to: "/admin/access",
-      },
-      {
-        labelKey: "sidebar.userView",
-        icon: <PeopleIcon />,
-        to: "/documents/view",
+        allowedRoles: ACCESS.administration,
       },
     ],
   },
 ];
+
+// ENLACE PÚBLICO
+
+const publicViewItem = {
+  labelKey: "sidebar.userView",
+  icon: <PeopleIcon />,
+  to: "/documents/view",
+};
+
+// BOTÓN DE NAVEGACIÓN REUTILIZABLE
+
+function SidebarItem({ item, pathname, onNavigate, t }) {
+  return (
+    <Box component="li">
+      <Button
+        component={NavLink}
+        to={item.to}
+        onClick={onNavigate}
+        startIcon={item.icon}
+        fullWidth
+        sx={{
+          color: "var(--white-color)",
+          gap: 1,
+          px: 3,
+          display: "flex",
+          justifyContent: "flex-start",
+          py: 0.8,
+          borderRadius: 1.5,
+          textTransform: "none",
+
+          bgcolor:
+            pathname === item.to ? "rgba(255,255,255,0.18)" : "transparent",
+
+          "& svg": {
+            fontSize: 18,
+          },
+
+          "&:hover": {
+            bgcolor: "rgba(255,255,255,0.12)",
+          },
+
+          "&.Mui-focusVisible": {
+            outline: "2px solid white",
+            outlineOffset: "2px",
+            bgcolor: "rgba(255,255,255,0.18)",
+          },
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: 12,
+            fontWeight: 700,
+            textAlign: "left",
+          }}
+        >
+          {t(item.labelKey)}
+        </Typography>
+      </Button>
+    </Box>
+  );
+}
 
 export default function Sidebar({ open, onOpen, onClose, user }) {
   const theme = useTheme();
@@ -123,6 +194,17 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
 
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // FILTRAR SECCIONES SEGÚN ROLES
+
+  const visibleSections = sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => hasAccess(user, item.allowedRoles)),
+    }))
+    .filter((section) => section.items.length > 0);
+
+  // CERRAR SESIÓN
 
   const handleLogout = async () => {
     try {
@@ -147,9 +229,9 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
     setLogoutDialogOpen(false);
   };
 
+  // NAVEGACIÓN MÓVIL
+
   const handleNavigation = (event) => {
-    // No cerrar el menú si se abre un enlace
-    // en otra pestaña mediante un modificador.
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
       return;
     }
@@ -161,7 +243,8 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
 
   const drawerContent = (
     <>
-      {/* Cerrar menú en dispositivos móviles */}
+      {/* CERRAR MENÚ EN MÓVILES */}
+
       {!isDesktop && (
         <IconButton
           onClick={onClose}
@@ -176,7 +259,8 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
         </IconButton>
       )}
 
-      {/* Zona desplazable */}
+      {/* ZONA DESPLAZABLE */}
+
       <Box
         sx={{
           flex: 1,
@@ -196,7 +280,8 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
           },
         }}
       >
-        {/* Logo */}
+        {/* LOGO */}
+
         <Box
           sx={{
             display: "flex",
@@ -242,97 +327,79 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
           </Box>
         </Box>
 
-        {/* Navegación */}
+        {/* SECCIONES AUTORIZADAS */}
+
         <Stack spacing={3}>
-          {sections.map((section, index) => {
-            const headingId = `sidebar-section-${index}`;
-
-            return (
-              <Box
-                component="section"
-                key={section.titleKey}
-                aria-labelledby={headingId}
+          {visibleSections.map((section) => (
+            <Box
+              component="section"
+              key={section.titleKey}
+              aria-label={t(section.titleKey)}
+            >
+              <Typography
+                component="h2"
+                sx={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "rgba(255,255,255,0.75)",
+                  mb: 1,
+                }}
               >
-                <Typography
-                  component="h2"
-                  id={headingId}
-                  sx={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    color: "rgba(255,255,255,0.75)",
-                    mb: 1,
-                  }}
-                >
-                  {t(section.titleKey)}
-                </Typography>
+                {t(section.titleKey)}
+              </Typography>
 
-                <Stack
-                  component="ul"
-                  spacing={0.5}
-                  sx={{
-                    m: 0,
-                    p: 0,
-                    listStyle: "none",
-                  }}
-                >
-                  {section.items.map((item) => (
-                    <Box component="li" key={item.to}>
-                      <Button
-                        component={NavLink}
-                        to={item.to}
-                        onClick={handleNavigation}
-                        startIcon={item.icon}
-                        fullWidth
-                        sx={{
-                          color: "var(--white-color)",
-                          gap: 1,
-                          px: 3,
-                          display: "flex",
-                          justifyContent: "flex-start",
-                          py: 0.8,
-                          borderRadius: 1.5,
-                          textTransform: "none",
-
-                          bgcolor:
-                            location.pathname === item.to
-                              ? "rgba(255,255,255,0.18)"
-                              : "transparent",
-
-                          "& svg": {
-                            fontSize: 18,
-                          },
-
-                          "&:hover": {
-                            bgcolor: "rgba(255,255,255,0.12)",
-                          },
-
-                          "&.Mui-focusVisible": {
-                            outline: "2px solid white",
-                            outlineOffset: "2px",
-                            bgcolor: "rgba(255,255,255,0.18)",
-                          },
-                        }}
-                      >
-                        <Typography
-                          sx={{
-                            fontSize: 12,
-                            fontWeight: 700,
-                            textAlign: "left",
-                          }}
-                        >
-                          {t(item.labelKey)}
-                        </Typography>
-                      </Button>
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
-            );
-          })}
+              <Stack
+                component="ul"
+                spacing={0.5}
+                sx={{
+                  m: 0,
+                  p: 0,
+                  listStyle: "none",
+                }}
+              >
+                {section.items.map((item) => (
+                  <SidebarItem
+                    key={item.to}
+                    item={item}
+                    pathname={location.pathname}
+                    onNavigate={handleNavigation}
+                    t={t}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          ))}
         </Stack>
+
+        {/* VISTA PÚBLICA */}
+
+        <Box
+          sx={{
+            mt: 3,
+            pt: 2,
+            borderTop: "1px solid rgba(255,255,255,0.2)",
+          }}
+        >
+          <Stack
+            component="ul"
+            sx={{
+              m: 0,
+              p: 0,
+              listStyle: "none",
+            }}
+          >
+            <SidebarItem
+              item={publicViewItem}
+              pathname={location.pathname}
+              onNavigate={handleNavigation}
+              t={t}
+            />
+          </Stack>
+        </Box>
       </Box>
 
-      {/* Selector de idioma */}
+      {/* SELECTOR DE IDIOMA */}
+
       <Box
         sx={{
           display: "flex",
@@ -344,7 +411,9 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
       >
         <LanguageSwitcher light />
       </Box>
-      {/* Usuario */}
+
+      {/* INFORMACIÓN DEL USUARIO */}
+
       <Box
         sx={{
           width: "100%",
@@ -362,7 +431,8 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
           alignItems="center"
           sx={{ width: "100%" }}
         >
-          {/* Icono de usuario */}
+          {/* ICONO DE USUARIO */}
+
           <Box
             sx={{
               width: 32,
@@ -378,13 +448,9 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
             <PersonIcon sx={{ fontSize: 19 }} />
           </Box>
 
-          {/* Nombre y correo */}
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
+          {/* NOMBRE Y CORREO */}
+
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               sx={{
                 fontSize: 12,
@@ -413,7 +479,8 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
             </Typography>
           </Box>
 
-          {/* Cerrar sesión */}
+          {/* CERRAR SESIÓN */}
+
           <IconButton
             onClick={() => setLogoutDialogOpen(true)}
             aria-label={t("sidebar.logout")}
@@ -446,9 +513,8 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
 
   return (
     <>
-      {/* Botón de apertura para móviles.
-          Se mantiene montado para restaurar
-          el foco al cerrar el Drawer. */}
+      {/* BOTÓN PARA ABRIR EL SIDEBAR EN MÓVILES */}
+
       <IconButton
         onClick={onOpen}
         aria-label={t("sidebar.openMenu")}
@@ -482,6 +548,8 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
       >
         <MenuIcon />
       </IconButton>
+
+      {/* DRAWER */}
 
       <Drawer
         variant={isDesktop ? "permanent" : "temporary"}
@@ -522,7 +590,8 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
         {drawerContent}
       </Drawer>
 
-      {/* cierre de sesión */}
+      {/* DIÁLOGO DE CIERRE DE SESIÓN */}
+
       <Dialog
         open={logoutDialogOpen}
         onClose={handleCloseLogoutDialog}
@@ -531,12 +600,7 @@ export default function Sidebar({ open, onOpen, onClose, user }) {
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle
-          id="logout-dialog-title"
-          sx={{
-            fontWeight: 700,
-          }}
-        >
+        <DialogTitle id="logout-dialog-title" sx={{ fontWeight: 700 }}>
           {t("sidebar.logoutTitle")}
         </DialogTitle>
 

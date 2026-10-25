@@ -2,7 +2,7 @@
 
 require_once __DIR__ . "/../../config/Database.php";
 require_once __DIR__ . "/../../utils/jsonResponse.php";
-require_once __DIR__ . "/../../services/transfers/TransferQueryService.php";
+require_once __DIR__ . "/../../services/TransferQueryService.php";
 
 
 function handleGetTransfers(): void

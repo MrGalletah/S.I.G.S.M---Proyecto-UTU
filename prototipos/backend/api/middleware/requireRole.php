@@ -1,16 +1,19 @@
 <?php
-
 declare(strict_types=1);
 
 require_once __DIR__ . '/requireAuth.php';
 
+
 function requireRole(array $allowedRoles): array
 {
+    // Obtener usuario con sus roles actualizados
     $user = requireAuth();
 
-    $userRoles = $user['roles'] ?? [];
+    $userRoles = $user['roles'];
 
+    // Comprobar si tiene algún rol permitido
     foreach ($userRoles as $role) {
+
         if (in_array($role, $allowedRoles, true)) {
             return $user;
         }
@@ -18,8 +21,6 @@ function requireRole(array $allowedRoles): array
 
     sendJson(403, [
         'ok' => false,
-        'mensaje' => 'No tiene permisos para realizar esta acción.',
+        'mensaje' => 'No tiene permisos para realizar esta acción.'
     ]);
-
-    exit;
 }

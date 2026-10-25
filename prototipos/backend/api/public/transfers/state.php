@@ -1,14 +1,14 @@
+
 <?php
 
-require_once __DIR__ . "/../../middleware/requireAuth.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../handlers/transfers/updateTransferState.php";
 
 
-$user = requireAuth();
-
-
 if ($_SERVER["REQUEST_METHOD"] !== "PATCH") {
+
+    header("Allow: PATCH");
 
     sendJson(405, [
         "ok" => false,
@@ -16,6 +16,11 @@ if ($_SERVER["REQUEST_METHOD"] !== "PATCH") {
     ]);
 }
 
+
+$user = requireRole([
+    "Administrador",
+    "Gestor de traslados"
+]);
 
 handleUpdateTransferState(
     (int) $user["id_func"]

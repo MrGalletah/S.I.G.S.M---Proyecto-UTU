@@ -3,34 +3,65 @@
 declare(strict_types=1);
 
 require_once __DIR__ . "/../../config/Database.php";
-require_once __DIR__ . "/../../middleware/requireAuth.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../utils/getJsonBody.php";
 
-requireAuth();
-
 $method = $_SERVER["REQUEST_METHOD"];
 
+// COMPROBAR MÉTODO
+
+if (!in_array($method, ["GET", "POST", "PATCH"], true)) {
+
+    header("Allow: GET, POST, PATCH");
+
+    sendJson(405, [
+        "ok" => false,
+        "mensaje" => "Método no permitido."
+    ]);
+}
+
+// COMPROBAR PERMISOS
+
+requireRole([
+    "Administrador",
+    "Gestor de traslados"
+]);
+
+
+// OPERACIONES
+
 switch ($method) {
+
     case "GET":
+
         if (isset($_GET["types"])) {
             getVehicleTypes();
         } else {
             getVehicles();
         }
+
         break;
 
+
     case "POST":
+
         createVehicle();
         break;
 
+
     case "PATCH":
+
         $idVehiculo = filter_var(
             $_GET["id"] ?? null,
             FILTER_VALIDATE_INT
         );
 
-        if ($idVehiculo === false || $idVehiculo === null || $idVehiculo < 1) {
+        if (
+            $idVehiculo === false ||
+            $idVehiculo === null ||
+            $idVehiculo < 1
+        ) {
             sendJson(400, [
                 "ok" => false,
                 "mensaje" => "El ID del vehículo no es válido."
@@ -39,13 +70,8 @@ switch ($method) {
 
         updateVehicle($idVehiculo);
         break;
-
-    default:
-        sendJson(405, [
-            "ok" => false,
-            "mensaje" => "Método no permitido."
-        ]);
 }
+
 
 
 // LISTAR VEHÍCULOS

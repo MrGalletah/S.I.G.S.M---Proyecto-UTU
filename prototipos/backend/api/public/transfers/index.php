@@ -1,25 +1,33 @@
+
 <?php
 
-require_once __DIR__ . "/../../middleware/requireAuth.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 
 require_once __DIR__ . "/../../handlers/transfers/getTransfers.php";
 require_once __DIR__ . "/../../handlers/transfers/createTransfer.php";
 require_once __DIR__ . "/../../handlers/transfers/deleteTransfer.php";
 
-$user = requireAuth();
-
 
 switch ($_SERVER["REQUEST_METHOD"]) {
 
     case "GET":
 
-        handleGetTransfers();
+        requireRole([
+            "Administrador",
+            "Gestor de traslados"
+        ]);
 
+        handleGetTransfers();
         break;
 
 
     case "POST":
+
+        $user = requireRole([
+            "Administrador",
+            "Solicitante de traslado"
+        ]);
 
         handleCreateTransfer(
             (int) $user["id_func"]
@@ -30,8 +38,12 @@ switch ($_SERVER["REQUEST_METHOD"]) {
 
     case "DELETE":
 
-        handleDeleteTransfer();
+        requireRole([
+            "Administrador",
+            "Gestor de traslados"
+        ]);
 
+        handleDeleteTransfer();
         break;
 
 

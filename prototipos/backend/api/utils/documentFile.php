@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . "/../config/Database.php";
-require_once __DIR__ . "/../middleware/requireAuth.php";
+require_once __DIR__ . "/../middleware/requireRole.php";
 require_once __DIR__ . "/jsonResponse.php";
 
 
@@ -13,10 +13,11 @@ function serveDocumentFile(
 
     try {
 
-        // Para acceder a documentos inactivos
-        // es necesario estar autenticado
         if ($includeInactive) {
-            requireAuth();
+            requireRole([
+                "Administrador",
+                "Gestor de documentación"
+            ]);
         }
 
 
@@ -89,10 +90,10 @@ function serveDocumentFile(
             str_replace("/", DIRECTORY_SEPARATOR, $relativePath);
 
 
-        
+
         // realpath devuelve false si el archivo
         // no existe
-         
+
         $filePath = realpath($requestedPath);
 
         if ($filePath === false || !is_file($filePath)) {
@@ -132,8 +133,8 @@ function serveDocumentFile(
 
         header(
             "Content-Disposition: {$disposition}; " .
-            "filename=\"documento.pdf\"; " .
-            "filename*=UTF-8''" . rawurlencode($downloadName)
+                "filename=\"documento.pdf\"; " .
+                "filename*=UTF-8''" . rawurlencode($downloadName)
         );
 
         header("Content-Length: " . filesize($filePath));
@@ -144,8 +145,6 @@ function serveDocumentFile(
         readfile($filePath);
 
         exit;
-
-
     } catch (Throwable $e) {
 
         sendJson(500, [

@@ -2,52 +2,71 @@
 
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../config/Database.php";
-require_once __DIR__ . "/../../middleware/requireAuth.php";
-# require_once __DIR__ . "/../../middleware/requireRole.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 require_once __DIR__ . "/../../utils/getJsonBody.php";
 
 
 
+$method = $_SERVER["REQUEST_METHOD"];
 $method = $_SERVER["REQUEST_METHOD"];
 
 switch ($method) {
 
     case "GET":
 
-        $includeInactive = filter_var($_GET["includeInactive"] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $includeInactive = filter_var(
+            $_GET["includeInactive"] ?? false,
+            FILTER_VALIDATE_BOOLEAN
+        );
 
+        // Solo los gestores pueden consultar categorías inactivas
         if ($includeInactive) {
-            requireAuth();
+            requireRole([
+                "Administrador",
+                "Gestor de documentación"
+            ]);
         }
 
         getCategories($includeInactive);
         break;
 
+
     case "POST":
-        $user = requireAuth();
+
+        $user = requireRole([
+            "Administrador",
+            "Gestor de documentación"
+        ]);
+
         createCategory((int) $user["id_func"]);
         break;
 
-    case 'PATCH':
-        $user = requireAuth();
+
+    case "PATCH":
+
+        requireRole([
+            "Administrador",
+            "Gestor de documentación"
+        ]);
 
         $idCat = filter_var(
-            $_GET['id'] ?? null, // agarra los parametros de la URL
+            $_GET["id"] ?? null,
             FILTER_VALIDATE_INT
         );
 
         if ($idCat === false || $idCat === null || $idCat < 1) {
             sendJson(400, [
-                'ok' => false,
-                'mensaje' => 'El ID de la categoría no es válido.',
+                "ok" => false,
+                "mensaje" => "El ID de la categoría no es válido."
             ]);
-            exit;
         }
 
         updateCategory($idCat);
         break;
 
+
     default:
+
         sendJson(405, [
             "ok" => false,
             "mensaje" => "Método no permitido."

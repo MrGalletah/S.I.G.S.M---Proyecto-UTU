@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . "/../../config/Database.php";
-require_once __DIR__ . "/../../middleware/requireAuth.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../utils/validation.php";
 
@@ -25,7 +25,10 @@ function getDocuments(): void
         }
 
         if ($includeInactive) {
-            requireAuth();
+            requireRole([
+                "Administrador",
+                "Gestor de documentación"
+            ]);
         }
 
 
@@ -99,7 +102,7 @@ function getDocuments(): void
             $idCat = (int) $row["id_cat"];
 
 
-            
+
             // Creamos la categoría si todavía no existe. 
             if (!isset($categories[$idCat])) {
 
@@ -155,8 +158,6 @@ function getDocuments(): void
             "ok" => true,
             "categorias" => $categories
         ]);
-
-
     } catch (Throwable $e) {
 
         sendJson(500, [

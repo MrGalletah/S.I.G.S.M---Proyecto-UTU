@@ -1,7 +1,7 @@
 
 <?php
 
-require_once __DIR__ . "/../../middleware/requireAuth.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 
 require_once __DIR__ . "/../../handlers/surveys/createSurveyQuestion.php";
@@ -12,15 +12,25 @@ switch ($_SERVER["REQUEST_METHOD"]) {
 
     case "POST":
 
-        requireAuth();
+        requireRole([
+            "Administrador",
+            "Gestor de documentación"
+        ]);
+
         handleCreateSurveyQuestion();
         break;
 
+
     case "PATCH":
 
-        requireAuth();
+        requireRole([
+            "Administrador",
+            "Gestor de documentación"
+        ]);
+
         handleUpdateSurveyQuestion();
         break;
+
 
     default:
 

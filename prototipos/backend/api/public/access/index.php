@@ -1,70 +1,90 @@
 <?php
-
 declare(strict_types=1);
 
 require_once __DIR__ . "/../../utils/jsonResponse.php";
 require_once __DIR__ . "/../../config/Database.php";
-require_once __DIR__ . "/../../middleware/requireAuth.php";
+require_once __DIR__ . "/../../middleware/requireRole.php";
 require_once __DIR__ . "/../../utils/getJsonBody.php";
 
+
 $method = $_SERVER["REQUEST_METHOD"];
+
+// COMPROBAR MÉTODO
+
+if (!in_array($method, ["GET", "PATCH", "DELETE"], true)) {
+
+    header("Allow: GET, PATCH, DELETE");
+
+    sendJson(405, [
+        "ok" => false,
+        "mensaje" => "Método no permitido."
+    ]);
+}
+
+// COMPROBAR PERMISOS
+
+requireRole(["Administrador"]);
+
+
+// OPERACIONES
 
 switch ($method) {
 
     case "GET":
-        requireAuth();
 
         if (isset($_GET["roles"])) {
             getRoles();
         } else {
             getPendingAccessRequests();
         }
+
         break;
 
+
     case "PATCH":
-        requireAuth();
 
         $idFunc = filter_var(
-            $_GET['id'] ?? null,
+            $_GET["id"] ?? null,
             FILTER_VALIDATE_INT
         );
 
-        if ($idFunc === false || $idFunc === null || $idFunc < 1) {
+        if (
+            $idFunc === false ||
+            $idFunc === null ||
+            $idFunc < 1
+        ) {
             sendJson(400, [
-                'ok' => false,
-                'mensaje' => 'El ID del usuario no es válido.',
+                "ok" => false,
+                "mensaje" => "El ID del usuario no es válido."
             ]);
-            exit;
         }
 
         acceptAccessRequest($idFunc);
         break;
 
+
     case "DELETE":
-        requireAuth();
 
         $idFunc = filter_var(
-            $_GET['id'] ?? null,
+            $_GET["id"] ?? null,
             FILTER_VALIDATE_INT
         );
 
-        if ($idFunc === false || $idFunc === null || $idFunc < 1) {
+        if (
+            $idFunc === false ||
+            $idFunc === null ||
+            $idFunc < 1
+        ) {
             sendJson(400, [
-                'ok' => false,
-                'mensaje' => 'El ID del usuario no es válido.',
+                "ok" => false,
+                "mensaje" => "El ID del usuario no es válido."
             ]);
-            exit;
         }
 
         rejectAccessRequest($idFunc);
         break;
-
-    default:
-        sendJson(405, [
-            "ok" => false,
-            "mensaje" => "Método no permitido."
-        ]);
 }
+
 
 function getPendingAccessRequests(): void
 {
