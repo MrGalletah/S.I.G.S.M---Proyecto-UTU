@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Alert,
@@ -17,12 +18,16 @@ import {
   TextField,
 } from "@mui/material";
 
+// VALORES ORIGINALES PARA EL BACKEND
+
 const EMPTY_FORM = {
   matricula: "",
   modelo: "",
   id_tipo_vehiculo: "",
   estado: "OPERATIVO",
 };
+
+const VEHICLE_STATES = ["OPERATIVO", "MANTENIMIENTO", "FUERA_DE_SERVICIO"];
 
 export default function VehicleDialog({
   open,
@@ -32,20 +37,26 @@ export default function VehicleDialog({
   onClose,
   onSubmit,
 }) {
+  const { t } = useTranslation("vehicles");
+
   const isEditing = Boolean(vehicle);
+
+  // DATOS INICIALES DEL FORMULARIO
 
   const [form, setForm] = useState(() =>
     vehicle
       ? {
           matricula: vehicle.matricula,
           modelo: vehicle.modelo,
-          id_tipo_vehiculo: vehicle.tipo.id_tipo_vehiculo,
+          id_tipo_vehiculo: vehicle.tipo?.id_tipo_vehiculo ?? "",
           estado: vehicle.estado,
         }
       : { ...EMPTY_FORM },
   );
 
   const [error, setError] = useState("");
+
+  // ACTUALIZAR CAMPO
 
   const setField = (field, value) => {
     setForm((prev) => ({
@@ -58,6 +69,8 @@ export default function VehicleDialog({
     }
   };
 
+  // ENVIAR FORMULARIO
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -66,12 +79,16 @@ export default function VehicleDialog({
 
     const modelo = form.modelo.trim();
 
+    // VALIDAR CAMPOS OBLIGATORIOS
+
     if (!matricula || !modelo || !form.id_tipo_vehiculo) {
-      setError("Completá todos los campos obligatorios.");
+      setError(t("dialog.required"));
       return;
     }
 
     try {
+      // ENVIAR DATOS SIN TRADUCIR AL BACKEND
+
       await onSubmit({
         matricula,
         modelo,
@@ -79,7 +96,9 @@ export default function VehicleDialog({
         estado: form.estado,
       });
     } catch (err) {
-      setError(err.message || "No se pudo guardar el vehículo.");
+      console.error(err);
+
+      setError(err.message || t("dialog.saveError"));
     }
   };
 
@@ -99,6 +118,8 @@ export default function VehicleDialog({
       }}
     >
       <Box component="form" onSubmit={handleSubmit}>
+        {/* TÍTULO */}
+
         <DialogTitle
           sx={{
             fontWeight: 700,
@@ -106,22 +127,19 @@ export default function VehicleDialog({
             pb: 1,
           }}
         >
-          {isEditing ? "Editar vehículo" : "Registrar vehículo"}
+          {isEditing ? t("dialog.editTitle") : t("dialog.createTitle")}
         </DialogTitle>
 
+        {/* FORMULARIO */}
+
         <DialogContent>
-          <Stack
-            spacing={2.5}
-            sx={{
-              mt: 1,
-            }}
-          >
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
             {error && <Alert severity="error">{error}</Alert>}
 
             {/* MATRÍCULA */}
 
             <TextField
-              label="Matrícula"
+              label={t("dialog.license")}
               value={form.matricula}
               onChange={(event) =>
                 setField("matricula", event.target.value.toUpperCase())
@@ -130,6 +148,7 @@ export default function VehicleDialog({
               fullWidth
               autoFocus
               size="small"
+              disabled={saving}
               slotProps={{
                 htmlInput: {
                   maxLength: 20,
@@ -140,12 +159,13 @@ export default function VehicleDialog({
             {/* MODELO */}
 
             <TextField
-              label="Modelo"
+              label={t("dialog.model")}
               value={form.modelo}
               onChange={(event) => setField("modelo", event.target.value)}
               required
               fullWidth
               size="small"
+              disabled={saving}
               slotProps={{
                 htmlInput: {
                   maxLength: 100,
@@ -153,14 +173,16 @@ export default function VehicleDialog({
               }}
             />
 
-            {/* TIPO */}
+            {/* TIPO DE VEHÍCULO */}
 
-            <FormControl fullWidth required size="small">
-              <InputLabel id="vehicle-type-label">Tipo de vehículo</InputLabel>
+            <FormControl fullWidth required size="small" disabled={saving}>
+              <InputLabel id="vehicle-type-label">
+                {t("dialog.type")}
+              </InputLabel>
 
               <Select
                 labelId="vehicle-type-label"
-                label="Tipo de vehículo"
+                label={t("dialog.type")}
                 value={form.id_tipo_vehiculo}
                 onChange={(event) =>
                   setField("id_tipo_vehiculo", event.target.value)
@@ -171,7 +193,9 @@ export default function VehicleDialog({
                     key={type.id_tipo_vehiculo}
                     value={Number(type.id_tipo_vehiculo)}
                   >
-                    {type.nombre}
+                    {t(`types.${type.nombre}`, {
+                      defaultValue: type.nombre,
+                    })}
                   </MenuItem>
                 ))}
               </Select>
@@ -179,24 +203,28 @@ export default function VehicleDialog({
 
             {/* ESTADO */}
 
-            <FormControl fullWidth size="small">
-              <InputLabel id="vehicle-status-label">Estado</InputLabel>
+            <FormControl fullWidth size="small" disabled={saving}>
+              <InputLabel id="vehicle-status-label">
+                {t("dialog.status")}
+              </InputLabel>
 
               <Select
                 labelId="vehicle-status-label"
-                label="Estado"
+                label={t("dialog.status")}
                 value={form.estado}
                 onChange={(event) => setField("estado", event.target.value)}
               >
-                <MenuItem value="OPERATIVO">Operativo</MenuItem>
-
-                <MenuItem value="MANTENIMIENTO">En mantenimiento</MenuItem>
-
-                <MenuItem value="FUERA_DE_SERVICIO">Fuera de servicio</MenuItem>
+                {VEHICLE_STATES.map((value) => (
+                  <MenuItem key={value} value={value}>
+                    {t(`statuses.${value}`)}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Stack>
         </DialogContent>
+
+        {/* ACCIONES */}
 
         <DialogActions
           sx={{
@@ -214,7 +242,7 @@ export default function VehicleDialog({
               color: "var(--text-muted-color)",
             }}
           >
-            Cancelar
+            {t("dialog.cancel")}
           </Button>
 
           <Button
@@ -234,9 +262,9 @@ export default function VehicleDialog({
             {saving ? (
               <CircularProgress size={20} color="inherit" />
             ) : isEditing ? (
-              "Guardar cambios"
+              t("dialog.save")
             ) : (
-              "Registrar"
+              t("dialog.create")
             )}
           </Button>
         </DialogActions>

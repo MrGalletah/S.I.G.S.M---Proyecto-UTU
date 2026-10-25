@@ -1,9 +1,22 @@
+import { useTranslation } from "react-i18next";
+
 import { Box, Divider, Stack, TextField, Typography } from "@mui/material";
 
 import { stateTransitions } from "./transferEditUtils";
 
 export default function TransferStateSection({ transfer, form, onChange }) {
+  const { t } = useTranslation("transfers");
+
+  // SIGUIENTE ESTADO SEGÚN LAS REGLAS DEL SISTEMA
+
   const nextState = stateTransitions[transfer.estado]?.[0] ?? null;
+
+  // TRADUCIR EL ESTADO SIN MODIFICAR SU VALOR REAL
+
+  const translateState = (state) =>
+    t(`states.${state}`, {
+      defaultValue: state ?? "-",
+    });
 
   return (
     <>
@@ -14,14 +27,18 @@ export default function TransferStateSection({ transfer, form, onChange }) {
       />
 
       <Box>
+        {/* TÍTULO */}
+
         <Typography
           sx={{
             fontWeight: 700,
             mb: 0.5,
           }}
         >
-          Estado del traslado
+          {t("followUp.stateSection.title")}
         </Typography>
+
+        {/* ESTADO ACTUAL */}
 
         <Typography
           sx={{
@@ -30,16 +47,20 @@ export default function TransferStateSection({ transfer, form, onChange }) {
             mb: 2,
           }}
         >
-          Estado actual: {transfer.estado}
+          {t("followUp.stateSection.currentState", {
+            state: translateState(transfer.estado),
+          })}
         </Typography>
 
         {nextState ? (
           <Stack spacing={2}>
+            {/* SIGUIENTE ESTADO DE SOLO LECTURA */}
+
             <TextField
               fullWidth
               size="small"
-              label="Siguiente estado"
-              value={nextState}
+              label={t("followUp.stateSection.nextState")}
+              value={translateState(nextState)}
               slotProps={{
                 input: {
                   readOnly: true,
@@ -47,15 +68,17 @@ export default function TransferStateSection({ transfer, form, onChange }) {
               }}
             />
 
+            {/* OBSERVACIÓN */}
+
             <TextField
               fullWidth
               multiline
               minRows={2}
-              label="Observación"
+              label={t("followUp.stateSection.observation")}
               name="observacionEstado"
               value={form.observacionEstado}
               onChange={onChange}
-              placeholder="Observación opcional sobre el cambio de estado..."
+              placeholder={t("followUp.stateSection.observationPlaceholder")}
             />
           </Stack>
         ) : (
@@ -65,7 +88,7 @@ export default function TransferStateSection({ transfer, form, onChange }) {
               color: "text.secondary",
             }}
           >
-            El traslado ya fue completado.
+            {t("followUp.stateSection.completed")}
           </Typography>
         )}
       </Box>

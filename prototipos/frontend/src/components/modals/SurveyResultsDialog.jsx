@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Accordion,
@@ -12,14 +13,12 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  IconButton,
   LinearProgress,
   Stack,
   Typography,
 } from "@mui/material";
 
 import BarChartIcon from "@mui/icons-material/BarChart";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutlined";
 
@@ -27,25 +26,21 @@ import { getSurveyResults } from "../../apiCalls/surveys/surveysApi";
 
 const isTrue = (value) => value === true || Number(value) === 1;
 
-const typeLabels = {
-  abierta: "Abierta",
-  cerrada: "Cerrada",
-  seleccion: "Selección",
-};
-
-const formatPercentage = (value) => {
+function formatPercentage(value, language) {
   const percentage = Number(value);
 
   if (!Number.isFinite(percentage)) {
     return "0%";
   }
 
-  return `${percentage.toLocaleString("es-UY", {
+  const locale = language === "en" ? "en-US" : "es-UY";
+
+  return `${percentage.toLocaleString(locale, {
     maximumFractionDigits: 1,
   })}%`;
-};
+}
 
-// SUMMARY CARD
+// TARJETA DE ESTADÍSTICA
 
 function SummaryCard({ label, value }) {
   return (
@@ -83,9 +78,11 @@ function SummaryCard({ label, value }) {
   );
 }
 
-// OPTION RESULT
+// RESULTADO DE UNA OPCIÓN
 
 function OptionResult({ option }) {
+  const { t, i18n } = useTranslation("documents");
+
   const count = Number(option.cantidad) || 0;
   const percentage = Number(option.porcentaje) || 0;
 
@@ -123,7 +120,10 @@ function OptionResult({ option }) {
               flexShrink: 0,
             }}
           >
-            {formatPercentage(percentage)}
+            {formatPercentage(
+              percentage,
+              i18n.resolvedLanguage || i18n.language,
+            )}
           </Typography>
         </Stack>
 
@@ -142,14 +142,14 @@ function OptionResult({ option }) {
         />
 
         <Typography variant="caption" color="text.secondary">
-          {count} {count === 1 ? "respuesta" : "respuestas"}
+          {t("surveys.results.responses", { count })}
         </Typography>
       </Stack>
     </Box>
   );
 }
 
-// QUESTION RESULT ACCORDION
+// ACORDEÓN DE RESULTADOS POR PREGUNTA
 
 function QuestionResultAccordion({
   question,
@@ -157,6 +157,8 @@ function QuestionResultAccordion({
   commentsLimit,
   defaultExpanded = false,
 }) {
+  const { t } = useTranslation("documents");
+
   const answered = Number(question.respondidas) || 0;
   const skipped = Number(question.sin_responder) || 0;
   const comments = question.comentarios ?? [];
@@ -176,14 +178,8 @@ function QuestionResultAccordion({
         borderColor: "divider",
         bgcolor: "background.paper",
         boxShadow: "none",
-
-        "&::before": {
-          display: "none",
-        },
-
-        "&.Mui-expanded": {
-          my: 0,
-        },
+        "&::before": { display: "none" },
+        "&.Mui-expanded": { my: 0 },
       }}
     >
       <AccordionSummary
@@ -192,18 +188,9 @@ function QuestionResultAccordion({
           px: { xs: 2, sm: 2.5 },
           py: 1.25,
           minHeight: 96,
-
-          "&.Mui-expanded": {
-            minHeight: 96,
-          },
-
-          "& .MuiAccordionSummary-content": {
-            my: 0,
-          },
-
-          "& .MuiAccordionSummary-content.Mui-expanded": {
-            my: 0,
-          },
+          "&.Mui-expanded": { minHeight: 96 },
+          "& .MuiAccordionSummary-content": { my: 0 },
+          "& .MuiAccordionSummary-content.Mui-expanded": { my: 0 },
         }}
       >
         <Stack
@@ -243,6 +230,8 @@ function QuestionResultAccordion({
               {question.texto}
             </Typography>
 
+            {/* ETIQUETAS */}
+
             <Stack
               direction="row"
               spacing={0.75}
@@ -253,7 +242,9 @@ function QuestionResultAccordion({
               <Chip
                 size="small"
                 variant="outlined"
-                label={typeLabels[question.tipo] ?? question.tipo}
+                label={t(`surveys.accordion.types.${question.tipo}`, {
+                  defaultValue: question.tipo,
+                })}
               />
 
               {isTrue(question.obligatoria) && (
@@ -261,25 +252,31 @@ function QuestionResultAccordion({
                   size="small"
                   color="primary"
                   variant="outlined"
-                  label="Obligatoria"
+                  label={t("surveys.accordion.required")}
                 />
               )}
 
               {!isTrue(question.activa) && (
-                <Chip size="small" label="Inactiva" />
+                <Chip size="small" label={t("surveys.accordion.inactive")} />
               )}
             </Stack>
+
+            {/* ESTADÍSTICAS DE PREGUNTA */}
 
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               <Chip
                 size="small"
-                label={`${answered} respondidas`}
+                label={t("surveys.results.answered", {
+                  count: answered,
+                })}
                 sx={{ fontWeight: 600 }}
               />
 
               <Chip
                 size="small"
-                label={`${skipped} sin responder`}
+                label={t("surveys.results.skipped", {
+                  count: skipped,
+                })}
                 sx={{ fontWeight: 600 }}
               />
 
@@ -287,13 +284,17 @@ function QuestionResultAccordion({
                 <Chip
                   size="small"
                   icon={<ChatBubbleOutlineIcon />}
-                  label={`${comments.length} comentarios`}
+                  label={t("surveys.results.comments", {
+                    count: comments.length,
+                  })}
                   sx={{ fontWeight: 600 }}
                 />
               ) : (
                 <Chip
                   size="small"
-                  label={`${options.length} opciones`}
+                  label={t("surveys.results.options", {
+                    count: options.length,
+                  })}
                   sx={{ fontWeight: 600 }}
                 />
               )}
@@ -315,12 +316,12 @@ function QuestionResultAccordion({
         {isOpenQuestion ? (
           <Stack spacing={1.5}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              Respuestas escritas
+              {t("surveys.results.writtenResponses")}
             </Typography>
 
             {comments.length === 0 ? (
               <Alert severity="info" sx={{ borderRadius: 2 }}>
-                Todavía no hay respuestas escritas para esta pregunta.
+                {t("surveys.results.noWrittenResponses")}
               </Alert>
             ) : (
               <Stack spacing={1}>
@@ -351,19 +352,21 @@ function QuestionResultAccordion({
 
             {answered > comments.length && (
               <Typography variant="caption" color="text.secondary">
-                Se muestran hasta {commentsLimit} comentarios.
+                {t("surveys.results.commentsLimit", {
+                  count: commentsLimit,
+                })}
               </Typography>
             )}
           </Stack>
         ) : (
           <Stack spacing={1.5}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              Distribución de respuestas
+              {t("surveys.results.distribution")}
             </Typography>
 
             {options.length === 0 ? (
               <Alert severity="warning" sx={{ borderRadius: 2 }}>
-                Esta pregunta no tiene opciones configuradas.
+                {t("surveys.results.noOptions")}
               </Alert>
             ) : (
               <Stack spacing={1.25}>
@@ -374,8 +377,7 @@ function QuestionResultAccordion({
             )}
 
             <Typography variant="caption" color="text.secondary">
-              Los porcentajes se calculan sobre quienes respondieron esta
-              pregunta.
+              {t("surveys.results.percentageHelp")}
             </Typography>
           </Stack>
         )}
@@ -384,13 +386,17 @@ function QuestionResultAccordion({
   );
 }
 
-// MAIN DIALOG
+// DIÁLOGO PRINCIPAL
 
 export default function SurveyResultsDialog({ open, onClose, survey }) {
+  const { t } = useTranslation("documents");
+
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [reloadKey, setReloadKey] = useState(0);
+
+
+  // CARGAR RESULTADOS
 
   useEffect(() => {
     let cancelled = false;
@@ -400,49 +406,39 @@ export default function SurveyResultsDialog({ open, onClose, survey }) {
         if (cancelled) return;
 
         if (!data.ok || !data.resultados) {
-          throw new Error("No se pudieron cargar los resultados.");
+          throw new Error(t("surveys.results.loadError"));
         }
 
         setResults(data.resultados);
+        setError("");
       })
       .catch((err) => {
         if (cancelled) return;
-
         console.error(err);
-        setError(err.message || "No se pudieron cargar los resultados.");
+        setError(err.message || t("surveys.results.loadError"));
       })
       .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [survey.id_encuesta, reloadKey]);
-
-  const handleRefresh = () => {
-    if (loading) return;
-
-    setLoading(true);
-    setError("");
-    setReloadKey((previous) => previous + 1);
-  };
+  }, [survey.id_encuesta, t]);
 
   const sortedQuestions = useMemo(() => {
     const questions = results?.preguntas ?? [];
 
-    return [...questions].sort(
-      (first, second) => Number(first.orden) - Number(second.orden),
-    );
+    return [...questions].sort((a, b) => Number(a.orden) - Number(b.orden));
   }, [results]);
 
   const totalResponses = Number(results?.total_respuestas) || 0;
   const totalQuestions = sortedQuestions.length;
+
   const activeQuestions = sortedQuestions.filter((question) =>
     isTrue(question.activa),
   ).length;
+
   const commentsLimit = Number(results?.limite_comentarios) || 100;
 
   return (
@@ -463,6 +459,8 @@ export default function SurveyResultsDialog({ open, onClose, survey }) {
         },
       }}
     >
+      {/* CABECERA */}
+
       <DialogTitle
         id="survey-results-title"
         sx={{
@@ -491,33 +489,17 @@ export default function SurveyResultsDialog({ open, onClose, survey }) {
 
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="h5" sx={{ fontWeight: 800 }}>
-              Resultados de la encuesta
+              {t("surveys.results.title")}
             </Typography>
 
             <Typography variant="body1" color="text.secondary" noWrap>
               {results?.titulo ?? survey.titulo}
             </Typography>
           </Box>
-
-          <IconButton
-            onClick={handleRefresh}
-            disabled={loading}
-            aria-label="Actualizar resultados"
-            title="Actualizar resultados"
-            sx={{
-              width: 42,
-              height: 42,
-              borderRadius: "50%",
-              bgcolor: "action.hover",
-              "&:hover": {
-                bgcolor: "action.selected",
-              },
-            }}
-          >
-            <RefreshIcon />
-          </IconButton>
         </Stack>
       </DialogTitle>
+
+      {/* CONTENIDO */}
 
       <DialogContent
         sx={{
@@ -546,11 +528,11 @@ export default function SurveyResultsDialog({ open, onClose, survey }) {
           </Alert>
         ) : !results ? (
           <Alert severity="error" sx={{ borderRadius: 2 }}>
-            No se encontraron resultados para esta encuesta.
+            {t("surveys.results.noResults")}
           </Alert>
         ) : (
           <Stack spacing={3}>
-            {/* SUMMARY */}
+            {/* ESTADÍSTICAS GENERALES */}
 
             <Box
               sx={{
@@ -563,41 +545,44 @@ export default function SurveyResultsDialog({ open, onClose, survey }) {
               }}
             >
               <SummaryCard
-                label="Respuestas recibidas"
+                label={t("surveys.results.totalResponses")}
                 value={totalResponses}
               />
 
-              <SummaryCard label="Preguntas activas" value={activeQuestions} />
+              <SummaryCard
+                label={t("surveys.results.activeQuestions")}
+                value={activeQuestions}
+              />
 
-              <SummaryCard label="Total de preguntas" value={totalQuestions} />
+              <SummaryCard
+                label={t("surveys.results.totalQuestions")}
+                value={totalQuestions}
+              />
             </Box>
 
-            {/* SECTION HEADER */}
+            {/* CABECERA DE RESULTADOS */}
 
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                Resultados por pregunta
+                {t("surveys.results.byQuestion")}
               </Typography>
 
               <Typography variant="body2" color="text.secondary">
-                Expandí cada pregunta para ver el detalle de respuestas y
-                comentarios.
+                {t("surveys.results.expandHelp")}
               </Typography>
             </Box>
 
-            {/* EMPTY STATE */}
-
             {totalResponses === 0 && (
               <Alert severity="info" sx={{ borderRadius: 2 }}>
-                Esta encuesta todavía no recibió respuestas.
+                {t("surveys.results.noResponses")}
               </Alert>
             )}
 
-            {/* QUESTIONS */}
+            {/* ACORDEONES */}
 
             {sortedQuestions.length === 0 ? (
               <Alert severity="warning" sx={{ borderRadius: 2 }}>
-                Esta encuesta no tiene preguntas registradas.
+                {t("surveys.results.noQuestions")}
               </Alert>
             ) : (
               <Stack spacing={1.5}>

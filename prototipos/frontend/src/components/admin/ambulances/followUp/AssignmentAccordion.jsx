@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import {
   Accordion,
   AccordionDetails,
@@ -15,6 +17,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 
 import { formatDate } from "../../../utils/formatDate";
+
+// CAMPO DE SOLO LECTURA
 
 function ReadOnlyField({ label, value }) {
   return (
@@ -51,6 +55,10 @@ export default function AssignmentAccordion({
   loadingResources,
   onLoadResources,
 }) {
+  const { t } = useTranslation("transfers");
+
+  // REGLAS ORIGINALES DE ASIGNACIÓN
+
   const requiresNurse = transfer.tipoElemento === "Paciente";
 
   const canEdit = transfer.estado === "Registrado";
@@ -73,10 +81,12 @@ export default function AssignmentAccordion({
         },
       }}
     >
+      {/* ENCABEZADO */}
+
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box>
           <Typography sx={{ fontWeight: 700 }}>
-            Asignación del traslado
+            {t("followUp.assignment.title")}
           </Typography>
 
           <Typography
@@ -86,10 +96,10 @@ export default function AssignmentAccordion({
             }}
           >
             {!canEdit
-              ? "Recursos asignados al traslado."
+              ? t("followUp.assignment.readOnlyDescription")
               : assigned
-                ? "Consulte la disponibilidad para modificar los recursos asignados."
-                : "Defina primero el horario para consultar los recursos disponibles."}
+                ? t("followUp.assignment.editDescription")
+                : t("followUp.assignment.newDescription")}
           </Typography>
         </Box>
       </AccordionSummary>
@@ -108,25 +118,34 @@ export default function AssignmentAccordion({
               gap: 2.5,
             }}
           >
-            <ReadOnlyField label="Vehículo" value={transfer.vehiculo} />
-
-            <ReadOnlyField label="Conductor" value={transfer.conductor} />
-
-            <ReadOnlyField label="Enfermero" value={transfer.enfermero} />
+            <ReadOnlyField
+              label={t("followUp.assignment.vehicle")}
+              value={transfer.vehiculo}
+            />
 
             <ReadOnlyField
-              label="Salida estimada"
+              label={t("followUp.assignment.driver")}
+              value={transfer.conductor}
+            />
+
+            <ReadOnlyField
+              label={t("followUp.assignment.nurse")}
+              value={transfer.enfermero}
+            />
+
+            <ReadOnlyField
+              label={t("followUp.assignment.estimatedDeparture")}
               value={formatDate(transfer.horaSalidaEstimada)}
             />
 
             <ReadOnlyField
-              label="Llegada estimada"
+              label={t("followUp.assignment.estimatedArrival")}
               value={formatDate(transfer.horaLlegadaEstimada)}
             />
           </Box>
         ) : (
           <>
-            {/* ASIGNACIÓN ACTUAL */}
+            {/* RECURSOS ASIGNADOS ACTUALMENTE */}
 
             {assigned && !resources && (
               <Box
@@ -144,23 +163,23 @@ export default function AssignmentAccordion({
                 }}
               >
                 <ReadOnlyField
-                  label="Vehículo actual"
+                  label={t("followUp.assignment.currentVehicle")}
                   value={transfer.vehiculo}
                 />
 
                 <ReadOnlyField
-                  label="Conductor actual"
+                  label={t("followUp.assignment.currentDriver")}
                   value={transfer.conductor}
                 />
 
                 <ReadOnlyField
-                  label="Enfermero actual"
+                  label={t("followUp.assignment.currentNurse")}
                   value={transfer.enfermero}
                 />
               </Box>
             )}
 
-            {/* HORARIOS */}
+            {/* HORARIOS ESTIMADOS */}
 
             <Box
               sx={{
@@ -176,7 +195,7 @@ export default function AssignmentAccordion({
                 fullWidth
                 size="small"
                 type="datetime-local"
-                label="Salida estimada *"
+                label={t("followUp.assignment.estimatedDepartureRequired")}
                 name="horaSalidaEstimada"
                 value={form.horaSalidaEstimada}
                 onChange={onChange}
@@ -191,7 +210,7 @@ export default function AssignmentAccordion({
                 fullWidth
                 size="small"
                 type="datetime-local"
-                label="Llegada estimada *"
+                label={t("followUp.assignment.estimatedArrivalRequired")}
                 name="horaLlegadaEstimada"
                 value={form.horaLlegadaEstimada}
                 onChange={onChange}
@@ -203,7 +222,7 @@ export default function AssignmentAccordion({
               />
             </Box>
 
-            {/* CONSULTA */}
+            {/* CONSULTAR DISPONIBILIDAD */}
 
             <Box
               sx={{
@@ -230,10 +249,10 @@ export default function AssignmentAccordion({
                 }}
               >
                 {loadingResources
-                  ? "Consultando..."
+                  ? t("followUp.assignment.checking")
                   : resources
-                    ? "Actualizar disponibilidad"
-                    : "Consultar disponibilidad"}
+                    ? t("followUp.assignment.refreshAvailability")
+                    : t("followUp.assignment.checkAvailability")}
               </Button>
             </Box>
 
@@ -249,7 +268,7 @@ export default function AssignmentAccordion({
                     mb: 0.5,
                   }}
                 >
-                  Recursos disponibles
+                  {t("followUp.assignment.availableResources")}
                 </Typography>
 
                 <Typography
@@ -260,8 +279,8 @@ export default function AssignmentAccordion({
                   }}
                 >
                   {assigned
-                    ? "Puede mantener los recursos actuales o seleccionar otros."
-                    : "Seleccione los recursos para el intervalo indicado."}
+                    ? t("followUp.assignment.keepResources")
+                    : t("followUp.assignment.selectResources")}
                 </Typography>
 
                 <Box
@@ -280,7 +299,7 @@ export default function AssignmentAccordion({
                     select
                     fullWidth
                     size="small"
-                    label="Vehículo *"
+                    label={t("followUp.assignment.vehicleRequired")}
                     name="idVehiculo"
                     value={form.idVehiculo}
                     onChange={onChange}
@@ -302,7 +321,7 @@ export default function AssignmentAccordion({
                       ))
                     ) : (
                       <MenuItem disabled value="">
-                        No hay vehículos disponibles
+                        {t("followUp.assignment.noVehicles")}
                       </MenuItem>
                     )}
                   </TextField>
@@ -313,7 +332,7 @@ export default function AssignmentAccordion({
                     select
                     fullWidth
                     size="small"
-                    label="Conductor *"
+                    label={t("followUp.assignment.driverRequired")}
                     name="idConductor"
                     value={form.idConductor}
                     onChange={onChange}
@@ -327,7 +346,7 @@ export default function AssignmentAccordion({
                       ))
                     ) : (
                       <MenuItem disabled value="">
-                        No hay conductores disponibles
+                        {t("followUp.assignment.noDrivers")}
                       </MenuItem>
                     )}
                   </TextField>
@@ -338,7 +357,11 @@ export default function AssignmentAccordion({
                     select
                     fullWidth
                     size="small"
-                    label={requiresNurse ? "Enfermero *" : "Enfermero"}
+                    label={
+                      requiresNurse
+                        ? t("followUp.assignment.nurseRequired")
+                        : t("followUp.assignment.nurse")
+                    }
                     name="idEnfermero"
                     value={form.idEnfermero}
                     onChange={onChange}
@@ -347,7 +370,9 @@ export default function AssignmentAccordion({
                     }
                   >
                     {!requiresNurse && (
-                      <MenuItem value="">Sin asignar</MenuItem>
+                      <MenuItem value="">
+                        {t("followUp.assignment.unassigned")}
+                      </MenuItem>
                     )}
 
                     {resources.enfermeros.map((nurse) => (
@@ -358,7 +383,7 @@ export default function AssignmentAccordion({
 
                     {requiresNurse && resources.enfermeros.length === 0 && (
                       <MenuItem disabled value="">
-                        No hay enfermeros disponibles
+                        {t("followUp.assignment.noNurses")}
                       </MenuItem>
                     )}
                   </TextField>

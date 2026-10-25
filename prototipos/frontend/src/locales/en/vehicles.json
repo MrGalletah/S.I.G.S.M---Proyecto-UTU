@@ -1,0 +1,56 @@
+{
+  "title": "Vehicles",
+  "description": "Manage the vehicle fleet",
+  "add": "Register vehicle",
+  "search": "Search vehicles",
+  "status": "Status",
+  "all": "All",
+  "found_one": "{{count}} vehicle found",
+  "found_other": "{{count}} vehicles found",
+  "refresh": "Refresh list",
+  "retry": "Retry",
+  "empty": "No vehicles found.",
+  "edit": "Edit vehicle",
+  "editLicense": "Edit vehicle {{license}}",
+  "stats": {
+    "total": "Total vehicles",
+    "operational": "Operational",
+    "maintenance": "Under maintenance",
+    "outOfService": "Out of service"
+  },
+  "statuses": {
+    "OPERATIVO": "Operational",
+    "MANTENIMIENTO": "Under maintenance",
+    "FUERA_DE_SERVICIO": "Out of service"
+  },
+  "types": {
+    "Ambulancia": "Ambulance",
+    "Auto": "Car",
+    "Otro": "Other"
+  },
+  "table": {
+    "license": "License plate",
+    "model": "Model",
+    "type": "Type",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "dialog": {
+    "createTitle": "Register vehicle",
+    "editTitle": "Edit vehicle",
+    "license": "License plate",
+    "model": "Model",
+    "type": "Vehicle type",
+    "status": "Status",
+    "cancel": "Cancel",
+    "save": "Save changes",
+    "create": "Register",
+    "required": "Please complete all required fields.",
+    "saveError": "Couldn't save the vehicle."
+  },
+  "notifications": {
+    "created": "Vehicle registered successfully.",
+    "updated": "Vehicle updated successfully.",
+    "loadError": "Couldn't load the vehicle fleet."
+  }
+}

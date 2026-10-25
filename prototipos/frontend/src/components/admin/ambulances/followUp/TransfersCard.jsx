@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import {
   Box,
   Card,
@@ -22,7 +24,7 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 
 import TransferFilters from "./TransferFilters";
 
-// COLORES DESDE LAS VARIABLES GLOBALES
+// COLORES ASOCIADOS A LOS ESTADOS ORIGINALES
 
 const stateColors = {
   Registrado: ["var(--state-registered-bg)", "var(--state-registered-text)"],
@@ -43,11 +45,13 @@ function DateCell({ value }) {
   if (!value) return "-";
 
   const text = String(value);
+
   const match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
 
   if (!match) return text;
 
   const [, year, month, day] = match;
+
   const time = text.match(/[T ](\d{2}:\d{2})/)?.[1];
 
   return (
@@ -63,7 +67,12 @@ function DateCell({ value }) {
       </Typography>
 
       {time && (
-        <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
+        <Typography
+          sx={{
+            fontSize: 12,
+            color: "text.secondary",
+          }}
+        >
           {time}
         </Typography>
       )}
@@ -89,7 +98,7 @@ function TransferChip({ label, colors }) {
   );
 }
 
-// ENCABEZADO ORDENABLE
+// CABECERA ORDENABLE
 
 function SortHeader({ label, field, width, sort, onSortChange }) {
   return (
@@ -120,6 +129,8 @@ function SortHeader({ label, field, width, sort, onSortChange }) {
   );
 }
 
+// TABLA DE TRASLADOS
+
 export default function TransfersCard({
   visibleTransfers,
   totalTransfers,
@@ -141,12 +152,16 @@ export default function TransfersCard({
   hasActiveFilters,
   onCancelTransfer,
 }) {
+  const { t } = useTranslation("transfers");
+
+  // ENCABEZADOS ORDENABLES
+
   const headers = [
-    ["Código", "codigo", 95],
-    ["Fecha requerida", "fechaRequerida", 145],
-    ["Salida estimada", "horaSalidaEstimada", 145],
-    ["Estado", "estado", 165],
-    ["Prioridad", "prioridad", 110],
+    [t("followUp.table.code"), "codigo", 95],
+    [t("followUp.table.requiredDate"), "fechaRequerida", 145],
+    [t("followUp.table.estimatedDeparture"), "horaSalidaEstimada", 145],
+    [t("followUp.table.state"), "estado", 165],
+    [t("followUp.table.priority"), "prioridad", 110],
   ];
 
   const sortHeader = (index) => {
@@ -163,6 +178,20 @@ export default function TransfersCard({
       />
     );
   };
+
+  // MOSTRAR ESTADO TRADUCIDO SIN CAMBIAR EL VALOR REAL
+
+  const translateState = (state) =>
+    t(`states.${state}`, {
+      defaultValue: state ?? "-",
+    });
+
+  // MOSTRAR PRIORIDAD TRADUCIDA
+
+  const translatePriority = (priority) =>
+    t(`priorities.${priority}`, {
+      defaultValue: priority ?? "-",
+    });
 
   return (
     <Card
@@ -197,7 +226,9 @@ export default function TransfersCard({
           overflowX: "auto",
           overflowY: "hidden",
           mt: 1.5,
-          "&::-webkit-scrollbar": { height: 8 },
+          "&::-webkit-scrollbar": {
+            height: 8,
+          },
           "&::-webkit-scrollbar-thumb": {
             bgcolor: "rgba(0,0,0,0.25)",
             borderRadius: 999,
@@ -217,14 +248,31 @@ export default function TransfersCard({
             <TableRow>
               {sortHeader(0)}
 
-              <TableCell sx={{ fontWeight: 700, width: 155 }}>
-                Paciente / Elemento
+              <TableCell
+                sx={{
+                  fontWeight: 700,
+                  width: 155,
+                }}
+              >
+                {t("followUp.table.patientOrItem")}
               </TableCell>
 
-              <TableCell sx={{ fontWeight: 700, width: 145 }}>Origen</TableCell>
+              <TableCell
+                sx={{
+                  fontWeight: 700,
+                  width: 145,
+                }}
+              >
+                {t("followUp.table.origin")}
+              </TableCell>
 
-              <TableCell sx={{ fontWeight: 700, width: 145 }}>
-                Destino
+              <TableCell
+                sx={{
+                  fontWeight: 700,
+                  width: 145,
+                }}
+              >
+                {t("followUp.table.destination")}
               </TableCell>
 
               {sortHeader(1)}
@@ -232,8 +280,14 @@ export default function TransfersCard({
               {sortHeader(3)}
               {sortHeader(4)}
 
-              <TableCell align="center" sx={{ fontWeight: 700, width: 125 }}>
-                Acciones
+              <TableCell
+                align="center"
+                sx={{
+                  fontWeight: 700,
+                  width: 125,
+                }}
+              >
+                {t("followUp.table.actions")}
               </TableCell>
             </TableRow>
           </TableHead>
@@ -246,11 +300,14 @@ export default function TransfersCard({
                 <TableCell
                   colSpan={9}
                   align="center"
-                  sx={{ py: 6, color: "text.secondary" }}
+                  sx={{
+                    py: 6,
+                    color: "text.secondary",
+                  }}
                 >
                   {totalTransfers === 0
-                    ? "No hay traslados activos."
-                    : "No se encontraron traslados con los filtros seleccionados."}
+                    ? t("followUp.table.empty")
+                    : t("followUp.table.noMatches")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -266,9 +323,13 @@ export default function TransfersCard({
                     "&.Mui-selected:hover": {
                       bgcolor: "rgba(15, 124, 113, 0.12)",
                     },
-                    "& td": { py: 1.5 },
+                    "& td": {
+                      py: 1.5,
+                    },
                   }}
                 >
+                  {/* CÓDIGO */}
+
                   <TableCell
                     sx={{
                       fontWeight: 700,
@@ -278,66 +339,94 @@ export default function TransfersCard({
                     {transfer.codigo}
                   </TableCell>
 
+                  {/* PACIENTE O ELEMENTO */}
+
                   <TableCell>
                     {transfer.tipoElemento === "Paciente"
                       ? transfer.cedulaPaciente || "-"
                       : transfer.elemento || "-"}
                   </TableCell>
 
+                  {/* ORIGEN */}
+
                   <TableCell>{transfer.origen}</TableCell>
+
+                  {/* DESTINO */}
+
                   <TableCell>{transfer.destino}</TableCell>
+
+                  {/* FECHA REQUERIDA */}
 
                   <TableCell>
                     <DateCell value={transfer.fechaRequerida} />
                   </TableCell>
 
+                  {/* SALIDA ESTIMADA */}
+
                   <TableCell>
                     <DateCell value={transfer.horaSalidaEstimada} />
                   </TableCell>
 
+                  {/* ESTADO */}
+
                   <TableCell>
                     <TransferChip
-                      label={transfer.estado}
+                      label={translateState(transfer.estado)}
                       colors={stateColors[transfer.estado]}
                     />
                   </TableCell>
 
+                  {/* PRIORIDAD */}
+
                   <TableCell>
                     <TransferChip
-                      label={transfer.prioridad}
+                      label={translatePriority(transfer.prioridad)}
                       colors={priorityColors[transfer.prioridad]}
                     />
                   </TableCell>
+
+                  {/* ACCIONES */}
 
                   <TableCell>
                     <Stack
                       direction="row"
                       spacing={0.5}
-                      sx={{ justifyContent: "center" }}
+                      sx={{
+                        justifyContent: "center",
+                      }}
                     >
-                      <Tooltip title="Gestionar traslado">
+                      {/* GESTIONAR */}
+
+                      <Tooltip title={t("followUp.table.manage")}>
                         <IconButton
                           size="small"
+                          aria-label={t("followUp.table.manage")}
                           onClick={() => setEditTransferId(transfer.id)}
                         >
                           <EditOutlinedIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
 
-                      <Tooltip title="Ver detalle">
+                      {/* VER DETALLE */}
+
+                      <Tooltip title={t("followUp.table.viewDetail")}>
                         <IconButton
                           size="small"
+                          aria-label={t("followUp.table.viewDetail")}
                           onClick={() => onViewTransfer(transfer.id)}
                         >
                           <RemoveRedEyeIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
 
+                      {/* ANULAR */}
+
                       {transfer.anulable && (
-                        <Tooltip title="Anular solicitud">
+                        <Tooltip title={t("followUp.table.cancel")}>
                           <IconButton
                             size="small"
                             color="error"
+                            aria-label={t("followUp.table.cancel")}
                             onClick={() => onCancelTransfer(transfer)}
                           >
                             <DeleteOutlineOutlinedIcon fontSize="small" />
@@ -356,11 +445,16 @@ export default function TransfersCard({
       {/* PAGINACIÓN */}
 
       {filteredCount > rowsPerPage && (
-        <Stack sx={{ alignItems: "center", mt: 2.5 }}>
+        <Stack
+          sx={{
+            alignItems: "center",
+            mt: 2.5,
+          }}
+        >
           <Pagination
             count={totalPages}
             page={page}
-            onChange={(event, value) => setPage(value)}
+            onChange={(_, value) => setPage(value)}
             size="small"
             shape="rounded"
           />

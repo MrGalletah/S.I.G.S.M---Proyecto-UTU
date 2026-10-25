@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import {
   Alert,
   Box,
@@ -21,9 +24,7 @@ import {
 
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
-
 import BarChartIcon from "@mui/icons-material/BarChart";
 
 import SurveyResultsDialog from "../../modals/SurveyResultsDialog";
@@ -31,6 +32,7 @@ import SurveyQuestionsDialog from "../../modals/SurveyQuestionsDialog";
 import SurveyDialog from "../../modals/SurveyDialog";
 
 import {
+  getAllSurveys,
   createSurvey,
   updateSurvey,
 } from "../../../apiCalls/surveys/surveysApi";
@@ -38,52 +40,31 @@ import {
 import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
 
-import { useEffect, useState } from "react";
+const isActive = (value) => value === true || Number(value) === 1;
 
-import { getAllSurveys } from "../../../apiCalls/surveys/surveysApi";
-
-export default function SurveysCard({ variant }) {
-  // CREACIÓN Y EDICIÓN
-
-  const [openSurveyDialog, setOpenSurveyDialog] = useState(false);
-  const [selectedSurvey, setSelectedSurvey] = useState(null);
-  const [saving, setSaving] = useState(false);
-
-  // RESULTADOS
-  const [selectedSurveyForResults, setSelectedSurveyForResults] =
-    useState(null);
-
-  // NOTIFICACIONES
-
-  const { notification, showNotification, closeNotification } =
-    useNotification();
-
-  // ESTADO
+export default function SurveysCard({ variant, onSurveysLoaded }) {
+  const { t } = useTranslation("documents");
 
   const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const [selectedSurveyForQuestions, setSelectedSurveyForQuestions] =
-    useState(null);
-
-  const handleOpenQuestions = (survey) => {
-    setSelectedSurveyForQuestions(survey);
-  };
-
-  const handleCloseQuestions = () => {
-    setSelectedSurveyForQuestions(null);
-  };
-
-  // FILTROS Y PAGINACIÓN
+  const [reloadKey, setReloadKey] = useState(0);
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // CAMBIAR ESTE VALOR FUERZA UNA RECARGA
+  const [openSurveyDialog, setOpenSurveyDialog] = useState(false);
+  const [selectedSurvey, setSelectedSurvey] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const [reloadKey, setReloadKey] = useState(0);
+  const [selectedSurveyForQuestions, setSelectedSurveyForQuestions] =
+    useState(null);
+  const [selectedSurveyForResults, setSelectedSurveyForResults] =
+    useState(null);
+
+  const { notification, showNotification, closeNotification } =
+    useNotification();
 
   const isFull = variant === "full";
   const rowsPerPage = isFull ? 15 : 5;
@@ -98,30 +79,30 @@ export default function SurveysCard({ variant }) {
         if (cancelled) return;
 
         if (!data.ok || !Array.isArray(data.encuestas)) {
-          throw new Error("Respuesta de encuestas no válida.");
+          throw new Error(t("surveys.invalidResponse"));
         }
 
         setSurveys(data.encuestas);
+        setError(null);
+        onSurveysLoaded?.(data.encuestas);
       })
       .catch((err) => {
         if (cancelled) return;
 
         console.error(err);
         setSurveys([]);
-        setError(err.message || "Error al cargar las encuestas.");
+        setError(err.message || t("surveys.loadError"));
       })
       .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [reloadKey, onSurveysLoaded, t]);
 
-  // FILTRAR ENCUESTAS
+  // FILTROS
 
   const filteredSurveys = surveys.filter((survey) => {
     const searchText = search.trim().toLowerCase();
@@ -136,10 +117,11 @@ export default function SurveysCard({ variant }) {
         .includes(searchText),
     );
 
-    const active = survey.activo === true || Number(survey.activo) === 1;
-
     const matchesStatus =
-      statusFilter === "all" || (statusFilter === "active" ? active : !active);
+      statusFilter === "all" ||
+      (statusFilter === "active"
+        ? isActive(survey.activo)
+        : !isActive(survey.activo));
 
     return matchesSearch && matchesStatus;
   });
@@ -147,15 +129,15 @@ export default function SurveysCard({ variant }) {
   // PAGINACIÓN
 
   const totalPages = Math.ceil(filteredSurveys.length / rowsPerPage);
-
   const currentPage = Math.min(page, Math.max(totalPages, 1));
-
   const startIndex = (currentPage - 1) * rowsPerPage;
 
   const visibleSurveys = filteredSurveys.slice(
     startIndex,
     startIndex + rowsPerPage,
   );
+
+  // CREAR / EDITAR
 
   const handleCreateSurvey = () => {
     setSelectedSurvey(null);
@@ -169,12 +151,15 @@ export default function SurveysCard({ variant }) {
 
   const handleCloseSurveyDialog = () => {
     if (saving) return;
-
     setOpenSurveyDialog(false);
     setSelectedSurvey(null);
   };
 
-  // GUARDAR ENCUESTA
+  const refreshSurveys = () => {
+    setLoading(true);
+    setError(null);
+    setReloadKey((prev) => prev + 1);
+  };
 
   const handleSubmitSurvey = async (data) => {
     try {
@@ -182,31 +167,18 @@ export default function SurveysCard({ variant }) {
 
       if (selectedSurvey) {
         await updateSurvey(selectedSurvey.id_encuesta, data);
-
-        showNotification("Encuesta actualizada correctamente.", "success");
+        showNotification(t("surveys.updateSuccess"), "success");
       } else {
         await createSurvey(data);
-
-        showNotification("Encuesta creada correctamente.", "success");
+        showNotification(t("surveys.createSuccess"), "success");
       }
-
-      // CERRAR DIÁLOGO
 
       setOpenSurveyDialog(false);
       setSelectedSurvey(null);
-
-      // RECARGAR LISTADO
-
-      setLoading(true);
-      setError(null);
-      setReloadKey((prev) => prev + 1);
-    } catch (error) {
-      console.error(error);
-
-      showNotification(
-        error.message || "No se pudo guardar la encuesta.",
-        "error",
-      );
+      refreshSurveys();
+    } catch (err) {
+      console.error(err);
+      showNotification(err.message || t("surveys.saveError"), "error");
     } finally {
       setSaving(false);
     }
@@ -236,30 +208,18 @@ export default function SurveysCard({ variant }) {
         >
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Encuestas
+              {t("surveys.title")}
             </Typography>
 
             <Typography
               variant="body2"
               sx={{ color: "var(--text-muted-color)" }}
             >
-              Gestiona las encuestas de satisfacción
+              {t("surveys.description")}
             </Typography>
           </Box>
 
           <Stack direction="row" spacing={1}>
-            <IconButton
-              onClick={() => {
-                setLoading(true);
-                setError(null);
-                setReloadKey((prev) => prev + 1);
-              }}
-              disabled={loading}
-              aria-label="Recargar encuestas"
-              title="Actualizar listado"
-            >
-              <RefreshIcon />
-            </IconButton>
 
             <Button
               variant="contained"
@@ -272,7 +232,7 @@ export default function SurveysCard({ variant }) {
                 whiteSpace: "nowrap",
               }}
             >
-              Crear encuesta
+              {t("surveys.add")}
             </Button>
           </Stack>
         </Stack>
@@ -292,43 +252,33 @@ export default function SurveysCard({ variant }) {
         >
           <TextField
             size="small"
-            placeholder="Buscar encuestas..."
+            placeholder={t("surveys.search")}
             value={search}
             onChange={(event) => {
               setSearch(event.target.value);
               setPage(1);
             }}
-            sx={{
-              width: {
-                xs: "100%",
-                sm: "260px",
-              },
-            }}
+            sx={{ width: { xs: "100%", sm: "260px" } }}
           />
 
           <TextField
             select
             size="small"
-            label="Estado"
+            label={t("surveys.status")}
             value={statusFilter}
             onChange={(event) => {
               setStatusFilter(event.target.value);
               setPage(1);
             }}
-            sx={{
-              width: {
-                xs: "100%",
-                sm: "160px",
-              },
-            }}
+            sx={{ width: { xs: "100%", sm: "160px" } }}
           >
-            <MenuItem value="all">Todas</MenuItem>
-            <MenuItem value="active">Activas</MenuItem>
-            <MenuItem value="inactive">Inactivas</MenuItem>
+            <MenuItem value="all">{t("surveys.all")}</MenuItem>
+            <MenuItem value="active">{t("surveys.activePlural")}</MenuItem>
+            <MenuItem value="inactive">{t("surveys.inactivePlural")}</MenuItem>
           </TextField>
         </Stack>
 
-        {/* ESTADO DE CARGA */}
+        {/* CONTENIDO */}
 
         {loading ? (
           <Box
@@ -354,48 +304,46 @@ export default function SurveysCard({ variant }) {
           >
             <Typography color="text.secondary">
               {surveys.length === 0
-                ? "Todavía no hay encuestas registradas."
-                : "No se encontraron encuestas con esos filtros."}
+                ? t("surveys.empty")
+                : t("surveys.noMatches")}
             </Typography>
           </Box>
         ) : (
-          /* TABLA */
-
           <TableContainer sx={{ overflowX: "auto" }}>
-            <Table
-              size="small"
-              sx={{
-                minWidth: isFull ? 800 : 650,
-              }}
-            >
+            <Table size="small" sx={{ minWidth: isFull ? 800 : 650 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Encuesta</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>
+                    {t("surveys.survey")}
+                  </TableCell>
 
                   {isFull && (
-                    <TableCell sx={{ fontWeight: 700 }}>Categoría</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>
+                      {t("surveys.category")}
+                    </TableCell>
                   )}
 
-                  <TableCell sx={{ fontWeight: 700 }}>Descripción</TableCell>
-
-                  <TableCell sx={{ fontWeight: 700 }} align="center">
-                    Respuestas
+                  <TableCell sx={{ fontWeight: 700 }}>
+                    {t("surveys.details")}
                   </TableCell>
 
                   <TableCell sx={{ fontWeight: 700 }} align="center">
-                    Estado
+                    {t("surveys.responses")}
                   </TableCell>
 
                   <TableCell sx={{ fontWeight: 700 }} align="center">
-                    Acciones
+                    {t("surveys.status")}
+                  </TableCell>
+
+                  <TableCell sx={{ fontWeight: 700 }} align="center">
+                    {t("surveys.actions")}
                   </TableCell>
                 </TableRow>
               </TableHead>
 
               <TableBody>
                 {visibleSurveys.map((survey) => {
-                  const active =
-                    survey.activo === true || Number(survey.activo) === 1;
+                  const active = isActive(survey.activo);
 
                   return (
                     <TableRow key={survey.id_encuesta} hover>
@@ -420,7 +368,9 @@ export default function SurveysCard({ variant }) {
                       {/* CATEGORÍA */}
 
                       {isFull && (
-                        <TableCell>{survey.categoria ?? "General"}</TableCell>
+                        <TableCell>
+                          {survey.categoria ?? t("surveys.general")}
+                        </TableCell>
                       )}
 
                       {/* DESCRIPCIÓN */}
@@ -436,7 +386,7 @@ export default function SurveysCard({ variant }) {
                             overflow: "hidden",
                           }}
                         >
-                          {survey.descripcion || "Sin descripción"}
+                          {survey.descripcion || t("surveys.noDescription")}
                         </Typography>
                       </TableCell>
 
@@ -450,17 +400,17 @@ export default function SurveysCard({ variant }) {
 
                       <TableCell align="center">
                         <Chip
-                          label={active ? "Activa" : "Inactiva"}
+                          label={
+                            active ? t("surveys.active") : t("surveys.inactive")
+                          }
                           size="small"
                           sx={{
                             bgcolor: active
                               ? "var(--primary-color)"
                               : "var(--inactive-chip)",
-
                             color: active
                               ? "var(--white-color)"
                               : "var(--text-main-color)",
-
                             fontWeight: 600,
                             minWidth: 78,
                           }}
@@ -468,13 +418,20 @@ export default function SurveysCard({ variant }) {
                       </TableCell>
 
                       {/* ACCIONES */}
+
                       <TableCell align="center">
-                        <Stack direction={"row"}>
+                        <Stack direction="row">
                           <IconButton
                             size="small"
-                            onClick={() => handleOpenQuestions(survey)}
-                            aria-label={`Administrar preguntas de ${survey.titulo}`}
-                            title="Administrar preguntas"
+                            onClick={() =>
+                              setSelectedSurveyForQuestions(survey)
+                            }
+                            aria-label={t("surveys.manageQuestions", {
+                              name: survey.titulo,
+                            })}
+                            title={t("surveys.manageQuestions", {
+                              name: survey.titulo,
+                            })}
                           >
                             <QuizOutlinedIcon fontSize="small" />
                           </IconButton>
@@ -482,8 +439,12 @@ export default function SurveysCard({ variant }) {
                           <IconButton
                             size="small"
                             onClick={() => handleEditSurvey(survey)}
-                            aria-label={`Editar ${survey.titulo}`}
-                            title="Edición disponible próximamente"
+                            aria-label={t("surveys.edit", {
+                              name: survey.titulo,
+                            })}
+                            title={t("surveys.edit", {
+                              name: survey.titulo,
+                            })}
                           >
                             <EditOutlinedIcon fontSize="small" />
                           </IconButton>
@@ -491,13 +452,16 @@ export default function SurveysCard({ variant }) {
                           <IconButton
                             size="small"
                             onClick={() => setSelectedSurveyForResults(survey)}
-                            aria-label={`Ver resultados de ${survey.titulo}`}
-                            title="Ver resultados"
+                            aria-label={t("surveys.viewResults", {
+                              name: survey.titulo,
+                            })}
+                            title={t("surveys.viewResults", {
+                              name: survey.titulo,
+                            })}
                             sx={{
                               width: 36,
                               height: 36,
                               borderRadius: "50%",
-
                               "&:hover": {
                                 bgcolor: "action.selected",
                               },
@@ -518,23 +482,19 @@ export default function SurveysCard({ variant }) {
         {/* PAGINACIÓN */}
 
         {!loading && !error && totalPages > 1 && (
-          <Stack
-            direction="row"
-            sx={{
-              justifyContent: "center",
-              mt: 2,
-            }}
-          >
+          <Stack direction="row" sx={{ justifyContent: "center", mt: 2 }}>
             <Pagination
               count={totalPages}
               page={currentPage}
-              onChange={(event, value) => setPage(value)}
+              onChange={(_, value) => setPage(value)}
               size="small"
               shape="rounded"
             />
           </Stack>
         )}
       </Card>
+
+      {/* DIÁLOGOS */}
 
       {openSurveyDialog && (
         <SurveyDialog
@@ -551,7 +511,7 @@ export default function SurveysCard({ variant }) {
         <SurveyQuestionsDialog
           key={selectedSurveyForQuestions.id_encuesta}
           open
-          onClose={handleCloseQuestions}
+          onClose={() => setSelectedSurveyForQuestions(null)}
           survey={selectedSurveyForQuestions}
         />
       )}
@@ -564,8 +524,6 @@ export default function SurveysCard({ variant }) {
           onClose={() => setSelectedSurveyForResults(null)}
         />
       )}
-
-      {/* NOTIFICACIONES */}
 
       <NotificationSnackbar
         notification={notification}

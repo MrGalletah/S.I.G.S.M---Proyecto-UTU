@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import {
   Box,
   Chip,
@@ -31,12 +33,9 @@ function getSubject(transfer) {
 // FECHA Y HORA DE FINALIZACIÓN
 
 function FinalizationDate({ value }) {
-  if (!value) {
-    return "-";
-  }
+  if (!value) return "-";
 
   const normalized = String(value).replace("T", " ");
-
   const [date, time] = normalized.split(" ");
 
   return (
@@ -44,9 +43,7 @@ function FinalizationDate({ value }) {
       <Typography
         sx={{
           fontSize: 13,
-
           fontWeight: 600,
-
           whiteSpace: "nowrap",
         }}
       >
@@ -57,7 +54,6 @@ function FinalizationDate({ value }) {
         <Typography
           sx={{
             fontSize: 11,
-
             color: "text.secondary",
           }}
         >
@@ -68,6 +64,8 @@ function FinalizationDate({ value }) {
   );
 }
 
+// TABLA DEL HISTORIAL
+
 export default function CompletedTransfersTable({
   transfers,
   page,
@@ -75,16 +73,22 @@ export default function CompletedTransfersTable({
   onPageChange,
   onView,
 }) {
+  const { t } = useTranslation("transfers");
+
+  // TRADUCIR PRIORIDAD SIN CAMBIAR EL DATO
+
+  const translatePriority = (priority) =>
+    t(`priorities.${priority}`, {
+      defaultValue: priority ?? "-",
+    });
+
   return (
     <>
       <TableContainer
         sx={{
           mt: 3,
-
           width: "100%",
-
           maxWidth: "100%",
-
           overflowX: "auto",
 
           "&::-webkit-scrollbar": {
@@ -93,7 +97,6 @@ export default function CompletedTransfersTable({
 
           "&::-webkit-scrollbar-thumb": {
             bgcolor: "rgba(0,0,0,0.25)",
-
             borderRadius: 999,
           },
         }}
@@ -102,94 +105,89 @@ export default function CompletedTransfersTable({
           size="small"
           sx={{
             minWidth: 1000,
-
             tableLayout: "fixed",
           }}
         >
+          {/* CABECERA */}
+
           <TableHead>
             <TableRow>
               <TableCell
                 sx={{
                   fontWeight: 700,
-
                   width: 95,
                 }}
               >
-                Código
+                {t("history.table.code")}
               </TableCell>
 
               <TableCell
                 sx={{
                   fontWeight: 700,
-
                   width: 160,
                 }}
               >
-                Paciente / Elemento
+                {t("history.table.subject")}
               </TableCell>
 
               <TableCell
                 sx={{
                   fontWeight: 700,
-
                   width: 165,
                 }}
               >
-                Origen
+                {t("history.table.origin")}
               </TableCell>
 
               <TableCell
                 sx={{
                   fontWeight: 700,
-
                   width: 165,
                 }}
               >
-                Destino
+                {t("history.table.destination")}
               </TableCell>
 
               <TableCell
                 sx={{
                   fontWeight: 700,
-
                   width: 130,
                 }}
               >
-                Fecha requerida
+                {t("history.table.requiredDate")}
               </TableCell>
 
               <TableCell
                 sx={{
                   fontWeight: 700,
-
                   width: 120,
                 }}
               >
-                Finalizado
+                {t("history.table.completedAt")}
               </TableCell>
 
               <TableCell
                 sx={{
                   fontWeight: 700,
-
                   width: 110,
                 }}
               >
-                Prioridad
+                {t("history.table.priority")}
               </TableCell>
 
               <TableCell
                 align="center"
                 sx={{
                   fontWeight: 700,
-
                   width: 90,
                 }}
               >
-                Acciones
+                {t("history.table.actions")}
               </TableCell>
             </TableRow>
           </TableHead>
+
+          {/* CUERPO */}
 
           <TableBody>
             {transfers.length === 0 ? (
@@ -199,11 +197,10 @@ export default function CompletedTransfersTable({
                   align="center"
                   sx={{
                     py: 6,
-
                     color: "text.secondary",
                   }}
                 >
-                  No se encontraron traslados completados.
+                  {t("history.table.empty")}
                 </TableCell>
               </TableRow>
             ) : (
@@ -223,11 +220,8 @@ export default function CompletedTransfersTable({
                     <Typography
                       sx={{
                         fontSize: 13,
-
                         overflow: "hidden",
-
                         textOverflow: "ellipsis",
-
                         whiteSpace: "nowrap",
                       }}
                     >
@@ -241,11 +235,8 @@ export default function CompletedTransfersTable({
                     <Typography
                       sx={{
                         fontSize: 13,
-
                         overflow: "hidden",
-
                         textOverflow: "ellipsis",
-
                         whiteSpace: "nowrap",
                       }}
                     >
@@ -257,7 +248,7 @@ export default function CompletedTransfersTable({
 
                   <TableCell>{formatDate(transfer.fechaRequerida)}</TableCell>
 
-                  {/* FINALIZACIÓN */}
+                  {/* FECHA DE FINALIZACIÓN */}
 
                   <TableCell>
                     <FinalizationDate value={transfer.fechaFinalizacion} />
@@ -267,7 +258,7 @@ export default function CompletedTransfersTable({
 
                   <TableCell>
                     <Chip
-                      label={transfer.prioridad}
+                      label={translatePriority(transfer.prioridad)}
                       size="small"
                       sx={{
                         bgcolor:
@@ -281,7 +272,6 @@ export default function CompletedTransfersTable({
                             : "var(--priority-normal-text)",
 
                         fontWeight: 700,
-
                         borderRadius: 2,
                       }}
                     />
@@ -290,9 +280,10 @@ export default function CompletedTransfersTable({
                   {/* ACCIONES */}
 
                   <TableCell align="center">
-                    <Tooltip title="Ver detalle">
+                    <Tooltip title={t("history.table.viewDetail")}>
                       <IconButton
                         size="small"
+                        aria-label={t("history.table.viewDetail")}
                         onClick={() => onView(transfer.id)}
                       >
                         <RemoveRedEyeIcon fontSize="small" />
@@ -313,14 +304,13 @@ export default function CompletedTransfersTable({
           direction="row"
           sx={{
             justifyContent: "center",
-
             mt: 3,
           }}
         >
           <Pagination
             count={totalPages}
             page={page}
-            onChange={(event, value) => onPageChange(value)}
+            onChange={(_, value) => onPageChange(value)}
             size="small"
             shape="rounded"
           />

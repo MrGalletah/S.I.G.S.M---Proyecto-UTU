@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { Link as RouterLink } from "react-router";
 
 import {
   Accordion,
@@ -24,6 +26,9 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
+import LoginOutlinedIcon from "@mui/icons-material/LoginOutlined";
+
+import LanguageSwitcher from "../../utils/LanguageSwitcher";
 
 import { getUserDocuments } from "../../../apiCalls/documents/documentsApi";
 import { getPublicSurveys } from "../../../apiCalls/surveys/surveysApi";
@@ -32,19 +37,21 @@ import PublicSurveyForm from "./PublicSurveyForm";
 
 const isTrue = (value) => value === true || Number(value) === 1;
 
-// PUBLIC VIEW
+// VISTA PÚBLICA
 
 export default function UserView() {
+  const { t } = useTranslation("public");
+
   const [search, setSearch] = useState("");
   const [categories, setCategories] = useState([]);
   const [surveys, setSurveys] = useState([]);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadErrors, setLoadErrors] = useState([]);
 
   const [selectedSurvey, setSelectedSurvey] = useState(null);
 
-  // LOAD PUBLIC DOCUMENTS AND SURVEYS
+  // CARGAR DOCUMENTOS Y ENCUESTAS PÚBLICAS
 
   useEffect(() => {
     let cancelled = false;
@@ -59,17 +66,17 @@ export default function UserView() {
           setCategories(documentsResult.value.categorias ?? []);
         } else {
           console.error(documentsResult.reason);
-          errors.push("No se pudieron cargar los documentos.");
+          errors.push("catalog.errors.documents");
         }
 
         if (surveysResult.status === "fulfilled") {
           setSurveys(surveysResult.value.encuestas ?? []);
         } else {
           console.error(surveysResult.reason);
-          errors.push("No se pudieron cargar las encuestas.");
+          errors.push("catalog.errors.surveys");
         }
 
-        setError(errors.join(" "));
+        setLoadErrors(errors);
         setLoading(false);
       },
     );
@@ -79,13 +86,13 @@ export default function UserView() {
     };
   }, []);
 
-  // GROUP DOCUMENTS AND SURVEYS BY CATEGORY
+  // AGRUPAR DOCUMENTOS Y ENCUESTAS POR CATEGORÍA
 
   const groupedCategories = useMemo(() => {
     const categoryMap = new Map();
     const uncategorizedSurveys = [];
 
-    // DOCUMENT CATEGORIES
+    // CATEGORÍAS DE DOCUMENTOS
 
     for (const category of categories) {
       categoryMap.set(String(category.id_cat), {
@@ -95,7 +102,7 @@ export default function UserView() {
       });
     }
 
-    // SURVEYS
+    // ENCUESTAS ACTIVAS
 
     for (const survey of surveys) {
       if (!isTrue(survey.activo)) continue;
@@ -105,19 +112,19 @@ export default function UserView() {
           ? null
           : String(survey.id_cat);
 
-      // SURVEYS WITHOUT CATEGORY
+      // ENCUESTAS SIN CATEGORÍA
 
       if (categoryId === null) {
         uncategorizedSurveys.push(survey);
         continue;
       }
 
-      // CREATE CATEGORY IF IT ONLY HAS SURVEYS
+      // CREAR CATEGORÍA SI SOLO CONTIENE ENCUESTAS
 
       if (!categoryMap.has(categoryId)) {
         categoryMap.set(categoryId, {
           id_cat: survey.id_cat,
-          nombre: survey.categoria || "Categoría",
+          nombre: survey.categoria || t("catalog.fallbackCategory"),
           descripcion: "",
           documentos: [],
           encuestas: [],
@@ -127,29 +134,29 @@ export default function UserView() {
       categoryMap.get(categoryId).encuestas.push(survey);
     }
 
-    // REMOVE EMPTY CATEGORIES
+    // ELIMINAR CATEGORÍAS VACÍAS
 
     const groups = Array.from(categoryMap.values()).filter(
       (category) =>
         category.documentos.length > 0 || category.encuestas.length > 0,
     );
 
-    // GENERAL SURVEYS CATEGORY
+    // ENCUESTAS GENERALES
 
     if (uncategorizedSurveys.length > 0) {
       groups.push({
         id_cat: "uncategorized-surveys",
-        nombre: "Encuestas",
-        descripcion: "Encuestas disponibles para responder.",
+        nombre: t("catalog.surveysCategory"),
+        descripcion: t("catalog.surveysCategoryDescription"),
         documentos: [],
         encuestas: uncategorizedSurveys,
       });
     }
 
     return groups;
-  }, [categories, surveys]);
+  }, [categories, surveys, t]);
 
-  // SEARCH DOCUMENTS, SURVEYS AND CATEGORIES
+  // BÚSQUEDA DE DOCUMENTOS Y ENCUESTAS
 
   const filteredCategories = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -200,10 +207,66 @@ export default function UserView() {
       sx={{
         minHeight: "100dvh",
         bgcolor: "var(--main-bg-color)",
-        py: { xs: 0, md: 4 },
+        py: { xs: 0, md: 2 },
       }}
     >
-      <Container maxWidth="xl" disableGutters sx={{ px: { xs: 0, sm: 2 } }}>
+      {/* BARRA SUPERIOR */}
+
+      <Box
+        sx={{
+          width: "100%",
+          boxSizing: "border-box",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 2,
+          px: { xs: 2, sm: 3, md: 4 },
+          py: { xs: 2, md: 1 },
+        }}
+      >
+        {/* IZQUIERDA: ACCESO DE FUNCIONARIOS */}
+
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ minWidth: 0 }}
+        >
+          <Button
+            component={RouterLink}
+            to="/login"
+            size="small"
+            startIcon={<LoginOutlinedIcon />}
+            sx={{
+              textTransform: "none",
+              color: "var(--primary-color)",
+              fontSize: 13,
+              fontWeight: 700,
+              minWidth: "auto",
+              whiteSpace: "nowrap",
+              "&:hover": {
+                bgcolor: "rgba(15,124,113,0.08)",
+              },
+            }}
+          >
+            {t("header.staffLogin")}
+          </Button>
+        </Stack>
+
+        {/* DERECHA: SELECTOR DE IDIOMA */}
+
+        <LanguageSwitcher />
+      </Box>
+
+      {/* CONTENIDO PRINCIPAL */}
+
+      <Container
+        maxWidth="xl"
+        disableGutters
+        sx={{
+          px: { xs: 0, sm: 2 },
+        }}
+      >
         <Box
           sx={{
             maxWidth: 1280,
@@ -214,7 +277,7 @@ export default function UserView() {
           }}
         >
           {selectedSurvey ? (
-            // SURVEY FORM
+            // FORMULARIO DE ENCUESTA
 
             <PublicSurveyForm
               key={selectedSurvey.id_encuesta}
@@ -222,12 +285,17 @@ export default function UserView() {
               onBack={() => setSelectedSurvey(null)}
             />
           ) : (
-            // DOCUMENTS AND SURVEYS LIST
+            // DOCUMENTOS Y ENCUESTAS
 
             <>
-              {/* PAGE HEADER */}
+              {/* CABECERA */}
 
-              <Box sx={{ textAlign: "center", mb: 3 }}>
+              <Box
+                sx={{
+                  textAlign: "center",
+                  mb: 3,
+                }}
+              >
                 <Typography
                   variant="h4"
                   sx={{
@@ -235,7 +303,7 @@ export default function UserView() {
                     fontSize: { xs: 28, md: 38 },
                   }}
                 >
-                  Guías, Protocolos y Encuestas
+                  {t("header.title")}
                 </Typography>
 
                 <Typography
@@ -248,17 +316,16 @@ export default function UserView() {
                     mx: "auto",
                   }}
                 >
-                  Consultá los documentos del hospital y respondé las encuestas
-                  disponibles para pacientes y usuarios.
+                  {t("header.description")}
                 </Typography>
               </Box>
 
-              {/* SEARCH */}
+              {/* BUSCADOR */}
 
               <TextField
                 fullWidth
                 size="small"
-                placeholder="Buscar documentos, categorías o encuestas"
+                placeholder={t("catalog.search")}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 sx={{
@@ -266,7 +333,6 @@ export default function UserView() {
                   maxWidth: 760,
                   display: "block",
                   mx: "auto",
-
                   "& .MuiOutlinedInput-root": {
                     borderRadius: 2.5,
                     bgcolor: "var(--white-color)",
@@ -282,10 +348,13 @@ export default function UserView() {
                       </InputAdornment>
                     ),
                   },
+                  htmlInput: {
+                    "aria-label": t("catalog.search"),
+                  },
                 }}
               />
 
-              {/* INFORMATION */}
+              {/* INFORMACIÓN */}
 
               <Alert
                 icon={<InfoOutlinedIcon />}
@@ -300,20 +369,25 @@ export default function UserView() {
                   border: "1px solid rgba(15,124,113,0.16)",
                 }}
               >
-                Abrí una categoría para consultar sus documentos y las encuestas
-                disponibles.
+                {t("catalog.help")}
               </Alert>
 
-              {error && (
+              {/* ERRORES DE CARGA */}
+
+              {loadErrors.length > 0 && (
                 <Alert
                   severity="warning"
-                  sx={{ mb: 3, maxWidth: 760, mx: "auto" }}
+                  sx={{
+                    mb: 3,
+                    maxWidth: 760,
+                    mx: "auto",
+                  }}
                 >
-                  {error}
+                  {loadErrors.map((key) => t(key)).join(" ")}
                 </Alert>
               )}
 
-              {/* LOADING */}
+              {/* CONTENIDO */}
 
               {loading ? (
                 <Box
@@ -327,7 +401,7 @@ export default function UserView() {
                 </Box>
               ) : (
                 <>
-                  {/* CATEGORIES */}
+                  {/* CATEGORÍAS */}
 
                   <Box
                     sx={{
@@ -349,7 +423,7 @@ export default function UserView() {
                     ))}
                   </Box>
 
-                  {/* EMPTY STATE */}
+                  {/* SIN RESULTADOS */}
 
                   {filteredCategories.length === 0 && (
                     <Typography
@@ -358,7 +432,7 @@ export default function UserView() {
                       fontWeight={600}
                       sx={{ mt: 4 }}
                     >
-                      No se encontraron documentos ni encuestas.
+                      {t("catalog.empty")}
                     </Typography>
                   )}
                 </>
@@ -371,9 +445,11 @@ export default function UserView() {
   );
 }
 
-// CATEGORY ACCORDION
+// ACORDEÓN DE CATEGORÍA
 
 function CategoryAccordion({ category, onSelectSurvey }) {
+  const { t } = useTranslation("public");
+
   const documentCount = category.documentos.length;
   const surveyCount = category.encuestas.length;
 
@@ -386,7 +462,6 @@ function CategoryAccordion({ category, onSelectSurvey }) {
         overflow: "hidden",
         bgcolor: "var(--white-color)",
         boxShadow: "var(--card-shadow)",
-
         "&::before": {
           display: "none",
         },
@@ -397,7 +472,6 @@ function CategoryAccordion({ category, onSelectSurvey }) {
         sx={{
           minHeight: { xs: 78, md: 92 },
           px: { xs: 2.5, md: 3 },
-
           "& .MuiAccordionSummary-content": {
             alignItems: "center",
             justifyContent: "space-between",
@@ -416,6 +490,8 @@ function CategoryAccordion({ category, onSelectSurvey }) {
           {category.nombre}
         </Typography>
 
+        {/* CONTADORES */}
+
         <Stack
           direction="row"
           gap={0.75}
@@ -425,9 +501,9 @@ function CategoryAccordion({ category, onSelectSurvey }) {
           {documentCount > 0 && (
             <Chip
               size="small"
-              label={`${documentCount} ${
-                documentCount === 1 ? "Documento" : "Documentos"
-              }`}
+              label={t("catalog.documents", {
+                count: documentCount,
+              })}
               sx={{
                 bgcolor: "#DDF8F5",
                 color: "var(--primary-color)",
@@ -439,11 +515,14 @@ function CategoryAccordion({ category, onSelectSurvey }) {
           {surveyCount > 0 && (
             <Chip
               size="small"
-              label={`${surveyCount} ${
-                surveyCount === 1 ? "Encuesta" : "Encuestas"
-              }`}
+              label={t("catalog.surveys", {
+                count: surveyCount,
+              })}
               variant="outlined"
-              sx={{ fontWeight: 700, ml: 1 }}
+              sx={{
+                fontWeight: 700,
+                ml: 1,
+              }}
             />
           )}
         </Stack>
@@ -462,7 +541,7 @@ function CategoryAccordion({ category, onSelectSurvey }) {
           </Typography>
         )}
 
-        {/* DOCUMENTS FIRST */}
+        {/* DOCUMENTOS */}
 
         <Stack>
           {category.documentos.map((document) => (
@@ -470,10 +549,14 @@ function CategoryAccordion({ category, onSelectSurvey }) {
           ))}
         </Stack>
 
-        {/* SURVEYS BELOW DOCUMENTS */}
+        {/* ENCUESTAS */}
 
         {surveyCount > 0 && (
-          <Box sx={{ mt: documentCount > 0 ? 2 : 1 }}>
+          <Box
+            sx={{
+              mt: documentCount > 0 ? 2 : 1,
+            }}
+          >
             {documentCount > 0 && (
               <Divider textAlign="left" sx={{ mb: 1.5 }}>
                 <Typography
@@ -481,7 +564,7 @@ function CategoryAccordion({ category, onSelectSurvey }) {
                   color="text.secondary"
                   fontWeight={700}
                 >
-                  Encuestas
+                  {t("catalog.surveysSection")}
                 </Typography>
               </Divider>
             )}
@@ -502,9 +585,11 @@ function CategoryAccordion({ category, onSelectSurvey }) {
   );
 }
 
-// DOCUMENT ACCORDION
+// ACORDEÓN DE DOCUMENTO
 
 function DocumentAccordion({ document }) {
+  const { t } = useTranslation("public");
+
   return (
     <Accordion
       disableGutters
@@ -512,7 +597,6 @@ function DocumentAccordion({ document }) {
       sx={{
         bgcolor: "transparent",
         borderTop: "1px solid rgba(0,0,0,0.07)",
-
         "&::before": {
           display: "none",
         },
@@ -523,7 +607,6 @@ function DocumentAccordion({ document }) {
         sx={{
           minHeight: { xs: 58, md: 68 },
           px: { xs: 2.5, md: 3 },
-
           "& .MuiAccordionSummary-content": {
             alignItems: "center",
             gap: 1.5,
@@ -560,6 +643,8 @@ function DocumentAccordion({ document }) {
         }}
       >
         <Stack spacing={1}>
+          {/* DESCARGAR DOCUMENTO */}
+
           <Button
             size="small"
             startIcon={<DownloadOutlinedIcon />}
@@ -571,8 +656,10 @@ function DocumentAccordion({ document }) {
               fontWeight: 700,
             }}
           >
-            Descargar documento
+            {t("catalog.download")}
           </Button>
+
+          {/* VISUALIZAR DOCUMENTO */}
 
           <Button
             size="small"
@@ -587,7 +674,7 @@ function DocumentAccordion({ document }) {
               fontWeight: 700,
             }}
           >
-            Visualizar documento
+            {t("catalog.view")}
           </Button>
         </Stack>
       </AccordionDetails>
@@ -595,9 +682,11 @@ function DocumentAccordion({ document }) {
   );
 }
 
-// SURVEY ACCORDION
+// ACORDEÓN DE ENCUESTA
 
 function SurveyAccordion({ survey, onSelectSurvey }) {
+  const { t } = useTranslation("public");
+
   return (
     <Accordion
       disableGutters
@@ -605,7 +694,6 @@ function SurveyAccordion({ survey, onSelectSurvey }) {
       sx={{
         bgcolor: "transparent",
         borderTop: "1px solid rgba(0,0,0,0.07)",
-
         "&::before": {
           display: "none",
         },
@@ -616,7 +704,6 @@ function SurveyAccordion({ survey, onSelectSurvey }) {
         sx={{
           minHeight: { xs: 58, md: 68 },
           px: { xs: 2.5, md: 3 },
-
           "& .MuiAccordionSummary-content": {
             alignItems: "center",
             gap: 1.5,
@@ -661,7 +748,7 @@ function SurveyAccordion({ survey, onSelectSurvey }) {
 
           {isTrue(survey.anonima) && (
             <Typography variant="caption" color="text.secondary">
-              Encuesta anónima
+              {t("catalog.anonymous")}
             </Typography>
           )}
 
@@ -676,7 +763,7 @@ function SurveyAccordion({ survey, onSelectSurvey }) {
               fontWeight: 700,
             }}
           >
-            Responder encuesta
+            {t("catalog.answerSurvey")}
           </Button>
         </Stack>
       </AccordionDetails>

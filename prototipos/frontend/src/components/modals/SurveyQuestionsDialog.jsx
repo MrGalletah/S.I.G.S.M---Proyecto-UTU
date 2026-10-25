@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import {
   Alert,
   Box,
@@ -32,28 +35,26 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 
-import SortableQuestionAccordion from "./SortableQuestionAccordion";
-
-import { reorderSurveyQuestions } from "../../apiCalls/surveys/surveysApi";
-
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
 
-import { useEffect, useState } from "react";
+import SortableQuestionAccordion from "./SortableQuestionAccordion";
 
 import {
   getSurveyDetail,
   createSurveyQuestion,
   updateSurveyQuestion,
+  reorderSurveyQuestions,
 } from "../../apiCalls/surveys/surveysApi";
 
 const isTrue = (value) => value === true || Number(value) === 1;
 
-// FORMULARIO DE PREGUNTA
+// FORMULARIO DE PREGUNTAS
 
 function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
+  const { t } = useTranslation("documents");
   const isEditing = Boolean(question);
 
   const [texto, setTexto] = useState(question?.texto ?? "");
@@ -91,32 +92,26 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
     setTipo(newType);
   };
 
-  // MODIFICAR OPCIÓN
-
-  const updateOption = (index, textoOpcion) => {
+  const updateOption = (index, text) => {
     setOpciones((prev) =>
-      prev.map((opcion, i) =>
-        i === index ? { ...opcion, texto: textoOpcion } : opcion,
+      prev.map((option, i) =>
+        i === index ? { ...option, texto: text } : option,
       ),
     );
   };
 
-  // AGREGAR OPCIÓN
-
   const addOption = () => {
     const nextValue =
-      Math.max(0, ...opciones.map((opcion) => opcion.valor)) + 1;
+      Math.max(0, ...opciones.map((option) => option.valor)) + 1;
 
     setOpciones((prev) => [...prev, { texto: "", valor: nextValue }]);
   };
-
-  // QUITAR OPCIÓN
 
   const removeOption = (index) => {
     setOpciones((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // GUARDAR
+  // VALIDAR Y GUARDAR
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -125,7 +120,7 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
     const textoLimpio = texto.trim();
 
     if (!textoLimpio || textoLimpio.length > 1000) {
-      setError("La pregunta debe tener entre 1 y 1000 caracteres.");
+      setError(t("surveys.questions.questionLengthError"));
       return;
     }
 
@@ -139,7 +134,7 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
 
     if (tipo !== "abierta") {
       if (opcionesLimpias.length < 2 || opcionesLimpias.length > 20) {
-        setError("Debe haber entre 2 y 20 opciones.");
+        setError(t("surveys.questions.optionsCountError"));
         return;
       }
 
@@ -148,7 +143,7 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
           (opcion) => !opcion.texto || opcion.texto.length > 255,
         )
       ) {
-        setError("Todas las opciones deben tener texto.");
+        setError(t("surveys.questions.optionsTextError"));
         return;
       }
     }
@@ -161,9 +156,6 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
 
     if (isEditing) {
       payload.activa = activa;
-
-      // Reemplazamos opciones únicamente si cambiaron.
-      // Así evitamos generar ID nuevos innecesariamente.
 
       const originales = question.opciones.map((opcion) => ({
         texto: opcion.texto,
@@ -197,18 +189,28 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
       }}
     >
       <Stack spacing={3}>
+        {/* TÍTULO */}
+
         <Stack direction="row" alignItems="center" spacing={1}>
-          <IconButton onClick={onCancel} disabled={saving}>
+          <IconButton
+            onClick={onCancel}
+            disabled={saving}
+            aria-label={t("surveys.questions.back")}
+          >
             <ArrowBackIcon />
           </IconButton>
 
           <Typography variant="h6" fontWeight={700}>
-            {isEditing ? "Editar pregunta" : "Nueva pregunta"}
+            {isEditing
+              ? t("surveys.questions.editQuestion")
+              : t("surveys.questions.newQuestion")}
           </Typography>
         </Stack>
 
+        {/* TEXTO */}
+
         <TextField
-          label="Pregunta"
+          label={t("surveys.questions.question")}
           value={texto}
           onChange={(event) => setTexto(event.target.value)}
           multiline
@@ -221,26 +223,36 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
           }}
         />
 
+        {/* TIPO */}
+
         <TextField
           select
-          label="Tipo de pregunta"
+          label={t("surveys.questions.type")}
           value={tipo}
           onChange={(event) => handleTypeChange(event.target.value)}
           fullWidth
           disabled={saving}
         >
-          <MenuItem value="abierta">Abierta (respuesta escrita)</MenuItem>
+          <MenuItem value="abierta">
+            {t("surveys.questions.types.abierta")}
+          </MenuItem>
 
-          <MenuItem value="cerrada">Cerrada (opciones visibles)</MenuItem>
+          <MenuItem value="cerrada">
+            {t("surveys.questions.types.cerrada")}
+          </MenuItem>
 
-          <MenuItem value="seleccion">Selección (lista desplegable)</MenuItem>
+          <MenuItem value="seleccion">
+            {t("surveys.questions.types.seleccion")}
+          </MenuItem>
         </TextField>
 
         {/* OPCIONES */}
 
         {tipo !== "abierta" && (
           <Stack spacing={1.5}>
-            <Typography variant="subtitle2">Opciones de respuesta</Typography>
+            <Typography variant="subtitle2">
+              {t("surveys.questions.options")}
+            </Typography>
 
             {opciones.map((opcion, index) => (
               <Stack
@@ -251,7 +263,9 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
               >
                 <TextField
                   size="small"
-                  label={`Opción ${index + 1}`}
+                  label={t("surveys.questions.optionNumber", {
+                    number: index + 1,
+                  })}
                   value={opcion.texto}
                   onChange={(event) => updateOption(index, event.target.value)}
                   disabled={saving}
@@ -266,7 +280,9 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
                   color="error"
                   onClick={() => removeOption(index)}
                   disabled={saving || opciones.length <= 2}
-                  aria-label={`Quitar opción ${index + 1}`}
+                  aria-label={t("surveys.questions.removeOption", {
+                    number: index + 1,
+                  })}
                 >
                   <DeleteOutlineIcon />
                 </IconButton>
@@ -282,11 +298,11 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
                 textTransform: "none",
               }}
             >
-              Agregar opción
+              {t("surveys.questions.addOption")}
             </Button>
 
             <Typography variant="caption" color="text.secondary">
-              Cada paciente podrá elegir una única opción.
+              {t("surveys.questions.singleChoice")}
             </Typography>
           </Stack>
         )}
@@ -303,7 +319,7 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
               disabled={saving}
             />
           }
-          label="Respuesta obligatoria"
+          label={t("surveys.questions.required")}
         />
 
         {isEditing && (
@@ -315,7 +331,11 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
                 disabled={saving}
               />
             }
-            label={activa ? "Pregunta activa" : "Pregunta inactiva"}
+            label={
+              activa
+                ? t("surveys.questions.active")
+                : t("surveys.questions.inactive")
+            }
           />
         )}
 
@@ -329,7 +349,7 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
             disabled={saving}
             sx={{ textTransform: "none" }}
           >
-            Cancelar
+            {t("surveys.questions.cancel")}
           </Button>
 
           <Button
@@ -344,7 +364,9 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
               },
             }}
           >
-            {saving ? "Guardando..." : "Guardar pregunta"}
+            {saving
+              ? t("surveys.questions.saving")
+              : t("surveys.questions.saveQuestion")}
           </Button>
         </Stack>
       </Stack>
@@ -355,6 +377,8 @@ function QuestionForm({ question, nextOrder, saving, onSubmit, onCancel }) {
 // DIÁLOGO PRINCIPAL
 
 export default function SurveyQuestionsDialog({ open, onClose, survey }) {
+  const { t } = useTranslation("documents");
+
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -365,12 +389,11 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
   // undefined = listado
   // null = crear
   // objeto = editar
-
   const [editingQuestion, setEditingQuestion] = useState(undefined);
 
   const idEncuesta = survey.id_encuesta;
 
-  // CARGAR FORMULARIO COMPLETO
+  // CONSULTAR ENCUESTA
 
   useEffect(() => {
     let cancelled = false;
@@ -380,27 +403,24 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
         if (cancelled) return;
 
         if (!data.ok || !data.encuesta) {
-          throw new Error("No se pudo cargar la encuesta.");
+          throw new Error(t("surveys.questions.loadError"));
         }
 
         setDetail(data.encuesta);
       })
       .catch((err) => {
         if (cancelled) return;
-
         console.error(err);
-        setError(err.message);
+        setError(err.message || t("surveys.questions.loadError"));
       })
       .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [idEncuesta]);
+  }, [idEncuesta, t]);
 
   const preguntas = detail?.preguntas ?? [];
 
@@ -409,6 +429,17 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
     Number(survey.total_respuestas ?? 0) > 0;
 
   const nextOrder = Math.max(0, ...preguntas.map((p) => Number(p.orden))) + 1;
+
+  // SENSORES DEL DRAG & DROP
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   // GUARDAR PREGUNTA
 
@@ -427,45 +458,29 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
         });
       }
 
-      // RECUPERAR LAS PREGUNTAS ACTUALIZADAS
-
       const data = await getSurveyDetail(idEncuesta);
 
       if (!data.ok || !data.encuesta) {
-        throw new Error("No se pudo actualizar el listado.");
+        throw new Error(t("surveys.questions.updateListError"));
       }
 
       setDetail(data.encuesta);
       setEditingQuestion(undefined);
-
-      setNotice("Pregunta guardada correctamente.");
+      setNotice(t("surveys.questions.saveSuccess"));
     } catch (err) {
       console.error(err);
-
-      setError(err.message || "No se pudo guardar la pregunta.");
+      setError(err.message || t("surveys.questions.saveError"));
     } finally {
       setSaving(false);
     }
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 6,
-      },
-    }),
-
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
+  // REORDENAR PREGUNTAS
 
   const handleDragEnd = async ({ active, over }) => {
     if (!over || active.id === over.id || locked || saving) {
       return;
     }
-
-    // ENCONTRAR POSICIONES
 
     const oldIndex = preguntas.findIndex(
       (p) => Number(p.id_pregunta) === Number(active.id),
@@ -475,11 +490,7 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
       (p) => Number(p.id_pregunta) === Number(over.id),
     );
 
-    if (oldIndex === -1 || newIndex === -1) {
-      return;
-    }
-
-    // CALCULAR NUEVO ORDEN
+    if (oldIndex === -1 || newIndex === -1) return;
 
     const reordered = arrayMove(preguntas, oldIndex, newIndex).map(
       (pregunta, index) => ({
@@ -488,11 +499,9 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
       }),
     );
 
-    // CONSERVAR EL ESTADO ANTERIOR
-
     const previousDetail = detail;
 
-    // ACTUALIZAR VISUALMENTE ANTES DE LA RESPUESTA
+    // ACTUALIZACIÓN OPTIMISTA
 
     setDetail({
       ...detail,
@@ -504,22 +513,19 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
     setSaving(true);
 
     try {
-      // GUARDAR EN MARIA DB
-
       await reorderSurveyQuestions(
         idEncuesta,
         reordered.map((pregunta) => Number(pregunta.id_pregunta)),
       );
 
-      setNotice("Orden de preguntas guardado correctamente.");
-    } catch (error) {
-      console.error(error);
+      setNotice(t("surveys.questions.orderSuccess"));
+    } catch (err) {
+      console.error(err);
 
-      // SI FALLA, RESTAURAR EL ORDEN ORIGINAL
-
+      // RESTAURAR EL ORDEN ANTERIOR
       setDetail(previousDetail);
 
-      setError(error.message || "No se pudo guardar el nuevo orden.");
+      setError(err.message || t("surveys.questions.orderError"));
     } finally {
       setSaving(false);
     }
@@ -573,7 +579,7 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
 
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Preguntas de la encuesta
+              {t("surveys.questions.dialogTitle")}
             </Typography>
 
             <Typography variant="body2" color="text.secondary" noWrap>
@@ -608,8 +614,6 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
           </Box>
         ) : (
           <Stack spacing={3}>
-            {/* MENSAJES */}
-
             {error && <Alert severity="error">{error}</Alert>}
 
             {notice && <Alert severity="success">{notice}</Alert>}
@@ -617,15 +621,10 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
             {detail && (
               <>
                 {locked && (
-                  <Alert severity="info">
-                    Esta encuesta está publicada o ya tiene respuestas. Sus
-                    preguntas son de solo lectura.
-                  </Alert>
+                  <Alert severity="info">{t("surveys.questions.locked")}</Alert>
                 )}
 
                 {editingQuestion !== undefined ? (
-                  /* CREAR O EDITAR PREGUNTA */
-
                   <QuestionForm
                     key={editingQuestion?.id_pregunta ?? "new"}
                     question={editingQuestion}
@@ -638,10 +637,8 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
                     }}
                   />
                 ) : (
-                  /* LISTADO DE PREGUNTAS */
-
                   <Stack spacing={2.5}>
-                    {/* TÍTULO Y ACCIONES */}
+                    {/* CABECERA DEL LISTADO */}
 
                     <Box
                       sx={{
@@ -657,13 +654,15 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
                     >
                       <Box>
                         <Typography variant="subtitle1" fontWeight={700}>
-                          Preguntas
+                          {t("surveys.questions.listTitle")}
                         </Typography>
 
                         <Typography variant="body2" color="text.secondary">
                           {preguntas.length === 0
-                            ? "Todavía no agregaste preguntas."
-                            : `${preguntas.length} preguntas registradas`}
+                            ? t("surveys.questions.noQuestions")
+                            : t("surveys.questions.registered", {
+                                count: preguntas.length,
+                              })}
                         </Typography>
                       </Box>
 
@@ -686,7 +685,7 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
                             },
                           }}
                         >
-                          Nueva pregunta
+                          {t("surveys.questions.newQuestion")}
                         </Button>
                       )}
                     </Box>
@@ -726,7 +725,7 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
 
                           <Box>
                             <Typography variant="subtitle1" fontWeight={700}>
-                              Tu encuesta todavía está vacía
+                              {t("surveys.questions.emptyTitle")}
                             </Typography>
 
                             <Typography
@@ -737,9 +736,7 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
                                 maxWidth: 400,
                               }}
                             >
-                              Comenzá agregando una pregunta. Podés utilizar
-                              respuestas abiertas, opciones visibles o listas
-                              desplegables.
+                              {t("surveys.questions.emptyDescription")}
                             </Typography>
                           </Box>
 
@@ -764,44 +761,41 @@ export default function SurveyQuestionsDialog({ open, onClose, survey }) {
                               },
                             }}
                           >
-                            Crear primera pregunta
+                            {t("surveys.questions.firstQuestion")}
                           </Button>
                         </Stack>
                       </Box>
                     ) : (
-                      /* TARJETAS DE PREGUNTAS */
+                      /* LISTADO CON DRAG & DROP */
 
-                      <Stack spacing={2}>
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={handleDragEnd}
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <SortableContext
+                          items={preguntas.map((pregunta) =>
+                            Number(pregunta.id_pregunta),
+                          )}
+                          strategy={verticalListSortingStrategy}
                         >
-                          <SortableContext
-                            items={preguntas.map((pregunta) =>
-                              Number(pregunta.id_pregunta),
-                            )}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            <Stack spacing={1.5}>
-                              {preguntas.map((pregunta, index) => (
-                                <SortableQuestionAccordion
-                                  key={pregunta.id_pregunta}
-                                  pregunta={pregunta}
-                                  position={index}
-                                  disabled={locked || saving}
-                                  onEdit={(selectedQuestion) => {
-                                    setError("");
-                                    setNotice("");
-
-                                    setEditingQuestion(selectedQuestion);
-                                  }}
-                                />
-                              ))}
-                            </Stack>
-                          </SortableContext>
-                        </DndContext>
-                      </Stack>
+                          <Stack spacing={1.5}>
+                            {preguntas.map((pregunta, index) => (
+                              <SortableQuestionAccordion
+                                key={pregunta.id_pregunta}
+                                pregunta={pregunta}
+                                position={index}
+                                disabled={locked || saving}
+                                onEdit={(selectedQuestion) => {
+                                  setError("");
+                                  setNotice("");
+                                  setEditingQuestion(selectedQuestion);
+                                }}
+                              />
+                            ))}
+                          </Stack>
+                        </SortableContext>
+                      </DndContext>
                     )}
                   </Stack>
                 )}

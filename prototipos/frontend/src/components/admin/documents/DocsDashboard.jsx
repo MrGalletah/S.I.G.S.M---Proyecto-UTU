@@ -1,5 +1,5 @@
 import { Box, Stack } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import FolderOpenIcon from "@mui/icons-material/FolderOpen";
@@ -20,6 +20,16 @@ export default function DocsDashboard() {
   const [categories, setCategories] = useState([]);
   const [activeDocuments, setActiveDocuments] = useState(0);
   const [totalDocuments, setTotalDocuments] = useState(0);
+
+  const [activeSurveys, setActiveSurveys] = useState(0);
+
+  const handleSurveysLoaded = useCallback((surveys) => {
+    const total = surveys.filter(
+      (survey) => survey.activo === true || Number(survey.activo) === 1,
+    ).length;
+
+    setActiveSurveys(total);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,7 +96,7 @@ export default function DocsDashboard() {
     {
       label: t("dashboard.activeSurveys"),
       icon: <AssignmentIcon />,
-      value: 12,
+      value: activeSurveys,
       subtitle: undefined,
     },
   ];
@@ -132,7 +142,7 @@ export default function DocsDashboard() {
       >
         <CategoriesCard />
 
-        <SurveysCard />
+        <SurveysCard onSurveysLoaded={handleSurveysLoaded} />
 
         <Box
           sx={{

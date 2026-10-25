@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import {
   Alert,
   Button,
@@ -14,8 +17,6 @@ import {
   Typography,
 } from "@mui/material";
 
-import { useEffect, useState } from "react";
-
 import { getAllCategories } from "../../apiCalls/categories/categoriesApi";
 
 export default function SurveyDialog({
@@ -25,11 +26,10 @@ export default function SurveyDialog({
   onSubmit,
   loading = false,
 }) {
+  const { t } = useTranslation("documents");
+
   const isEditing = Boolean(survey);
-
   const hasResponses = Number(survey?.total_respuestas ?? 0) > 0;
-
-  // DATOS DEL FORMULARIO
 
   const [form, setForm] = useState({
     titulo: survey?.titulo ?? "",
@@ -39,13 +39,11 @@ export default function SurveyDialog({
     activo: survey ? Boolean(Number(survey.activo)) : false,
   });
 
-  // CATEGORÍAS
-
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [categoriesError, setCategoriesError] = useState("");
 
-  // CARGAR CATEGORÍAS AL MONTAR EL DIÁLOGO
+  // CARGAR CATEGORÍAS
 
   useEffect(() => {
     let cancelled = false;
@@ -55,30 +53,26 @@ export default function SurveyDialog({
         if (cancelled) return;
 
         if (!data.ok || !Array.isArray(data.categorias)) {
-          throw new Error("Respuesta de categorías no válida.");
+          throw new Error(t("surveys.dialog.invalidCategories"));
         }
 
         setCategories(data.categorias);
       })
       .catch((error) => {
         if (cancelled) return;
-
         console.error(error);
-
-        setCategoriesError(error.message || "Error al cargar las categorías.");
+        setCategoriesError(
+          error.message || t("surveys.dialog.categoriesError"),
+        );
       })
       .finally(() => {
-        if (!cancelled) {
-          setLoadingCategories(false);
-        }
+        if (!cancelled) setLoadingCategories(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // ACTUALIZAR CAMPOS
+  }, [t]);
 
   const handleChange = (name, value) => {
     setForm((prev) => ({
@@ -106,8 +100,6 @@ export default function SurveyDialog({
       anonima: form.anonima,
     };
 
-    // SOLO LAS ENCUESTAS EXISTENTES PUEDEN PUBLICARSE
-
     if (isEditing) {
       data.activo = form.activo;
     }
@@ -125,21 +117,19 @@ export default function SurveyDialog({
       maxWidth="sm"
       aria-labelledby="survey-dialog-title"
     >
-      <form onSubmit={handleSubmit} style={{padding: 10}}>
-        {/* TÍTULO */}
-
+      <form onSubmit={handleSubmit} style={{ padding: 10 }}>
         <DialogTitle id="survey-dialog-title" sx={{ fontWeight: 700, pb: 1 }}>
-          {isEditing ? "Editar encuesta" : "Crear encuesta"}
+          {isEditing
+            ? t("surveys.dialog.editTitle")
+            : t("surveys.dialog.createTitle")}
         </DialogTitle>
-
-        {/* CONTENIDO */}
 
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
             {/* TÍTULO */}
 
             <TextField
-              label="Título"
+              label={t("surveys.dialog.title")}
               value={form.titulo}
               onChange={(event) => handleChange("titulo", event.target.value)}
               required
@@ -147,16 +137,14 @@ export default function SurveyDialog({
               autoFocus
               disabled={loading}
               slotProps={{
-                htmlInput: {
-                  maxLength: 150,
-                },
+                htmlInput: { maxLength: 150 },
               }}
             />
 
             {/* DESCRIPCIÓN */}
 
             <TextField
-              label="Descripción"
+              label={t("surveys.dialog.description")}
               value={form.descripcion}
               onChange={(event) =>
                 handleChange("descripcion", event.target.value)
@@ -166,9 +154,7 @@ export default function SurveyDialog({
               fullWidth
               disabled={loading}
               slotProps={{
-                htmlInput: {
-                  maxLength: 2000,
-                },
+                htmlInput: { maxLength: 2000 },
               }}
             />
 
@@ -176,16 +162,16 @@ export default function SurveyDialog({
 
             <TextField
               select
-              label="Categoría"
+              label={t("surveys.dialog.category")}
               value={form.id_cat}
               onChange={(event) => handleChange("id_cat", event.target.value)}
               fullWidth
               disabled={
                 loading || loadingCategories || Boolean(categoriesError)
               }
-              helperText="Opcional. Sin categoría, la encuesta será general."
+              helperText={t("surveys.dialog.categoryHelp")}
             >
-              <MenuItem value="">Sin categoría</MenuItem>
+              <MenuItem value="">{t("surveys.dialog.noCategory")}</MenuItem>
 
               {categories.map((category) => {
                 const active =
@@ -200,7 +186,7 @@ export default function SurveyDialog({
                     disabled={!active && !selected}
                   >
                     {category.nombre}
-                    {!active ? " (Inactiva)" : ""}
+                    {!active ? ` (${t("surveys.inactive")})` : ""}
                   </MenuItem>
                 );
               })}
@@ -223,15 +209,15 @@ export default function SurveyDialog({
                     disabled={loading || hasResponses}
                   />
                 }
-                label="Encuesta anónima"
+                label={t("surveys.dialog.anonymous")}
               />
 
               <Typography variant="caption" color="text.secondary">
                 {hasResponses
-                  ? "No se puede cambiar el anonimato de una encuesta que ya tiene respuestas."
+                  ? t("surveys.dialog.anonymousLocked")
                   : form.anonima
-                    ? "No se solicitará la cédula del paciente."
-                    : "El paciente deberá indicar su cédula al responder."}
+                    ? t("surveys.dialog.anonymousHelp")
+                    : t("surveys.dialog.identifiedHelp")}
               </Typography>
             </Stack>
 
@@ -250,27 +236,23 @@ export default function SurveyDialog({
                     />
                   }
                   label={
-                    form.activo ? "Encuesta publicada" : "Encuesta inactiva"
+                    form.activo
+                      ? t("surveys.dialog.published")
+                      : t("surveys.dialog.unpublished")
                   }
                 />
 
                 <Typography variant="caption" color="text.secondary">
-                  Para publicar, la encuesta debe tener preguntas activas
-                  correctamente configuradas.
+                  {t("surveys.dialog.publicationHelp")}
                 </Typography>
               </Stack>
             )}
 
             {!isEditing && (
-              <Alert severity="info">
-                La encuesta se creará como borrador. Después podrás agregar sus
-                preguntas.
-              </Alert>
+              <Alert severity="info">{t("surveys.dialog.draftHelp")}</Alert>
             )}
           </Stack>
         </DialogContent>
-
-        {/* ACCIONES */}
 
         <DialogActions sx={{ px: 0, pt: 3, pb: 0 }}>
           <Button
@@ -278,7 +260,7 @@ export default function SurveyDialog({
             disabled={loading}
             sx={{ textTransform: "none" }}
           >
-            Cancelar
+            {t("surveys.dialog.cancel")}
           </Button>
 
           <Button
@@ -303,10 +285,10 @@ export default function SurveyDialog({
             }}
           >
             {loading
-              ? "Guardando..."
+              ? t("surveys.dialog.saving")
               : isEditing
-                ? "Guardar cambios"
-                : "Crear encuesta"}
+                ? t("surveys.dialog.save")
+                : t("surveys.dialog.createTitle")}
           </Button>
         </DialogActions>
       </form>

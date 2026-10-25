@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Box,
@@ -19,18 +20,13 @@ import { CSS } from "@dnd-kit/utilities";
 
 const isTrue = (value) => value === true || Number(value) === 1;
 
-const typeLabels = {
-  abierta: "Abierta",
-  cerrada: "Cerrada",
-  seleccion: "Selección",
-};
-
 export default function SortableQuestionAccordion({
   pregunta,
   position,
   disabled,
   onEdit,
 }) {
+  const { t } = useTranslation("documents");
   const [expanded, setExpanded] = useState(false);
 
   const panelId = `question-panel-${pregunta.id_pregunta}`;
@@ -69,13 +65,12 @@ export default function SortableQuestionAccordion({
         overflow: "hidden",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "none",
         transition: "border-color 0.2s, box-shadow 0.2s",
-
         "&:hover": {
           borderColor: "primary.main",
         },
       }}
     >
-      {/* CABECERA: TRES COLUMNAS */}
+      {/* CABECERA */}
 
       <Box
         sx={{
@@ -95,8 +90,10 @@ export default function SortableQuestionAccordion({
           {...listeners}
           disabled={disabled}
           size="small"
-          aria-label={`Arrastrar pregunta ${position + 1}`}
-          title="Arrastrar para ordenar"
+          aria-label={t("surveys.accordion.dragPosition", {
+            number: position + 1,
+          })}
+          title={t("surveys.accordion.dragHint")}
           sx={{
             width: 36,
             height: 36,
@@ -105,7 +102,6 @@ export default function SortableQuestionAccordion({
             color: "text.secondary",
             cursor: disabled ? "default" : "grab",
             touchAction: "none",
-
             "&:active": {
               cursor: disabled ? "default" : "grabbing",
             },
@@ -114,7 +110,7 @@ export default function SortableQuestionAccordion({
           <DragIndicatorIcon fontSize="small" />
         </IconButton>
 
-        {/* PREGUNTA Y FLECHA */}
+        {/* PREGUNTA */}
 
         <ButtonBase
           id={headingId}
@@ -144,39 +140,35 @@ export default function SortableQuestionAccordion({
             <Typography
               variant="body1"
               fontWeight={500}
-              sx={{
-                overflowWrap: "anywhere",
-              }}
+              sx={{ overflowWrap: "anywhere" }}
             >
               {position + 1}. {pregunta.texto}
             </Typography>
 
-            {/* ETIQUETAS */}
-
             <Stack direction="row" gap={0.75} flexWrap="wrap">
               <Chip
-                label={typeLabels[pregunta.tipo] ?? pregunta.tipo}
+                label={t(`surveys.accordion.types.${pregunta.tipo}`, {
+                  defaultValue: pregunta.tipo,
+                })}
                 size="small"
                 variant="outlined"
               />
 
               {isTrue(pregunta.obligatoria) && (
                 <Chip
-                  label="Obligatoria"
+                  label={t("surveys.accordion.required")}
                   size="small"
                   color="primary"
                   variant="outlined"
-                  sx={{ ml: 1}}
+                  sx={{ ml: 1 }}
                 />
               )}
 
               {!isTrue(pregunta.activa) && (
-                <Chip label="Inactiva" size="small" />
+                <Chip label={t("surveys.accordion.inactive")} size="small" />
               )}
             </Stack>
           </Stack>
-
-          {/* FLECHA DESPLEGABLE */}
 
           <ExpandMoreIcon
             sx={{
@@ -194,14 +186,15 @@ export default function SortableQuestionAccordion({
           size="small"
           disabled={disabled}
           onClick={() => onEdit(pregunta)}
-          aria-label={`Editar pregunta ${position + 1}`}
-          title="Editar pregunta"
+          aria-label={t("surveys.accordion.editPosition", {
+            number: position + 1,
+          })}
+          title={t("surveys.accordion.editHint")}
           sx={{
             width: 36,
             height: 36,
             borderRadius: "50%",
             justifySelf: "center",
-
             "&:hover": {
               bgcolor: "action.selected",
             },
@@ -211,7 +204,7 @@ export default function SortableQuestionAccordion({
         </IconButton>
       </Box>
 
-      {/* RESPUESTAS DESPLEGABLES */}
+      {/* CONTENIDO EXPANDIBLE */}
 
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <Box
@@ -228,7 +221,7 @@ export default function SortableQuestionAccordion({
         >
           {pregunta.tipo === "abierta" ? (
             <Typography variant="body2" color="text.secondary">
-              El paciente podrá escribir una respuesta libre.
+              {t("surveys.accordion.freeText")}
             </Typography>
           ) : (
             <Stack spacing={1.5}>
@@ -237,7 +230,7 @@ export default function SortableQuestionAccordion({
                 color="text.secondary"
                 fontWeight={600}
               >
-                Opciones de respuesta
+                {t("surveys.accordion.options")}
               </Typography>
 
               <Stack spacing={1}>

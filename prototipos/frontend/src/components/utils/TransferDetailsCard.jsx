@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { Box, Card, Chip, Stack, Tooltip, Typography } from "@mui/material";
 
 import DetailItem from "./DetailItem";
@@ -14,6 +16,24 @@ import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import NotesOutlinedIcon from "@mui/icons-material/NotesOutlined";
+
+// TIPOS ORIGINALES DE MARIA DB
+
+const transferTypeKeys = {
+  "Traslado interno": "internal",
+  "Traslado a otro centro": "otherCenter",
+  "Traslado a domicilio": "home",
+  "Retorno al hospital": "return",
+  Otro: "other",
+};
+
+const elementTypeKeys = {
+  Paciente: "patient",
+  "Muestra biológica": "biologicalSample",
+  Equipamiento: "equipment",
+  Insumo: "supply",
+  Otro: "other",
+};
 
 // FORMATEAR FECHA Y HORA
 
@@ -62,15 +82,44 @@ function SectionTitle({ children }) {
   );
 }
 
+// DETALLES DEL TRASLADO
+
 export default function TransferDetailsCard({ transfer }) {
+  const { t } = useTranslation("transfers");
+
   if (!transfer) return null;
 
+  // DATOS ORIGINALES PARA LAS REGLAS
+
   const isPatient = transfer.tipoElemento === "Paciente";
+  const urgent = transfer.prioridad === "Urgente";
 
   const nurse =
-    transfer.enfermero || (isPatient ? "Pendiente" : "No requerido");
+    transfer.enfermero ||
+    (isPatient ? t("details.pending") : t("details.notRequired"));
 
-  const urgent = transfer.prioridad === "Urgente";
+  // TRADUCCIÓN DE LOS TIPOS DE TRASLADO
+
+  const translateTransferType = (value) => {
+    const key = transferTypeKeys[value];
+
+    return key ? t(`newTransfer.transferTypes.${key}`) : value;
+  };
+
+  // TRADUCCIÓN DE LOS TIPOS DE ELEMENTO
+
+  const translateElementType = (value) => {
+    const key = elementTypeKeys[value];
+
+    return key ? t(`newTransfer.elementTypes.${key}`) : value;
+  };
+
+  // TRADUCCIÓN DE LA PRIORIDAD
+
+  const translatePriority = (value) =>
+    t(`priorities.${value}`, {
+      defaultValue: value ?? "-",
+    });
 
   return (
     <Card
@@ -103,12 +152,16 @@ export default function TransferDetailsCard({ transfer }) {
               color: "var(--text-main-color)",
             }}
           >
-            Detalle del traslado {transfer.codigo}
+            {t("details.title", {
+              code: transfer.codigo,
+            })}
           </Typography>
         </Box>
 
+        {/* PRIORIDAD */}
+
         <Chip
-          label={transfer.prioridad}
+          label={translatePriority(transfer.prioridad)}
           size="small"
           sx={{
             bgcolor: urgent
@@ -153,54 +206,70 @@ export default function TransferDetailsCard({ transfer }) {
             },
           }}
         >
-          <SectionTitle>Datos de la solicitud</SectionTitle>
+          <SectionTitle>{t("details.requestSection")}</SectionTitle>
 
           <Stack spacing={0.8}>
+            {/* TIPO DE TRASLADO */}
+
             <DetailField
               icon={<DescriptionOutlinedIcon />}
-              label="Tipo de traslado"
-              value={transfer.tipoTraslado}
+              label={t("details.transferType")}
+              value={translateTransferType(transfer.tipoTraslado)}
             />
+
+            {/* TIPO DE ELEMENTO */}
 
             <DetailField
               icon={<CategoryOutlinedIcon />}
-              label="Tipo de elemento"
-              value={transfer.tipoElemento}
+              label={t("details.elementType")}
+              value={translateElementType(transfer.tipoElemento)}
             />
+
+            {/* PACIENTE O ELEMENTO */}
 
             <DetailField
               icon={<PersonIcon />}
-              label={isPatient ? "Cédula del paciente" : "Elemento"}
+              label={isPatient ? t("details.patientId") : t("details.item")}
               value={isPatient ? transfer.cedulaPaciente : transfer.elemento}
             />
 
+            {/* ORIGEN */}
+
             <DetailField
               icon={<LocationOnOutlinedIcon />}
-              label="Origen"
+              label={t("details.origin")}
               value={transfer.origen}
             />
 
+            {/* DESTINO */}
+
             <DetailField
               icon={<LocationOnOutlinedIcon />}
-              label="Destino"
+              label={t("details.destination")}
               value={transfer.destino}
             />
 
+            {/* FECHA REQUERIDA */}
+
             <DetailField
               icon={<EventOutlinedIcon />}
-              label="Fecha requerida"
+              label={t("details.requiredDate")}
               value={formatDate(transfer.fechaRequerida)}
             />
 
+            {/* FECHA DE SOLICITUD */}
+
             <DetailField
               icon={<AccessTimeOutlinedIcon />}
-              label="Fecha de solicitud"
+              label={t("details.requestDate")}
               value={formatDateTime(transfer.fechaSolicitud)}
             />
 
+            {/* SOLICITANTE */}
+
             <DetailField
               icon={<BadgeOutlinedIcon />}
-              label="Solicitante"
+              label={t("details.requester")}
               value={transfer.solicitante}
             />
           </Stack>
@@ -233,7 +302,7 @@ export default function TransferDetailsCard({ transfer }) {
                     fontWeight: 800,
                   }}
                 >
-                  Observaciones
+                  {t("details.observations")}
                 </Typography>
               </Stack>
 
@@ -261,66 +330,84 @@ export default function TransferDetailsCard({ transfer }) {
             },
           }}
         >
-          <SectionTitle>Recursos y horarios</SectionTitle>
+          <SectionTitle>{t("details.resourcesSection")}</SectionTitle>
 
           <Stack spacing={0.8}>
+            {/* VEHÍCULO */}
+
             <DetailField
               icon={<AirportShuttleOutlinedIcon />}
-              label="Vehículo"
-              value={transfer.vehiculo || "Pendiente "}
+              label={t("details.vehicle")}
+              value={transfer.vehiculo || t("details.pending")}
             />
+
+            {/* CONDUCTOR */}
 
             <DetailField
               icon={<BadgeOutlinedIcon />}
-              label="Conductor"
-              value={transfer.conductor || "Pendiente"}
+              label={t("details.driver")}
+              value={transfer.conductor || t("details.pending")}
             />
+
+            {/* ENFERMERO */}
 
             <DetailField
               icon={<PersonIcon />}
-              label="Enfermero"
+              label={t("details.nurse")}
               value={nurse}
             />
 
+            {/* GESTOR */}
+
             <DetailField
               icon={<BadgeOutlinedIcon />}
-              label="Gestor"
-              value={transfer.gestor || "Pendiente"}
+              label={t("details.manager")}
+              value={transfer.gestor || t("details.pending")}
             />
+
+            {/* FECHA DE GESTIÓN */}
 
             <DetailField
               icon={<EventOutlinedIcon />}
-              label="Fecha de gestión"
+              label={t("details.managementDate")}
               value={formatDateTime(transfer.fechaGestion)}
             />
 
+            {/* SALIDA ESTIMADA */}
+
             <DetailField
               icon={<AccessTimeOutlinedIcon />}
-              label="Salida estimada"
+              label={t("details.estimatedDeparture")}
               value={formatDateTime(transfer.horaSalidaEstimada)}
             />
 
+            {/* LLEGADA ESTIMADA */}
+
             <DetailField
               icon={<AccessTimeOutlinedIcon />}
-              label="Llegada estimada"
+              label={t("details.estimatedArrival")}
               value={formatDateTime(transfer.horaLlegadaEstimada)}
             />
 
+            {/* SALIDA REAL */}
+
             <DetailField
               icon={<AccessTimeOutlinedIcon />}
-              label="Salida real"
+              label={t("details.actualDeparture")}
               value={formatDateTime(transfer.horaSalidaReal)}
             />
 
+            {/* LLEGADA AL DESTINO */}
+
             <DetailField
               icon={<FlagOutlinedIcon />}
-              label="Llegada al destino"
+              label={t("details.destinationArrival")}
               value={formatDateTime(transfer.horaLlegadaDestino)}
             />
           </Stack>
         </Box>
 
-        {/* SEGUIMIENTO */}
+        {/* SEGUIMIENTO DEL TRASLADO */}
 
         <Box
           sx={{

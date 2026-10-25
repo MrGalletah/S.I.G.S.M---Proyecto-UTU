@@ -1,0 +1,54 @@
+{
+  "header": {
+    "title": "Guías, Protocolos y Encuestas",
+    "description": "Consultá los documentos del hospital y respondé las encuestas disponibles para pacientes y usuarios.",
+    "staffPrompt": "¿Sos funcionario?",
+    "staffLogin": "Iniciar sesión"
+  },
+  "catalog": {
+    "search": "Buscar documentos, categorías o encuestas",
+    "help": "Abrí una categoría para consultar sus documentos y las encuestas disponibles.",
+    "empty": "No se encontraron documentos ni encuestas.",
+    "fallbackCategory": "Categoría",
+    "surveysCategory": "Encuestas",
+    "surveysCategoryDescription": "Encuestas disponibles para responder.",
+    "documents_one": "{{count}} documento",
+    "documents_other": "{{count}} documentos",
+    "surveys_one": "{{count}} encuesta",
+    "surveys_other": "{{count}} encuestas",
+    "surveysSection": "Encuestas",
+    "download": "Descargar documento",
+    "view": "Visualizar documento",
+    "anonymous": "Encuesta anónima",
+    "answerSurvey": "Responder encuesta",
+    "errors": {
+      "documents": "No se pudieron cargar los documentos.",
+      "surveys": "No se pudieron cargar las encuestas."
+    }
+  },
+  "survey": {
+    "back": "Volver al listado",
+    "thanks": "¡Gracias por responder!",
+    "success": "Tus respuestas se guardaron correctamente.",
+    "requiredInfo": "Las preguntas marcadas con * son obligatorias.",
+    "anonymousInfo": "Esta encuesta es anónima. No se solicitará tu cédula.",
+    "patientId": "Cédula",
+    "patientIdHelp": "Ingresá tu cédula para identificar tu respuesta.",
+    "writeAnswer": "Escribí tu respuesta",
+    "chooseOption": "Elegí una opción",
+    "selectOption": "Seleccioná una opción",
+    "unselected": "Sin seleccionar",
+    "empty": "Esta encuesta no tiene preguntas disponibles.",
+    "cancel": "Cancelar",
+    "submitting": "Enviando...",
+    "submit": "Enviar respuestas",
+    "errors": {
+      "load": "No se pudo cargar la encuesta.",
+      "identityRequired": "La cédula es obligatoria.",
+      "questionRequired": "Esta pregunta es obligatoria.",
+      "invalidOption": "Seleccioná una opción válida.",
+      "review": "Revisá los campos marcados antes de enviar.",
+      "submit": "No se pudieron enviar las respuestas."
+    }
+  }
+}

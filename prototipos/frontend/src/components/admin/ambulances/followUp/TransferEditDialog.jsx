@@ -1,7 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
-  Box,
   Button,
   CircularProgress,
   Dialog,
@@ -63,7 +63,6 @@ function keepAvailable(currentId, list, key) {
 }
 
 // CONTENIDO DEL DIÁLOGO
-// Se monta únicamente cuando llegaron los datos.
 
 function TransferEditContent({
   transfer,
@@ -72,6 +71,8 @@ function TransferEditContent({
   onClose,
   setBusy,
 }) {
+  const { t } = useTranslation("transfers");
+
   const [form, setForm] = useState(() => getInitialForm(transfer));
 
   const [resources, setResources] = useState(null);
@@ -80,7 +81,6 @@ function TransferEditContent({
   const [savingAssignment, setSavingAssignment] = useState(false);
 
   const [savingState, setSavingState] = useState(false);
-
   const [assignmentDirty, setAssignmentDirty] = useState(false);
 
   const { notification, showNotification, closeNotification } =
@@ -129,20 +129,14 @@ function TransferEditContent({
 
   const handleLoadResources = async () => {
     if (!form.horaSalidaEstimada || !form.horaLlegadaEstimada) {
-      showNotification(
-        "Ingrese la hora de salida y llegada estimadas.",
-        "error",
-      );
+      showNotification(t("followUp.management.errors.requiredTimes"), "error");
       return;
     }
 
     if (
       new Date(form.horaLlegadaEstimada) <= new Date(form.horaSalidaEstimada)
     ) {
-      showNotification(
-        "La llegada estimada debe ser posterior a la salida.",
-        "error",
-      );
+      showNotification(t("followUp.management.errors.invalidTimes"), "error");
       return;
     }
 
@@ -180,8 +174,13 @@ function TransferEditContent({
         ),
       }));
     } catch (error) {
+      console.error(error);
       setResources(null);
-      showNotification(error.message, "error");
+
+      showNotification(
+        error.message || t("followUp.management.errors.availability"),
+        "error",
+      );
     } finally {
       setLoadingResources(false);
     }
@@ -191,10 +190,7 @@ function TransferEditContent({
 
   const handleAssignment = async () => {
     if (!resources) {
-      showNotification(
-        "Consulte primero la disponibilidad de recursos.",
-        "error",
-      );
+      showNotification(t("followUp.management.errors.checkResources"), "error");
       return;
     }
 
@@ -204,36 +200,33 @@ function TransferEditContent({
       !form.horaSalidaEstimada ||
       !form.horaLlegadaEstimada
     ) {
-      showNotification("Complete todos los datos obligatorios.", "error");
+      showNotification(t("followUp.management.errors.requiredFields"), "error");
       return;
     }
 
+    // PARA PACIENTES, EL ENFERMERO ES OBLIGATORIO
+
     if (transfer.tipoElemento === "Paciente" && !form.idEnfermero) {
-      showNotification(
-        "Los traslados de pacientes requieren un enfermero.",
-        "error",
-      );
+      showNotification(t("followUp.management.errors.nurseRequired"), "error");
       return;
     }
+
+    // CONDUCTOR Y ENFERMERO DEBEN SER DIFERENTES
 
     if (
       form.idEnfermero &&
       Number(form.idConductor) === Number(form.idEnfermero)
     ) {
-      showNotification(
-        "El conductor y el enfermero deben ser funcionarios diferentes.",
-        "error",
-      );
+      showNotification(t("followUp.management.errors.differentStaff"), "error");
       return;
     }
+
+    // CONTROL DE VERSIÓN
 
     const version = resources.traslado?.version ?? transfer.version;
 
     if (version === null || version === undefined) {
-      showNotification(
-        "No se pudo obtener la versión actual del traslado.",
-        "error",
-      );
+      showNotification(t("followUp.management.errors.version"), "error");
       return;
     }
 
@@ -245,6 +238,7 @@ function TransferEditContent({
         version: Number(version),
 
         id_vehiculo: Number(form.idVehiculo),
+
         id_conductor: Number(form.idConductor),
 
         id_enfermero: form.idEnfermero ? Number(form.idEnfermero) : null,
@@ -256,8 +250,13 @@ function TransferEditContent({
 
       await onAssigned(transfer.id);
     } catch (error) {
+      console.error(error);
       setResources(null);
-      showNotification(error.message, "error");
+
+      showNotification(
+        error.message || t("followUp.management.errors.assignment"),
+        "error",
+      );
     } finally {
       setSavingAssignment(false);
       setBusy(false);
@@ -270,18 +269,12 @@ function TransferEditContent({
     if (!nextState) return;
 
     if (canEditAssignment && assignmentDirty) {
-      showNotification(
-        "Tiene cambios de asignación pendientes. Guárdelos antes de actualizar el estado.",
-        "error",
-      );
+      showNotification(t("followUp.management.errors.pendingChanges"), "error");
       return;
     }
 
     if (transfer.version === null || transfer.version === undefined) {
-      showNotification(
-        "No se pudo obtener la versión actual del traslado.",
-        "error",
-      );
+      showNotification(t("followUp.management.errors.version"), "error");
       return;
     }
 
@@ -297,7 +290,12 @@ function TransferEditContent({
 
       await onStateUpdated(transfer.id);
     } catch (error) {
-      showNotification(error.message, "error");
+      console.error(error);
+
+      showNotification(
+        error.message || t("followUp.management.errors.state"),
+        "error",
+      );
     } finally {
       setSavingState(false);
       setBusy(false);
@@ -307,6 +305,8 @@ function TransferEditContent({
   return (
     <>
       <DialogContent>
+        {/* DESCRIPCIÓN SEGÚN EL ESTADO */}
+
         <Typography
           sx={{
             fontSize: 14,
@@ -315,13 +315,17 @@ function TransferEditContent({
           }}
         >
           {!canEditAssignment
-            ? "Consulte los datos del traslado y actualice su estado."
+            ? t("followUp.management.readOnlyDescription")
             : assigned
-              ? "Puede modificar los recursos antes de iniciar el traslado."
-              : "Revise la solicitud, defina el horario y consulte los recursos disponibles."}
+              ? t("followUp.management.assignedDescription")
+              : t("followUp.management.newDescription")}
         </Typography>
 
+        {/* DATOS DE LA SOLICITUD */}
+
         <RequestAccordion transfer={transfer} />
+
+        {/* ASIGNACIÓN DE RECURSOS */}
 
         <AssignmentAccordion
           transfer={transfer}
@@ -333,6 +337,8 @@ function TransferEditContent({
           onLoadResources={handleLoadResources}
         />
 
+        {/* CAMBIO DE ESTADO */}
+
         {assigned && (
           <TransferStateSection
             transfer={transfer}
@@ -341,6 +347,8 @@ function TransferEditContent({
           />
         )}
       </DialogContent>
+
+      {/* ACCIONES */}
 
       <DialogActions
         sx={{
@@ -360,7 +368,7 @@ function TransferEditContent({
             fontWeight: 700,
           }}
         >
-          Cancelar
+          {t("followUp.management.cancel")}
         </Button>
 
         {/* ASIGNACIÓN / REASIGNACIÓN */}
@@ -378,10 +386,10 @@ function TransferEditContent({
             }}
           >
             {savingAssignment
-              ? "Guardando..."
+              ? t("followUp.management.saving")
               : assigned
-                ? "Guardar asignación"
-                : "Confirmar asignación"}
+                ? t("followUp.management.saveAssignment")
+                : t("followUp.management.confirmAssignment")}
           </Button>
         )}
 
@@ -399,7 +407,9 @@ function TransferEditContent({
               bgcolor: "var(--primary-color)",
             }}
           >
-            {savingState ? "Actualizando..." : "Actualizar estado"}
+            {savingState
+              ? t("followUp.management.updating")
+              : t("followUp.management.updateState")}
           </Button>
         )}
       </DialogActions>
@@ -412,7 +422,7 @@ function TransferEditContent({
   );
 }
 
-// ÚNICO DIÁLOGO
+// DIÁLOGO PRINCIPAL
 
 export default function TransferEditDialog({
   open,
@@ -422,6 +432,7 @@ export default function TransferEditDialog({
   onAssigned,
   onStateUpdated,
 }) {
+  const { t } = useTranslation("transfers");
   const [busy, setBusy] = useState(false);
 
   const loading = !transfer;
@@ -441,14 +452,12 @@ export default function TransferEditDialog({
         },
       }}
     >
-      <DialogTitle
-        sx={{
-          fontWeight: 800,
-        }}
-      >
+      <DialogTitle sx={{ fontWeight: 800 }}>
         {loading
-          ? "Gestionar traslado"
-          : `Gestionar traslado ${transfer.codigo}`}
+          ? t("followUp.management.title")
+          : t("followUp.management.titleWithCode", {
+              code: transfer.codigo,
+            })}
       </DialogTitle>
 
       {loading ? (

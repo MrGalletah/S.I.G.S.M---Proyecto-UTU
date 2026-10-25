@@ -1,0 +1,54 @@
+{
+  "header": {
+    "title": "Guides, Protocols and Surveys",
+    "description": "Browse hospital documents and complete surveys available to patients and visitors.",
+    "staffPrompt": "Are you a staff member?",
+    "staffLogin": "Sign in"
+  },
+  "catalog": {
+    "search": "Search documents, categories or surveys",
+    "help": "Open a category to view its documents and available surveys.",
+    "empty": "No documents or surveys found.",
+    "fallbackCategory": "Category",
+    "surveysCategory": "Surveys",
+    "surveysCategoryDescription": "Surveys available to complete.",
+    "documents_one": "{{count}} document",
+    "documents_other": "{{count}} documents",
+    "surveys_one": "{{count}} survey",
+    "surveys_other": "{{count}} surveys",
+    "surveysSection": "Surveys",
+    "download": "Download document",
+    "view": "View document",
+    "anonymous": "Anonymous survey",
+    "answerSurvey": "Complete survey",
+    "errors": {
+      "documents": "Couldn't load documents.",
+      "surveys": "Couldn't load surveys."
+    }
+  },
+  "survey": {
+    "back": "Back to list",
+    "thanks": "Thank you for your response!",
+    "success": "Your responses have been saved successfully.",
+    "requiredInfo": "Questions marked with * are required.",
+    "anonymousInfo": "This survey is anonymous. You won't be asked for your ID number.",
+    "patientId": "ID number",
+    "patientIdHelp": "Enter your ID number to identify your response.",
+    "writeAnswer": "Write your answer",
+    "chooseOption": "Choose an option",
+    "selectOption": "Select an option",
+    "unselected": "Not selected",
+    "empty": "This survey has no available questions.",
+    "cancel": "Cancel",
+    "submitting": "Submitting...",
+    "submit": "Submit responses",
+    "errors": {
+      "load": "Couldn't load the survey.",
+      "identityRequired": "ID number is required.",
+      "questionRequired": "This question is required.",
+      "invalidOption": "Please select a valid option.",
+      "review": "Please review the highlighted fields before submitting.",
+      "submit": "Couldn't submit your responses."
+    }
+  }
+}

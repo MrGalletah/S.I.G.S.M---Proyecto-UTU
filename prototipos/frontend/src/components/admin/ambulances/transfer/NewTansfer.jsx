@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Box, Button, Card, Stack, TextField, Typography } from "@mui/material";
 
@@ -25,35 +26,85 @@ import {
 import { useNotification } from "../../../../hooks/useNotification";
 import NotificationSnackbar from "../../../utils/NotificationSnackbar";
 
+// RELACIÓN ENTRE NOMBRES DE BD Y CLAVES DE TRADUCCIÓN
+
+const transferTypeKeys = {
+  "Traslado interno": "internal",
+  "Traslado a otro centro": "otherCenter",
+  "Traslado a domicilio": "home",
+  "Retorno al hospital": "return",
+  Otro: "other",
+};
+
+const elementTypeKeys = {
+  Paciente: "patient",
+  "Muestra biológica": "biologicalSample",
+  Equipamiento: "equipment",
+  Insumo: "supply",
+  Otro: "other",
+};
+
 export default function NewTransfer() {
+  const { t } = useTranslation("transfers");
+
+  // FORMULARIO
+
   const [form, setForm] = useState(initialForm);
+
+  // CATÁLOGOS
 
   const [transferTypes, setTransferTypes] = useState([]);
   const [elementTypes, setElementTypes] = useState([]);
-
   const [loadingCatalogs, setLoadingCatalogs] = useState(true);
+
+  // ENVÍO
+
   const [submitting, setSubmitting] = useState(false);
+
+  // NOTIFICACIONES
 
   const { notification, showNotification, closeNotification } =
     useNotification();
 
+  // CARGAR CATÁLOGOS DESDE LA API
+
   useEffect(() => {
+    let cancelled = false;
+
     const loadCatalogs = async () => {
       try {
+        setLoadingCatalogs(true);
+
         const data = await getTransferCatalogs();
 
-        setTransferTypes(data.tipos_traslado ?? []);
+        if (cancelled) return;
 
+        setTransferTypes(data.tipos_traslado ?? []);
         setElementTypes(data.tipos_elemento ?? []);
       } catch (error) {
-        showNotification(error.message, "error");
+        if (cancelled) return;
+
+        console.error(error);
+
+        showNotification(
+          error.message || t("newTransfer.errors.loadCatalogs"),
+          "error",
+        );
       } finally {
-        setLoadingCatalogs(false);
+        if (!cancelled) {
+          setLoadingCatalogs(false);
+        }
       }
     };
 
     loadCatalogs();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showNotification, t]);
+
+  // IDENTIFICAR TIPOS SELECCIONADOS
 
   const selectedTransferType = transferTypes.find(
     (type) => Number(type.id_tipo_traslado) === Number(form.tipoTraslado),
@@ -63,8 +114,9 @@ export default function NewTransfer() {
     (type) => Number(type.id_tipo_elemento) === Number(form.tipoElemento),
   );
 
-  const transferTypeName = selectedTransferType?.nombre ?? "";
+  // MANTENER LOS NOMBRES ORIGINALES PARA LAS REGLAS
 
+  const transferTypeName = selectedTransferType?.nombre ?? "";
   const elementTypeName = selectedElementType?.nombre ?? "";
 
   const currentRouteRule = routeRules[transferTypeName] ?? {
@@ -72,20 +124,43 @@ export default function NewTransfer() {
     lockDestino: false,
   };
 
-  const tipoTrasladoOptions = transferTypes.map((type) => ({
-    value: type.id_tipo_traslado,
-    label: type.nombre,
+  // TRADUCIR SOLO LAS ETIQUETAS VISIBLES
+
+  const tipoTrasladoOptions = transferTypes.map((type) => {
+    const translationKey = transferTypeKeys[type.nombre];
+
+    return {
+      value: type.id_tipo_traslado,
+      label: translationKey
+        ? t(`newTransfer.transferTypes.${translationKey}`)
+        : type.nombre,
+    };
+  });
+
+  const tipoElementoOptions = elementTypes.map((type) => {
+    const translationKey = elementTypeKeys[type.nombre];
+
+    return {
+      value: type.id_tipo_elemento,
+      label: translationKey
+        ? t(`newTransfer.elementTypes.${translationKey}`)
+        : type.nombre,
+    };
+  });
+
+  const priorityOptions = prioridadOptions.map((priority) => ({
+    value: priority,
+    label: t(`priorities.${priority}`),
   }));
 
-  const tipoElementoOptions = elementTypes.map((type) => ({
-    value: type.id_tipo_elemento,
-    label: type.nombre,
-  }));
+  // ACTUALIZAR FORMULARIO
 
   const handleChange = (event) => {
     const { name, value } = event.target;
 
     setForm((prev) => {
+      // TIPO DE TRASLADO
+
       if (name === "tipoTraslado") {
         const selectedType = transferTypes.find(
           (type) => Number(type.id_tipo_traslado) === Number(value),
@@ -104,6 +179,8 @@ export default function NewTransfer() {
         };
       }
 
+      // TIPO DE ELEMENTO
+
       if (name === "tipoElemento") {
         return {
           ...prev,
@@ -120,14 +197,18 @@ export default function NewTransfer() {
     });
   };
 
+  // LIMPIAR FORMULARIO
+
   const handleCancel = () => {
-    setForm({
-      ...initialForm,
-    });
+    setForm({ ...initialForm });
   };
+
+  // CREAR SOLICITUD
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    // CAMPOS OBLIGATORIOS
 
     if (
       !form.tipoTraslado ||
@@ -137,34 +218,35 @@ export default function NewTransfer() {
       !form.prioridad ||
       !form.fechaRequerida
     ) {
-      showNotification("Complete todos los campos obligatorios.", "error");
-
+      showNotification(t("newTransfer.errors.required"), "error");
       return;
     }
+
+    // PACIENTE
 
     if (elementTypeName === "Paciente" && !form.cedulaPaciente.trim()) {
-      showNotification("Ingrese la cédula del paciente.", "error");
-
+      showNotification(t("newTransfer.errors.patientId"), "error");
       return;
     }
+
+    // OTRO ELEMENTO
 
     if (elementTypeName !== "Paciente" && !form.elemento.trim()) {
-      showNotification("Ingrese una descripción del elemento.", "error");
-
+      showNotification(t("newTransfer.errors.element"), "error");
       return;
     }
+
+    // VALIDAR ORIGEN Y DESTINO
 
     if (
       transferTypeName !== "Traslado interno" &&
       form.origen.trim().toLowerCase() === form.destino.trim().toLowerCase()
     ) {
-      showNotification(
-        "El origen y el destino no pueden ser iguales.",
-        "error",
-      );
-
+      showNotification(t("newTransfer.errors.sameLocation"), "error");
       return;
     }
+
+    // DATOS PARA EL BACKEND
 
     const transferData = {
       id_tipo_traslado: Number(form.tipoTraslado),
@@ -192,16 +274,16 @@ export default function NewTransfer() {
 
       await createTransfer(transferData);
 
-      showNotification(
-        "Solicitud de traslado registrada correctamente.",
-        "success",
-      );
+      showNotification(t("newTransfer.success"), "success");
 
-      setForm({
-        ...initialForm,
-      });
+      setForm({ ...initialForm });
     } catch (error) {
-      showNotification(error.message, "error");
+      console.error(error);
+
+      showNotification(
+        error.message || t("newTransfer.errors.submit"),
+        "error",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -221,6 +303,8 @@ export default function NewTransfer() {
           boxShadow: "var(--card-shadow)",
         }}
       >
+        {/* CABECERA */}
+
         <Typography
           variant="h6"
           sx={{
@@ -228,7 +312,7 @@ export default function NewTransfer() {
             mb: 0.5,
           }}
         >
-          Nueva solicitud de traslado
+          {t("newTransfer.title")}
         </Typography>
 
         <Typography
@@ -238,8 +322,10 @@ export default function NewTransfer() {
             mb: 3,
           }}
         >
-          Ingrese los datos necesarios para solicitar el traslado.
+          {t("newTransfer.description")}
         </Typography>
+
+        {/* CAMPOS */}
 
         <Box
           sx={{
@@ -252,27 +338,33 @@ export default function NewTransfer() {
             rowGap: 2.5,
           }}
         >
+          {/* TIPO DE TRASLADO */}
+
           <TransferFormField
-            label="Tipo de traslado *"
+            label={t("newTransfer.transferType")}
             name="tipoTraslado"
             value={form.tipoTraslado}
             onChange={handleChange}
             icon={<LocalHospitalOutlinedIcon />}
             select
             options={tipoTrasladoOptions}
-            disabled={loadingCatalogs}
+            disabled={loadingCatalogs || submitting}
           />
 
+          {/* TIPO DE ELEMENTO */}
+
           <TransferFormField
-            label="Tipo de elemento *"
+            label={t("newTransfer.elementType")}
             name="tipoElemento"
             value={form.tipoElemento}
             onChange={handleChange}
             icon={<Inventory2OutlinedIcon />}
             select
             options={tipoElementoOptions}
-            disabled={loadingCatalogs}
+            disabled={loadingCatalogs || submitting}
           />
+
+          {/* PACIENTE O ELEMENTO */}
 
           <TransferSubjectField
             tipoElemento={elementTypeName}
@@ -281,42 +373,54 @@ export default function NewTransfer() {
             onChange={handleChange}
           />
 
+          {/* ORIGEN */}
+
           <TransferFormField
-            label="Origen *"
+            label={t("newTransfer.origin")}
             name="origen"
             value={form.origen}
             onChange={handleChange}
             icon={<LocationOnOutlinedIcon />}
-            disabled={currentRouteRule.lockOrigen}
+            disabled={currentRouteRule.lockOrigen || submitting}
           />
 
+          {/* DESTINO */}
+
           <TransferFormField
-            label="Destino *"
+            label={t("newTransfer.destination")}
             name="destino"
             value={form.destino}
             onChange={handleChange}
             icon={<LocationOnOutlinedIcon />}
-            disabled={currentRouteRule.lockDestino}
+            disabled={currentRouteRule.lockDestino || submitting}
           />
 
+          {/* PRIORIDAD */}
+
           <TransferFormField
-            label="Prioridad *"
+            label={t("newTransfer.priority")}
             name="prioridad"
             value={form.prioridad}
             onChange={handleChange}
             icon={<FlagOutlinedIcon />}
             select
-            options={prioridadOptions}
+            options={priorityOptions}
+            disabled={submitting}
           />
 
+          {/* FECHA REQUERIDA */}
+
           <TransferFormField
-            label="Fecha requerida *"
+            label={t("newTransfer.requiredDate")}
             name="fechaRequerida"
             value={form.fechaRequerida}
             onChange={handleChange}
             icon={<CalendarMonthOutlinedIcon />}
             type="date"
+            disabled={submitting}
           />
+
+          {/* OBSERVACIONES */}
 
           <Box
             sx={{
@@ -333,7 +437,7 @@ export default function NewTransfer() {
                 mb: 1,
               }}
             >
-              Observaciones
+              {t("newTransfer.observations")}
             </Typography>
 
             <TextField
@@ -343,11 +447,13 @@ export default function NewTransfer() {
               name="observaciones"
               value={form.observaciones}
               onChange={handleChange}
-              placeholder="Ingrese observaciones adicionales..."
+              placeholder={t("newTransfer.observationsPlaceholder")}
               disabled={submitting}
             />
           </Box>
         </Box>
+
+        {/* ACCIONES */}
 
         <Stack
           direction="row"
@@ -363,7 +469,7 @@ export default function NewTransfer() {
             onClick={handleCancel}
             disabled={submitting}
           >
-            Cancelar
+            {t("newTransfer.cancel")}
           </Button>
 
           <Button
@@ -371,7 +477,7 @@ export default function NewTransfer() {
             variant="contained"
             disabled={submitting || loadingCatalogs}
           >
-            {submitting ? "Enviando..." : "Enviar solicitud"}
+            {submitting ? t("newTransfer.submitting") : t("newTransfer.submit")}
           </Button>
         </Stack>
       </Card>

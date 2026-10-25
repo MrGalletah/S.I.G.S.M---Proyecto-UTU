@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Alert, Box, Card, CircularProgress, Stack } from "@mui/material";
 
@@ -18,6 +19,8 @@ import { useNotification } from "../../../../hooks/useNotification";
 
 const rowsPerPage = 10;
 
+// FILTROS INICIALES
+
 const initialFilters = {
   search: "",
   desde: "",
@@ -28,39 +31,33 @@ const initialFilters = {
 };
 
 export default function TransferHistory() {
+  const { t } = useTranslation("transfers");
+
   // HISTORIAL
 
   const [transfers, setTransfers] = useState([]);
-
   const [page, setPage] = useState(1);
-
   const [totalPages, setTotalPages] = useState(0);
-
   const [total, setTotal] = useState(0);
-
   const [loading, setLoading] = useState(true);
 
-  // CAMPOS DE FILTRO
+  // CAMPOS DEL FORMULARIO DE FILTROS
 
   const [searchInput, setSearchInput] = useState("");
-
   const [desdeInput, setDesdeInput] = useState("");
-
   const [hastaInput, setHastaInput] = useState("");
 
   const [vehicleInput, setVehicleInput] = useState("");
-
   const [driverInput, setDriverInput] = useState("");
-
   const [nurseInput, setNurseInput] = useState("");
 
-  // FILTROS APLICADOS
+  // FILTROS REALMENTE APLICADOS
 
   const [filters, setFilters] = useState({
     ...initialFilters,
   });
 
-  // CATÁLOGOS PARA FILTROS
+  // CATÁLOGOS DE RECURSOS
 
   const [resources, setResources] = useState({
     vehiculos: [],
@@ -70,7 +67,7 @@ export default function TransferHistory() {
 
   const [loadingResources, setLoadingResources] = useState(true);
 
-  // DETALLE
+  // DETALLE SELECCIONADO
 
   const [selectedDetail, setSelectedDetail] = useState(null);
 
@@ -85,7 +82,18 @@ export default function TransferHistory() {
   const { notification, showNotification, closeNotification } =
     useNotification();
 
-  // COMPROBAR SI HAY FILTROS APLICADOS
+  // REFERENCIAS ESTABLES
+  // EVITAMOS RECARGAR DATOS AL CAMBIAR DE IDIOMA
+
+  const notificationRef = useRef(showNotification);
+  const translationRef = useRef(t);
+
+  useEffect(() => {
+    notificationRef.current = showNotification;
+    translationRef.current = t;
+  }, [showNotification, t]);
+
+  // COMPROBAR FILTROS APLICADOS
 
   const hasAppliedFilters = Object.values(filters).some(
     (value) => value !== "",
@@ -98,22 +106,23 @@ export default function TransferHistory() {
 
     getTransferCatalogs()
       .then((data) => {
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         setResources({
           vehiculos: data.vehiculos_historial ?? [],
-
           conductores: data.conductores_historial ?? [],
-
           enfermeros: data.enfermeros_historial ?? [],
         });
       })
       .catch((error) => {
-        if (!cancelled) {
-          showNotification(error.message, "error");
-        }
+        if (cancelled) return;
+
+        console.error(error);
+
+        notificationRef.current(
+          error.message || translationRef.current("history.errors.catalogs"),
+          "error",
+        );
       })
       .finally(() => {
         if (!cancelled) {
@@ -139,19 +148,20 @@ export default function TransferHistory() {
           ...filters,
         });
 
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         setTransfers(data.transfers);
-
         setTotal(data.pagination.total);
-
         setTotalPages(data.pagination.totalPages);
       } catch (error) {
-        if (!cancelled) {
-          showNotification(error.message, "error");
-        }
+        if (cancelled) return;
+
+        console.error(error);
+
+        notificationRef.current(
+          error.message || translationRef.current("history.errors.load"),
+          "error",
+        );
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -166,12 +176,10 @@ export default function TransferHistory() {
     };
   }, [page, filters]);
 
-  // SCROLL AL DETALLE CUANDO CAMBIA
+  // SCROLL AL DETALLE
 
   useEffect(() => {
-    if (!selectedDetail) {
-      return;
-    }
+    if (!selectedDetail) return;
 
     detailsRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -182,27 +190,22 @@ export default function TransferHistory() {
   // CAMBIAR PÁGINA
 
   const handlePageChange = (value) => {
-    if (value === page) {
-      return;
-    }
+    if (value === page) return;
 
     setLoading(true);
-
     setPage(value);
   };
 
-  // CAMBIAR TEXTO DE BÚSQUEDA
+  // CAMBIAR BÚSQUEDA
 
   const handleSearchInputChange = (value) => {
     setSearchInput(value);
 
-    // Si había una búsqueda aplicada y el usuario
-    // vacía completamente el campo, eliminamos
-    // automáticamente únicamente ese filtro.
+    // BORRAR AUTOMÁTICAMENTE EL FILTRO DE TEXTO
+    // SI SE VACÍA EL CAMPO
 
     if (value === "" && filters.search !== "") {
       setLoading(true);
-
       setPage(1);
 
       setFilters((prev) => ({
@@ -215,30 +218,22 @@ export default function TransferHistory() {
   // APLICAR FILTROS
 
   const handleSearch = () => {
-    if (desdeInput && hastaInput && desdeInput > hastaInput) {
-      showNotification(
-        "La fecha desde no puede ser posterior a la fecha hasta.",
-        "error",
-      );
+    // COMPROBAR RANGO DE FECHAS
 
+    if (desdeInput && hastaInput && desdeInput > hastaInput) {
+      showNotification(t("history.errors.dateRange"), "error");
       return;
     }
 
     setLoading(true);
-
     setPage(1);
 
     setFilters({
       search: searchInput.trim(),
-
       desde: desdeInput,
-
       hasta: hastaInput,
-
       idVehiculo: vehicleInput,
-
       idConductor: driverInput,
-
       idEnfermero: nurseInput,
     });
   };
@@ -247,19 +242,14 @@ export default function TransferHistory() {
 
   const handleClear = () => {
     setSearchInput("");
-
     setDesdeInput("");
-
     setHastaInput("");
 
     setVehicleInput("");
-
     setDriverInput("");
-
     setNurseInput("");
 
     setLoading(true);
-
     setPage(1);
 
     setFilters({
@@ -267,23 +257,22 @@ export default function TransferHistory() {
     });
   };
 
-  // VER DETALLE
+  // CONSULTAR DETALLE DEL TRASLADO
 
   const handleView = async (id) => {
-    if (loadingDetail) {
-      return;
-    }
+    if (loadingDetail) return;
 
     try {
       setLoadingDetail(true);
-
       setDetailError("");
 
       const detail = await getTransferDetail(id);
 
       setSelectedDetail(detail);
     } catch (error) {
-      setDetailError(error.message);
+      console.error(error);
+
+      setDetailError(error.message || t("history.errors.detail"));
     } finally {
       setLoadingDetail(false);
     }
@@ -301,14 +290,13 @@ export default function TransferHistory() {
           },
 
           boxShadow: "var(--card-shadow)",
-
           mt: 2,
-
           minWidth: 0,
-
           overflow: "hidden",
         }}
       >
+        {/* FILTROS */}
+
         <HistoryFilters
           search={searchInput}
           desde={desdeInput}
@@ -354,19 +342,14 @@ export default function TransferHistory() {
             <Box
               sx={{
                 position: "absolute",
-
                 inset: 0,
 
                 display: "flex",
-
                 alignItems: "center",
-
                 justifyContent: "center",
 
                 bgcolor: "rgba(255,255,255,0.65)",
-
                 borderRadius: 2,
-
                 zIndex: 2,
               }}
             >
@@ -386,6 +369,8 @@ export default function TransferHistory() {
             scrollMarginBottom: "24px",
           }}
         >
+          {/* ERROR AL CONSULTAR EL DETALLE */}
+
           {detailError && (
             <Alert
               severity="error"
@@ -397,6 +382,8 @@ export default function TransferHistory() {
             </Alert>
           )}
 
+          {/* DETALLE CARGADO */}
+
           {selectedDetail && (
             <Box
               sx={{
@@ -405,25 +392,21 @@ export default function TransferHistory() {
             >
               <TransferDetailsCard transfer={selectedDetail} />
 
+              {/* RECARGANDO OTRO DETALLE */}
+
               {loadingDetail && (
                 <Box
                   sx={{
                     position: "absolute",
-
                     inset: 0,
-
                     mt: 2,
 
                     display: "flex",
-
                     alignItems: "center",
-
                     justifyContent: "center",
 
                     bgcolor: "rgba(255,255,255,0.65)",
-
                     borderRadius: 4,
-
                     zIndex: 2,
                   }}
                 >
@@ -433,11 +416,12 @@ export default function TransferHistory() {
             </Box>
           )}
 
+          {/* PRIMERA CARGA DEL DETALLE */}
+
           {!selectedDetail && loadingDetail && (
             <Stack
               sx={{
                 py: 6,
-
                 alignItems: "center",
               }}
             >

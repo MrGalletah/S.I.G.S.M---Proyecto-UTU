@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import {
   Accordion,
   AccordionDetails,
@@ -9,6 +11,26 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
 import { formatDate } from "../../../utils/formatDate";
+
+// NOMBRES ORIGINALES DE LA BASE DE DATOS
+
+const transferTypeKeys = {
+  "Traslado interno": "internal",
+  "Traslado a otro centro": "otherCenter",
+  "Traslado a domicilio": "home",
+  "Retorno al hospital": "return",
+  Otro: "other",
+};
+
+const elementTypeKeys = {
+  Paciente: "patient",
+  "Muestra biológica": "biologicalSample",
+  Equipamiento: "equipment",
+  Insumo: "supply",
+  Otro: "other",
+};
+
+// CAMPO DE SOLO LECTURA
 
 function ReadOnlyField({ label, value }) {
   return (
@@ -38,6 +60,27 @@ function ReadOnlyField({ label, value }) {
 }
 
 export default function RequestAccordion({ transfer }) {
+  const { t } = useTranslation("transfers");
+
+  // TRADUCIR TIPOS, SIN MODIFICAR LOS DATOS ORIGINALES
+
+  const translateTransferType = (value) => {
+    const key = transferTypeKeys[value];
+
+    return key ? t(`newTransfer.transferTypes.${key}`) : value;
+  };
+
+  const translateElementType = (value) => {
+    const key = elementTypeKeys[value];
+
+    return key ? t(`newTransfer.elementTypes.${key}`) : value;
+  };
+
+  const translatePriority = (value) =>
+    t(`priorities.${value}`, {
+      defaultValue: value ?? "-",
+    });
+
   return (
     <Accordion
       defaultExpanded
@@ -47,16 +90,17 @@ export default function RequestAccordion({ transfer }) {
         borderColor: "divider",
         borderRadius: "12px !important",
         boxShadow: "none",
-
         "&::before": {
           display: "none",
         },
       }}
     >
+      {/* ENCABEZADO */}
+
       <AccordionSummary expandIcon={<ExpandMoreIcon />}>
         <Box>
           <Typography sx={{ fontWeight: 700 }}>
-            Datos de la solicitud
+            {t("followUp.request.title")}
           </Typography>
 
           <Typography
@@ -65,10 +109,12 @@ export default function RequestAccordion({ transfer }) {
               color: "text.secondary",
             }}
           >
-            Información ingresada por el funcionario solicitante.
+            {t("followUp.request.description")}
           </Typography>
         </Box>
       </AccordionSummary>
+
+      {/* DATOS */}
 
       <AccordionDetails>
         <Box
@@ -81,52 +127,70 @@ export default function RequestAccordion({ transfer }) {
             gap: 2.5,
           }}
         >
+          {/* CÓDIGO */}
+
           <ReadOnlyField
-            label="Código"
+            label={t("followUp.request.code")}
             value={transfer.codigo}
           />
 
-          <ReadOnlyField
-            label="Tipo de traslado"
-            value={transfer.tipoTraslado}
-          />
+          {/* TIPO DE TRASLADO */}
 
           <ReadOnlyField
-            label="Tipo de elemento"
-            value={transfer.tipoElemento}
+            label={t("followUp.request.transferType")}
+            value={translateTransferType(transfer.tipoTraslado)}
           />
+
+          {/* TIPO DE ELEMENTO */}
+
+          <ReadOnlyField
+            label={t("followUp.request.elementType")}
+            value={translateElementType(transfer.tipoElemento)}
+          />
+
+          {/* PACIENTE O ELEMENTO */}
 
           {transfer.tipoElemento === "Paciente" ? (
             <ReadOnlyField
-              label="Cédula del paciente"
+              label={t("followUp.request.patientId")}
               value={transfer.cedulaPaciente}
             />
           ) : (
             <ReadOnlyField
-              label="Elemento"
+              label={t("followUp.request.item")}
               value={transfer.elemento}
             />
           )}
 
+          {/* ORIGEN */}
+
           <ReadOnlyField
-            label="Origen"
+            label={t("followUp.request.origin")}
             value={transfer.origen}
           />
 
+          {/* DESTINO */}
+
           <ReadOnlyField
-            label="Destino"
+            label={t("followUp.request.destination")}
             value={transfer.destino}
           />
 
-          <ReadOnlyField
-            label="Prioridad"
-            value={transfer.prioridad}
-          />
+          {/* PRIORIDAD */}
 
           <ReadOnlyField
-            label="Fecha requerida"
+            label={t("followUp.request.priority")}
+            value={translatePriority(transfer.prioridad)}
+          />
+
+          {/* FECHA REQUERIDA */}
+
+          <ReadOnlyField
+            label={t("followUp.request.requiredDate")}
             value={formatDate(transfer.fechaRequerida)}
           />
+
+          {/* OBSERVACIONES */}
 
           <Box
             sx={{
@@ -137,7 +201,7 @@ export default function RequestAccordion({ transfer }) {
             }}
           >
             <ReadOnlyField
-              label="Observaciones"
+              label={t("followUp.request.observations")}
               value={transfer.observaciones}
             />
           </Box>

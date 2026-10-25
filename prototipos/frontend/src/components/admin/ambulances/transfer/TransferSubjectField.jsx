@@ -1,9 +1,6 @@
-import {
-  Box,
-  InputAdornment,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { useTranslation } from "react-i18next";
+
+import { Box, InputAdornment, TextField, Typography } from "@mui/material";
 
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
@@ -14,28 +11,34 @@ export default function TransferSubjectField({
   elemento,
   onChange,
 }) {
+  const { t } = useTranslation("transfers");
+
   if (!tipoElemento) {
     return null;
   }
 
+  // EL NOMBRE ORIGINAL VIENE DE MARIA DB
+
   const isPaciente = tipoElemento === "Paciente";
+
+  // PLACEHOLDER SEGÚN EL TIPO DE ELEMENTO
 
   const getPlaceholder = () => {
     switch (tipoElemento) {
       case "Muestra biológica":
-        return "Ej: Muestra de sangre para laboratorio";
+        return t("newTransfer.subject.biologicalSamplePlaceholder");
 
       case "Equipamiento":
-        return "Ej: Respirador portátil";
+        return t("newTransfer.subject.equipmentPlaceholder");
 
       case "Insumo":
-        return "Ej: Material quirúrgico";
+        return t("newTransfer.subject.supplyPlaceholder");
 
       case "Otro":
-        return "Describa el elemento a trasladar";
+        return t("newTransfer.subject.otherPlaceholder");
 
       default:
-        return "Ingrese una descripción";
+        return t("newTransfer.subject.defaultPlaceholder");
     }
   };
 
@@ -57,8 +60,8 @@ export default function TransferSubjectField({
         }}
       >
         {isPaciente
-          ? "Cédula del paciente *"
-          : "Descripción del elemento *"}
+          ? t("newTransfer.patientId")
+          : t("newTransfer.elementDescription")}
       </Typography>
 
       <TextField
@@ -67,7 +70,7 @@ export default function TransferSubjectField({
         value={isPaciente ? cedulaPaciente : elemento}
         placeholder={
           isPaciente
-            ? "Ej: 4.123.456-7"
+            ? t("newTransfer.subject.patientPlaceholder")
             : getPlaceholder()
         }
         onChange={onChange}

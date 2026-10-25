@@ -1,7 +1,12 @@
+import { useTranslation } from "react-i18next";
+
 import { Box, Tooltip, Typography } from "@mui/material";
+
 import CheckIcon from "@mui/icons-material/Check";
 
 import { formatDate } from "./formatDate";
+
+// ESTADOS ORIGINALES DEL SISTEMA
 
 const transferSteps = [
   "Registrado",
@@ -11,6 +16,8 @@ const transferSteps = [
   "Completado",
 ];
 
+// FORMATEAR FECHA Y HORA
+
 function formatDateTime(value) {
   if (!value) return "-";
 
@@ -19,13 +26,26 @@ function formatDateTime(value) {
   return formatDate(date) + (time ? ` - ${time.slice(0, 5)}` : "");
 }
 
+// TIMELINE DEL TRASLADO
+
 export default function StatusTimeline({ transfer }) {
+  const { t } = useTranslation("transfers");
+
   const currentStepIndex = transferSteps.indexOf(transfer.estado);
 
   const history = transfer.historial ?? [];
 
+  // TRADUCIR ESTADOS SIN MODIFICAR SUS VALORES
+
+  const translateState = (state) =>
+    t(`states.${state}`, {
+      defaultValue: state,
+    });
+
   return (
     <Box sx={{ width: "100%" }}>
+      {/* TÍTULO */}
+
       <Typography
         sx={{
           fontSize: 16,
@@ -33,8 +53,10 @@ export default function StatusTimeline({ transfer }) {
           mb: 2,
         }}
       >
-        Seguimiento del traslado
+        {t("timeline.title")}
       </Typography>
+
+      {/* ESTADOS DEL TRASLADO */}
 
       {transferSteps.map((step, index) => {
         const isDone = index <= currentStepIndex;
@@ -44,6 +66,8 @@ export default function StatusTimeline({ transfer }) {
           (index === currentStepIndex && step === "Completado");
 
         const isCurrent = index === currentStepIndex && !isCompleted;
+
+        // BUSCAR EL REGISTRO DEL ESTADO ORIGINAL
 
         const entry = history.find((item) => item.estado === step);
 
@@ -157,7 +181,7 @@ export default function StatusTimeline({ transfer }) {
                         : "var(--text-muted-color)",
                   }}
                 >
-                  {step}
+                  {translateState(step)}
                 </Typography>
 
                 <Typography
@@ -166,7 +190,7 @@ export default function StatusTimeline({ transfer }) {
                     color: "text.secondary",
                   }}
                 >
-                  {isDone ? formatDateTime(fechaHora) : "Pendiente"}
+                  {isDone ? formatDateTime(fechaHora) : t("timeline.pending")}
                 </Typography>
               </Box>
 
@@ -180,8 +204,9 @@ export default function StatusTimeline({ transfer }) {
                     mt: 0.25,
                   }}
                 >
-                  {index === 0 ? "Registrado por: " : "Actualizado por: "}
-
+                  {index === 0
+                    ? t("timeline.registeredBy")
+                    : t("timeline.updatedBy")}{" "}
                   <Box
                     component="span"
                     sx={{
@@ -219,7 +244,7 @@ export default function StatusTimeline({ transfer }) {
                         color: "var(--primary-color)",
                       }}
                     >
-                      Observación:{" "}
+                      {t("timeline.observation")}{" "}
                     </Box>
 
                     {observacion}

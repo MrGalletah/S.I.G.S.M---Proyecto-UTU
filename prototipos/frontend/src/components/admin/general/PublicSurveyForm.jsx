@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Alert,
@@ -40,21 +41,37 @@ const primaryButtonStyles = {
   },
 };
 
+// FORMULARIO DE ENCUESTA PÚBLICA
+
 export default function PublicSurveyForm({ survey, onBack }) {
+  const { t } = useTranslation("public");
+
+  // ENCUESTA
+
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
+  // RESPUESTAS
+
   const [answers, setAnswers] = useState({});
   const [identity, setIdentity] = useState("");
+
+  // VALIDACIONES
 
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState("");
 
+  // ENVÍO
+
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // LOAD SURVEY QUESTIONS
+  // TRADUCIR ERRORES GUARDADOS COMO CLAVES
+
+  const errorMessage = (key) => (key ? t(key, { defaultValue: key }) : "");
+
+  // CARGAR PREGUNTAS DE LA ENCUESTA
 
   useEffect(() => {
     let cancelled = false;
@@ -64,15 +81,17 @@ export default function PublicSurveyForm({ survey, onBack }) {
         if (cancelled) return;
 
         if (!data.ok || !data.encuesta) {
-          throw new Error("No se pudo cargar la encuesta.");
+          throw new Error("survey.errors.load");
         }
 
         setDetail(data.encuesta);
       })
       .catch((error) => {
-        if (!cancelled) {
-          setLoadError(error.message);
-        }
+        if (cancelled) return;
+
+        console.error(error);
+
+        setLoadError(error.message || "survey.errors.load");
       })
       .finally(() => {
         if (!cancelled) {
@@ -85,13 +104,13 @@ export default function PublicSurveyForm({ survey, onBack }) {
     };
   }, [survey.id_encuesta]);
 
-  // ONLY ACTIVE QUESTIONS IN THEIR SAVED ORDER
+  // SOLO PREGUNTAS ACTIVAS Y EN ORDEN
 
   const questions = (detail?.preguntas ?? [])
     .filter((question) => isTrue(question.activa))
     .sort((first, second) => Number(first.orden) - Number(second.orden));
 
-  // UPDATE ANSWER
+  // ACTUALIZAR RESPUESTA
 
   const setAnswer = (questionId, value) => {
     setAnswers((previous) => ({
@@ -99,44 +118,50 @@ export default function PublicSurveyForm({ survey, onBack }) {
       [questionId]: value,
     }));
 
+    // LIMPIAR ERROR DEL CAMPO MODIFICADO
+
     setFieldErrors((previous) => ({
       ...previous,
       [questionId]: "",
     }));
   };
 
-  // SUBMIT SURVEY
+  // ENVIAR ENCUESTA
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (submitting || submitted || !detail) return;
+    if (submitting || submitted || !detail) {
+      return;
+    }
 
     const errors = {};
     const responses = [];
 
-    // VALIDATE IDENTITY FOR NON-ANONYMOUS SURVEYS
+    // VALIDAR IDENTIFICACIÓN
 
     if (!isTrue(detail.anonima) && !identity.trim()) {
-      errors.cedula = "La cédula es obligatoria.";
+      errors.cedula = "survey.errors.identityRequired";
     }
 
-    // VALIDATE QUESTIONS
+    // VALIDAR CADA PREGUNTA
 
     for (const question of questions) {
       const questionId = Number(question.id_pregunta);
 
       const value = String(answers[questionId] ?? "").trim();
 
+      // PREGUNTA SIN RESPUESTA
+
       if (!value) {
         if (isTrue(question.obligatoria)) {
-          errors[questionId] = "Esta pregunta es obligatoria.";
+          errors[questionId] = "survey.errors.questionRequired";
         }
 
         continue;
       }
 
-      // OPEN QUESTION
+      // PREGUNTA ABIERTA
 
       if (question.tipo === "abierta") {
         responses.push({
@@ -144,14 +169,14 @@ export default function PublicSurveyForm({ survey, onBack }) {
           respuesta: value,
         });
       } else {
-        // CLOSED OR SELECT QUESTION
+        // PREGUNTA CERRADA O DE SELECCIÓN
 
         const option = (question.opciones ?? []).find(
           (item) => Number(item.id_opcion) === Number(value),
         );
 
         if (!option) {
-          errors[questionId] = "Seleccioná una opción válida.";
+          errors[questionId] = "survey.errors.invalidOption";
         } else {
           responses.push({
             id_pregunta: questionId,
@@ -164,22 +189,27 @@ export default function PublicSurveyForm({ survey, onBack }) {
     setFieldErrors(errors);
     setSubmitError("");
 
+    // DETENER SI HAY ERRORES
+
     if (Object.keys(errors).length > 0) {
-      setSubmitError("Revisá los campos marcados antes de enviar.");
+      setSubmitError("survey.errors.review");
 
       return;
     }
 
-    // BUILD REQUEST
+    // PREPARAR DATOS PARA PHP
 
     const payload = {
       id_encuesta: Number(detail.id_encuesta),
+
       respuestas: responses,
     };
 
     if (!isTrue(detail.anonima)) {
       payload.cedula = identity.trim();
     }
+
+    // ENVIAR RESPUESTAS
 
     try {
       setSubmitting(true);
@@ -190,13 +220,13 @@ export default function PublicSurveyForm({ survey, onBack }) {
     } catch (error) {
       console.error(error);
 
-      setSubmitError(error.message || "No se pudieron enviar las respuestas.");
+      setSubmitError(error.message || "survey.errors.submit");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // SUCCESS MESSAGE
+  // CONFIRMACIÓN DE ENVÍO
 
   if (submitted) {
     return (
@@ -210,26 +240,37 @@ export default function PublicSurveyForm({ survey, onBack }) {
           mx: "auto",
         }}
       >
-        <CheckCircleOutlineIcon color="success" sx={{ fontSize: 64, mb: 2 }} />
+        <CheckCircleOutlineIcon
+          color="success"
+          sx={{
+            fontSize: 64,
+            mb: 2,
+          }}
+        />
 
         <Typography variant="h5" fontWeight={700} gutterBottom>
-          ¡Gracias por responder!
+          {t("survey.thanks")}
         </Typography>
 
         <Typography color="text.secondary" sx={{ mb: 3 }}>
-          Tus respuestas se guardaron correctamente.
+          {t("survey.success")}
         </Typography>
 
         <Button variant="contained" onClick={onBack} sx={primaryButtonStyles}>
-          Volver al listado
+          {t("survey.back")}
         </Button>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ maxWidth: 800, mx: "auto" }}>
-      {/* BACK BUTTON */}
+    <Box
+      sx={{
+        maxWidth: 800,
+        mx: "auto",
+      }}
+    >
+      {/* VOLVER AL LISTADO */}
 
       <Button
         startIcon={<ArrowBackIcon />}
@@ -240,10 +281,10 @@ export default function PublicSurveyForm({ survey, onBack }) {
           textTransform: "none",
         }}
       >
-        Volver al listado
+        {t("survey.back")}
       </Button>
 
-      {/* LOADING AND ERROR STATES */}
+      {/* ESTADOS DE CARGA */}
 
       {loading ? (
         <Box
@@ -256,13 +297,13 @@ export default function PublicSurveyForm({ survey, onBack }) {
           <CircularProgress />
         </Box>
       ) : loadError ? (
-        <Alert severity="error">{loadError}</Alert>
+        <Alert severity="error">{errorMessage(loadError)}</Alert>
       ) : !detail ? (
-        <Alert severity="error">No se pudo cargar la encuesta.</Alert>
+        <Alert severity="error">{t("survey.errors.load")}</Alert>
       ) : (
         <Box component="form" onSubmit={handleSubmit} noValidate>
           <Stack spacing={2.5}>
-            {/* SURVEY HEADER */}
+            {/* CABECERA DE LA ENCUESTA */}
 
             <Card
               variant="outlined"
@@ -284,8 +325,10 @@ export default function PublicSurveyForm({ survey, onBack }) {
               <Divider sx={{ my: 2 }} />
 
               <Typography variant="body2" color="text.secondary">
-                Las preguntas marcadas con * son obligatorias.
+                {t("survey.requiredInfo")}
               </Typography>
+
+              {/* AVISO DE ANONIMATO */}
 
               {isTrue(detail.anonima) && (
                 <Alert
@@ -295,12 +338,12 @@ export default function PublicSurveyForm({ survey, onBack }) {
                     borderRadius: 2,
                   }}
                 >
-                  Esta encuesta es anónima. No se solicitará tu cédula.
+                  {t("survey.anonymousInfo")}
                 </Alert>
               )}
             </Card>
 
-            {/* IDENTITY */}
+            {/* IDENTIFICACIÓN PARA ENCUESTAS NO ANÓNIMAS */}
 
             {!isTrue(detail.anonima) && (
               <Card
@@ -313,7 +356,7 @@ export default function PublicSurveyForm({ survey, onBack }) {
                 <TextField
                   fullWidth
                   required
-                  label="Cédula"
+                  label={t("survey.patientId")}
                   value={identity}
                   onChange={(event) => {
                     setIdentity(event.target.value);
@@ -326,8 +369,9 @@ export default function PublicSurveyForm({ survey, onBack }) {
                   disabled={submitting}
                   error={Boolean(fieldErrors.cedula)}
                   helperText={
-                    fieldErrors.cedula ||
-                    "Ingresá tu cédula para identificar tu respuesta."
+                    fieldErrors.cedula
+                      ? errorMessage(fieldErrors.cedula)
+                      : t("survey.patientIdHelp")
                   }
                   slotProps={{
                     htmlInput: {
@@ -338,13 +382,15 @@ export default function PublicSurveyForm({ survey, onBack }) {
               </Card>
             )}
 
-            {/* QUESTIONS */}
+            {/* PREGUNTAS */}
 
             {questions.map((question, index) => {
               const questionId = Number(question.id_pregunta);
+
               const value = answers[questionId] ?? "";
 
               const required = isTrue(question.obligatoria);
+
               const error = fieldErrors[questionId];
 
               return (
@@ -353,33 +399,38 @@ export default function PublicSurveyForm({ survey, onBack }) {
                   variant="outlined"
                   sx={{
                     borderRadius: 3,
-                    p: { xs: 2.5, sm: 3 },
+                    p: {
+                      xs: 2.5,
+                      sm: 3,
+                    },
                   }}
                 >
                   <Stack spacing={2}>
+                    {/* ENUNCIADO */}
+
                     <Typography variant="subtitle1" fontWeight={700}>
                       {index + 1}. {question.texto}
                       {required ? " *" : ""}
                     </Typography>
 
-                    {/* OPEN QUESTION */}
-
                     {question.tipo === "abierta" ? (
+                      // PREGUNTA ABIERTA
+
                       <TextField
                         fullWidth
                         multiline
                         minRows={3}
-                        placeholder="Escribí tu respuesta"
+                        placeholder={t("survey.writeAnswer")}
                         value={value}
                         onChange={(event) =>
                           setAnswer(questionId, event.target.value)
                         }
                         disabled={submitting}
                         error={Boolean(error)}
-                        helperText={error || " "}
+                        helperText={error ? errorMessage(error) : " "}
                       />
                     ) : question.tipo === "cerrada" ? (
-                      /* CLOSED QUESTION */
+                      // PREGUNTA CERRADA
 
                       <FormControl error={Boolean(error)} component="fieldset">
                         <FormLabel
@@ -389,7 +440,7 @@ export default function PublicSurveyForm({ survey, onBack }) {
                             mb: 1,
                           }}
                         >
-                          Elegí una opción
+                          {t("survey.chooseOption")}
                         </FormLabel>
 
                         <RadioGroup
@@ -408,26 +459,28 @@ export default function PublicSurveyForm({ survey, onBack }) {
                           ))}
                         </RadioGroup>
 
-                        {error && <FormHelperText>{error}</FormHelperText>}
+                        {error && (
+                          <FormHelperText>{errorMessage(error)}</FormHelperText>
+                        )}
                       </FormControl>
                     ) : (
-                      /* SELECT QUESTION */
+                      // PREGUNTA DE SELECCIÓN
 
                       <TextField
                         select
                         fullWidth
                         size="small"
-                        label="Seleccioná una opción"
+                        label={t("survey.selectOption")}
                         value={value}
                         onChange={(event) =>
                           setAnswer(questionId, event.target.value)
                         }
                         disabled={submitting}
                         error={Boolean(error)}
-                        helperText={error || " "}
+                        helperText={error ? errorMessage(error) : " "}
                       >
                         <MenuItem value="">
-                          <em>Sin seleccionar</em>
+                          <em>{t("survey.unselected")}</em>
                         </MenuItem>
 
                         {(question.opciones ?? []).map((option) => (
@@ -445,31 +498,36 @@ export default function PublicSurveyForm({ survey, onBack }) {
               );
             })}
 
-            {/* EMPTY SURVEY */}
+            {/* SIN PREGUNTAS */}
 
             {questions.length === 0 && (
-              <Alert severity="warning">
-                Esta encuesta no tiene preguntas disponibles.
-              </Alert>
+              <Alert severity="warning">{t("survey.empty")}</Alert>
             )}
 
-            {/* SUBMIT ERROR */}
+            {/* ERROR DE ENVÍO */}
 
-            {submitError && <Alert severity="error">{submitError}</Alert>}
+            {submitError && (
+              <Alert severity="error">{errorMessage(submitError)}</Alert>
+            )}
 
-            {/* ACTIONS */}
+            {/* ACCIONES */}
 
             <Stack
-              direction={{ xs: "column", sm: "row" }}
+              direction={{
+                xs: "column",
+                sm: "row",
+              }}
               justifyContent="flex-end"
               spacing={1.5}
             >
               <Button
                 onClick={onBack}
                 disabled={submitting}
-                sx={{ textTransform: "none" }}
+                sx={{
+                  textTransform: "none",
+                }}
               >
-                Cancelar
+                {t("survey.cancel")}
               </Button>
 
               <Button
@@ -488,7 +546,7 @@ export default function PublicSurveyForm({ survey, onBack }) {
                   px: 3,
                 }}
               >
-                {submitting ? "Enviando..." : "Enviar respuestas"}
+                {submitting ? t("survey.submitting") : t("survey.submit")}
               </Button>
             </Stack>
           </Stack>

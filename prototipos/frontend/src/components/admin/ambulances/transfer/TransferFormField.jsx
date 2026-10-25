@@ -44,7 +44,6 @@ export default function TransferFormField({
         sx={{
           "& .MuiOutlinedInput-root": {
             borderRadius: 2,
-
             bgcolor: disabled ? "action.hover" : "var(--white-color)",
           },
         }}

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import {
   Box,
   Button,
@@ -12,7 +14,6 @@ import {
 } from "@mui/material";
 
 import SearchIcon from "@mui/icons-material/Search";
-
 import FilterAltOffOutlinedIcon from "@mui/icons-material/FilterAltOffOutlined";
 
 // FECHA LOCAL DE HOY
@@ -21,17 +22,22 @@ function getToday() {
   const now = new Date();
 
   const year = now.getFullYear();
-
   const month = String(now.getMonth() + 1).padStart(2, "0");
-
   const day = String(now.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
 
-// SELECT DE RECURSOS
+// SELECT REUTILIZABLE DE RECURSOS
 
-function ResourceSelect({ label, value, onChange, options, disabled = false }) {
+function ResourceSelect({
+  label,
+  value,
+  onChange,
+  options,
+  disabled = false,
+  allLabel,
+}) {
   return (
     <FormControl size="small" fullWidth disabled={disabled}>
       <InputLabel>{label}</InputLabel>
@@ -41,7 +47,7 @@ function ResourceSelect({ label, value, onChange, options, disabled = false }) {
         label={label}
         onChange={(event) => onChange(event.target.value)}
       >
-        <MenuItem value="">Todos</MenuItem>
+        <MenuItem value="">{allLabel}</MenuItem>
 
         {options.map((option) => (
           <MenuItem key={option.value} value={option.value}>
@@ -53,11 +59,12 @@ function ResourceSelect({ label, value, onChange, options, disabled = false }) {
   );
 }
 
+// FILTROS DEL HISTORIAL
+
 export default function HistoryFilters({
   search,
   desde,
   hasta,
-
   idVehiculo,
   idConductor,
   idEnfermero,
@@ -67,25 +74,23 @@ export default function HistoryFilters({
   nurses,
 
   loadingResources,
-
   total,
-
   hasAppliedFilters,
 
   onSearchChange,
   onDesdeChange,
   onHastaChange,
-
   onVehicleChange,
   onDriverChange,
   onNurseChange,
-
   onSearch,
   onClear,
 }) {
+  const { t } = useTranslation("transfers");
+
   const today = getToday();
 
-  // VALORES QUE EL USUARIO ESTÁ EDITANDO
+  // COMPROBAR FILTROS PENDIENTES DE APLICAR
 
   const hasDraftFilters =
     Boolean(search.trim()) ||
@@ -95,38 +100,35 @@ export default function HistoryFilters({
     Boolean(idConductor) ||
     Boolean(idEnfermero);
 
-  // MOSTRAR LIMPIAR SI HAY ALGO ESCRITO
-  // O SI SIGUEN EXISTIENDO FILTROS APLICADOS
-
   const showClearFilters = hasDraftFilters || hasAppliedFilters;
+
+  // OPCIONES DE LOS CATÁLOGOS
 
   const vehicleOptions = vehicles.map((vehicle) => ({
     value: vehicle.id_vehiculo,
-
     label: `${vehicle.matricula} - ${vehicle.modelo}`,
   }));
 
   const driverOptions = drivers.map((driver) => ({
     value: driver.id_func,
-
     label: driver.nombre,
   }));
 
   const nurseOptions = nurses.map((nurse) => ({
     value: nurse.id_func,
-
     label: nurse.nombre,
   }));
 
+  // APLICAR FILTROS
+
   const handleSubmit = (event) => {
     event.preventDefault();
-
     onSearch();
   };
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
-      {/* CABECERA */}
+      {/* ENCABEZADO Y BUSCADOR */}
 
       <Stack
         direction={{
@@ -136,7 +138,6 @@ export default function HistoryFilters({
         spacing={1.5}
         sx={{
           justifyContent: "space-between",
-
           alignItems: {
             xs: "stretch",
             md: "center",
@@ -147,31 +148,29 @@ export default function HistoryFilters({
           <Typography
             sx={{
               fontSize: 20,
-
               fontWeight: 800,
             }}
           >
-            Historial de traslados
+            {t("history.filters.title")}
           </Typography>
 
           <Typography
             sx={{
               fontSize: 13,
-
               color: "text.secondary",
             }}
           >
-            Consulta de traslados completados
+            {t("history.filters.description")}
           </Typography>
         </Box>
 
-        {/* BUSCADOR GENERAL */}
+        {/* BÚSQUEDA GENERAL */}
 
         <TextField
           size="small"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Código, cédula, elemento o ubicación..."
+          placeholder={t("history.filters.search")}
           sx={{
             width: {
               xs: "100%",
@@ -202,56 +201,48 @@ export default function HistoryFilters({
 
           gridTemplateColumns: {
             xs: "1fr",
-
             sm: "repeat(2, minmax(0, 1fr))",
-
             lg: "repeat(3, minmax(0, 1fr))",
-
             xl: "repeat(5, minmax(0, 1fr)) auto",
           },
 
           gap: 1.5,
-
           mt: 3,
-
           alignItems: "center",
         }}
       >
-        {/* DESDE */}
+        {/* FECHA DESDE */}
 
         <TextField
           type="date"
           size="small"
-          label="Finalizado desde"
+          label={t("history.filters.finishedFrom")}
           value={desde}
           onChange={(event) => onDesdeChange(event.target.value)}
           slotProps={{
             inputLabel: {
               shrink: true,
             },
-
             htmlInput: {
               max: hasta && hasta < today ? hasta : today,
             },
           }}
         />
 
-        {/* HASTA */}
+        {/* FECHA HASTA */}
 
         <TextField
           type="date"
           size="small"
-          label="Finalizado hasta"
+          label={t("history.filters.finishedTo")}
           value={hasta}
           onChange={(event) => onHastaChange(event.target.value)}
           slotProps={{
             inputLabel: {
               shrink: true,
             },
-
             htmlInput: {
               min: desde || undefined,
-
               max: today,
             },
           }}
@@ -260,77 +251,73 @@ export default function HistoryFilters({
         {/* VEHÍCULO */}
 
         <ResourceSelect
-          label="Vehículo"
+          label={t("history.filters.vehicle")}
           value={idVehiculo}
           onChange={onVehicleChange}
           options={vehicleOptions}
           disabled={loadingResources}
+          allLabel={t("history.filters.all")}
         />
 
         {/* CONDUCTOR */}
 
         <ResourceSelect
-          label="Conductor"
+          label={t("history.filters.driver")}
           value={idConductor}
           onChange={onDriverChange}
           options={driverOptions}
           disabled={loadingResources}
+          allLabel={t("history.filters.all")}
         />
 
         {/* ENFERMERO */}
 
         <ResourceSelect
-          label="Enfermero"
+          label={t("history.filters.nurse")}
           value={idEnfermero}
           onChange={onNurseChange}
           options={nurseOptions}
           disabled={loadingResources}
+          allLabel={t("history.filters.all")}
         />
 
-        {/* APLICAR */}
+        {/* BOTÓN APLICAR */}
 
         <Button
           type="submit"
           variant="outlined"
           sx={{
             textTransform: "none",
-
             borderRadius: 2,
-
             height: 40,
-
             whiteSpace: "nowrap",
           }}
         >
-          Aplicar filtros
+          {t("history.filters.apply")}
         </Button>
       </Box>
 
-      {/* RESULTADOS */}
+      {/* RESULTADOS Y LIMPIAR */}
 
       <Stack
         direction="row"
         sx={{
           justifyContent: "space-between",
-
           alignItems: "center",
-
           flexWrap: "wrap",
-
           gap: 1,
-
           mt: 2,
         }}
       >
         <Typography
           sx={{
             fontSize: 12,
-
             color: "text.secondary",
           }}
         >
-          {total}{" "}
-          {total === 1 ? "traslado encontrado" : "traslados encontrados"}
+          {t("history.filters.results", {
+            count: total,
+          })}
         </Typography>
 
         {showClearFilters && (
@@ -341,11 +328,10 @@ export default function HistoryFilters({
             onClick={onClear}
             sx={{
               textTransform: "none",
-
               color: "text.secondary",
             }}
           >
-            Limpiar filtros
+            {t("history.filters.clear")}
           </Button>
         )}
       </Stack>

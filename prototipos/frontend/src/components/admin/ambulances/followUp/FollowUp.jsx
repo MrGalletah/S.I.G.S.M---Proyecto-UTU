@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import {
   Alert,
@@ -13,8 +14,9 @@ import {
   Stack,
 } from "@mui/material";
 
-import TransferDetailsCard from "../../../utils/TransferDetailsCard";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
+
+import TransferDetailsCard from "../../../utils/TransferDetailsCard";
 import TransferEditDialog from "./TransferEditDialog";
 import TransfersCard from "./TransfersCard";
 
@@ -36,6 +38,8 @@ import NotificationSnackbar from "../../../utils/NotificationSnackbar";
 const rowsPerPage = 8;
 
 export default function FollowUp() {
+  const { t } = useTranslation("transfers");
+
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,7 +58,7 @@ export default function FollowUp() {
 
   const [page, setPage] = useState(1);
 
-  // REFERENCIA A LA SECCIÓN DE DETALLES
+  // REFERENCIA A LOS DETALLES
 
   const detailsRef = useRef(null);
 
@@ -64,7 +68,7 @@ export default function FollowUp() {
   const [filters, setFilters] = useState({ ...initialFilters });
   const [sort, setSort] = useState({ ...initialSort });
 
-  // CANCELAR TRASLADO
+  // ANULACIÓN
 
   const [transferToCancel, setTransferToCancel] = useState(null);
   const [cancelling, setCancelling] = useState(false);
@@ -74,46 +78,15 @@ export default function FollowUp() {
   const { notification, showNotification, closeNotification } =
     useNotification();
 
-  const handleCloseCancel = () => {
-    if (!cancelling) {
-      setTransferToCancel(null);
-    }
-  };
+  // REFERENCIAS ESTABLES PARA EFECTOS DE CARGA
 
-  const handleConfirmCancel = async () => {
-    if (!transferToCancel || cancelling) return;
+  const notificationRef = useRef(showNotification);
+  const translationRef = useRef(t);
 
-    const { id, version } = transferToCancel;
-
-    setCancelling(true);
-
-    try {
-      await deleteTransfer(id, version);
-
-      setTransfers((prev) => prev.filter((transfer) => transfer.id !== id));
-
-      if (selectedTransferId === id) {
-        setSelectedTransferId(null);
-      }
-
-      showNotification("Traslado anulado correctamente.", "success");
-    } catch (error) {
-      showNotification(error.message, "error");
-
-      try {
-        const updatedTransfers = await getTransfers();
-        setTransfers(updatedTransfers);
-      } catch {
-        showNotification(
-          "No se pudo actualizar el listado de traslados.",
-          "warning",
-        );
-      }
-    } finally {
-      setCancelling(false);
-      setTransferToCancel(null);
-    }
-  };
+  useEffect(() => {
+    notificationRef.current = showNotification;
+    translationRef.current = t;
+  }, [showNotification, t]);
 
   // CARGAR LISTADO INICIAL
 
@@ -130,7 +103,11 @@ export default function FollowUp() {
         setSelectedTransferId(data[0]?.id ?? null);
       } catch (error) {
         if (!cancelled) {
-          showNotification(error.message, "error");
+          notificationRef.current(
+            error.message ||
+              translationRef.current("followUp.notifications.listError"),
+            "error",
+          );
         }
       } finally {
         if (!cancelled) {
@@ -146,7 +123,7 @@ export default function FollowUp() {
     };
   }, []);
 
-  // FILTRADO Y ORDENACIÓN
+  // FILTRAR Y ORDENAR
 
   const filteredTransfers = useMemo(
     () => filterAndSortTransfers(transfers, search, filters, sort),
@@ -166,7 +143,7 @@ export default function FollowUp() {
     startIndex + rowsPerPage,
   );
 
-  // SELECCIÓN
+  // DETERMINAR EL TRASLADO SELECCIONADO
 
   const selectedIsVisible = visibleTransfers.some(
     (transfer) => transfer.id === selectedTransferId,
@@ -193,18 +170,20 @@ export default function FollowUp() {
 
     getTransferDetail(effectiveSelectedTransferId)
       .then((detail) => {
-        if (!cancelled) {
-          setSelectedTransferDetail(detail);
-          setDetailError(null);
-        }
+        if (cancelled) return;
+
+        setSelectedTransferDetail(detail);
+        setDetailError(null);
       })
       .catch((error) => {
-        if (!cancelled) {
-          setDetailError({
-            id: effectiveSelectedTransferId,
-            message: error.message,
-          });
-        }
+        if (cancelled) return;
+
+        setDetailError({
+          id: effectiveSelectedTransferId,
+          message:
+            error.message ||
+            translationRef.current("followUp.notifications.detailError"),
+        });
       });
 
     return () => {
@@ -212,7 +191,7 @@ export default function FollowUp() {
     };
   }, [effectiveSelectedTransferId]);
 
-  // CARGAR DETALLE PARA GESTIONAR
+  // CARGAR DETALLE PARA GESTIÓN
 
   useEffect(() => {
     if (!editTransferId) return;
@@ -226,11 +205,16 @@ export default function FollowUp() {
         }
       })
       .catch((error) => {
-        if (!cancelled) {
-          showNotification(error.message, "error");
-          setEditTransferId(null);
-          setEditTransferDetail(null);
-        }
+        if (cancelled) return;
+
+        notificationRef.current(
+          error.message ||
+            translationRef.current("followUp.notifications.detailError"),
+          "error",
+        );
+
+        setEditTransferId(null);
+        setEditTransferDetail(null);
       });
 
     return () => {
@@ -238,14 +222,14 @@ export default function FollowUp() {
     };
   }, [editTransferId]);
 
-  // ABRIR GESTIÓN
+  // GESTIONAR TRASLADO
 
   const handleManageTransfer = (id) => {
     setEditTransferDetail(null);
     setEditTransferId(id);
   };
 
-  // VISUALIZAR TRASLADO
+  // VER DETALLES
 
   const handleViewTransfer = (id) => {
     setSelectedTransferId(id);
@@ -297,14 +281,57 @@ export default function FollowUp() {
     setPage(1);
   };
 
-  // CERRAR GESTIÓN
+  // CERRAR DIÁLOGO DE GESTIÓN
 
   const handleCloseEditDialog = () => {
     setEditTransferId(null);
     setEditTransferDetail(null);
   };
 
-  // REFRESCAR DESPUÉS DE MODIFICAR
+  // ANULACIÓN
+
+  const handleCloseCancel = () => {
+    if (!cancelling) {
+      setTransferToCancel(null);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!transferToCancel || cancelling) return;
+
+    const { id, version } = transferToCancel;
+
+    setCancelling(true);
+
+    try {
+      await deleteTransfer(id, version);
+
+      setTransfers((prev) => prev.filter((transfer) => transfer.id !== id));
+
+      if (selectedTransferId === id) {
+        setSelectedTransferId(null);
+      }
+
+      showNotification(t("followUp.notifications.cancelSuccess"), "success");
+    } catch (error) {
+      showNotification(
+        error.message || t("followUp.notifications.cancelError"),
+        "error",
+      );
+
+      try {
+        const updatedTransfers = await getTransfers();
+        setTransfers(updatedTransfers);
+      } catch {
+        showNotification(t("followUp.notifications.refreshError"), "warning");
+      }
+    } finally {
+      setCancelling(false);
+      setTransferToCancel(null);
+    }
+  };
+
+  // REFRESCAR DESPUÉS DE ASIGNAR O CAMBIAR ESTADO
 
   const refreshTransfer = async (idTransfer, successMessage) => {
     handleCloseEditDialog();
@@ -334,20 +361,22 @@ export default function FollowUp() {
       }
 
       showNotification(successMessage, "success");
-    } catch {
-      showNotification(
-        "El cambio se guardó, pero no se pudo actualizar la vista.",
-        "warning",
-      );
+    } catch (error) {
+      console.error(error);
+
+      showNotification(t("followUp.notifications.viewRefreshError"), "warning");
     }
   };
 
   const handleTransferAssigned = async (idTransfer) => {
-    await refreshTransfer(idTransfer, "Asignación guardada correctamente.");
+    await refreshTransfer(
+      idTransfer,
+      t("followUp.notifications.assignmentSuccess"),
+    );
   };
 
   const handleStateUpdated = async (idTransfer) => {
-    await refreshTransfer(idTransfer, "Estado actualizado correctamente.");
+    await refreshTransfer(idTransfer, t("followUp.notifications.stateSuccess"));
   };
 
   return (
@@ -388,7 +417,7 @@ export default function FollowUp() {
         />
       )}
 
-      {/* SECCIÓN DE DETALLES */}
+      {/* DETALLES DEL TRASLADO */}
 
       {!loading && effectiveSelectedTransferId && (
         <Box
@@ -442,7 +471,7 @@ export default function FollowUp() {
         </Box>
       )}
 
-      {/* UN ÚNICO DIÁLOGO DE GESTIÓN */}
+      {/* DIÁLOGO DE GESTIÓN */}
 
       {editTransferId !== null && (
         <TransferEditDialog
@@ -460,7 +489,7 @@ export default function FollowUp() {
         />
       )}
 
-      {/* CONFIRMAR ANULACIÓN */}
+      {/* DIÁLOGO DE ANULACIÓN */}
 
       <Dialog
         open={Boolean(transferToCancel)}
@@ -477,21 +506,30 @@ export default function FollowUp() {
           },
         }}
       >
-        <DialogTitle sx={{ fontWeight: 800 }}>Anular solicitud</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {t("followUp.cancelDialog.title")}
+        </DialogTitle>
 
         <DialogContent>
           <DialogContentText>
-            ¿Estás seguro de que querés anular el traslado{" "}
-            <Box
-              component="span"
-              sx={{
-                fontWeight: 800,
-                color: "var(--text-main-color)",
+            <Trans
+              ns="transfers"
+              i18nKey="followUp.cancelDialog.question"
+              values={{
+                code: transferToCancel?.codigo ?? "",
               }}
-            >
-              {transferToCancel?.codigo}
-            </Box>
-            ?
+              components={{
+                strong: (
+                  <Box
+                    component="span"
+                    sx={{
+                      fontWeight: 800,
+                      color: "var(--text-main-color)",
+                    }}
+                  />
+                ),
+              }}
+            />
           </DialogContentText>
 
           <DialogContentText
@@ -500,7 +538,7 @@ export default function FollowUp() {
               fontSize: 13,
             }}
           >
-            La solicitud dejará de aparecer en el listado de traslados activos.
+            {t("followUp.cancelDialog.description")}
           </DialogContentText>
         </DialogContent>
 
@@ -519,7 +557,7 @@ export default function FollowUp() {
               borderRadius: 2,
             }}
           >
-            Volver
+            {t("followUp.cancelDialog.back")}
           </Button>
 
           <Button
@@ -540,7 +578,9 @@ export default function FollowUp() {
               fontWeight: 700,
             }}
           >
-            {cancelling ? "Anulando..." : "Anular traslado"}
+            {cancelling
+              ? t("followUp.cancelDialog.cancelling")
+              : t("followUp.cancelDialog.confirm")}
           </Button>
         </DialogActions>
       </Dialog>

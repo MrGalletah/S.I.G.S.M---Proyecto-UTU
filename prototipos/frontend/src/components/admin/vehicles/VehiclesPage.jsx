@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Alert,
@@ -43,25 +44,28 @@ import {
 
 const PAGE_SIZE = 10;
 
+// COLORES DE LOS ESTADOS
+
 const STATUS_CONFIG = {
   OPERATIVO: {
-    label: "Operativo",
     background: "var(--state-completed-bg)",
     color: "var(--state-completed-text)",
   },
   MANTENIMIENTO: {
-    label: "En mantenimiento",
     background: "var(--state-returning-bg)",
     color: "var(--state-returning-text)",
   },
   FUERA_DE_SERVICIO: {
-    label: "Fuera de servicio",
     background: "var(--priority-urgent-bg)",
     color: "var(--priority-urgent-text)",
   },
 };
 
 export default function VehiclesPage() {
+  const { t } = useTranslation("vehicles");
+
+  // VEHÍCULOS Y TIPOS
+
   const [vehicles, setVehicles] = useState([]);
   const [types, setTypes] = useState([]);
 
@@ -69,17 +73,40 @@ export default function VehiclesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // FILTROS Y PAGINACIÓN
+
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("TODOS");
   const [page, setPage] = useState(1);
 
+  // DIÁLOGO
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+
+  // NOTIFICACIONES
 
   const { notification, showNotification, closeNotification } =
     useNotification();
 
-  // CARGAR DATOS
+  // TRADUCIR LOS TIPOS DE VEHÍCULO DE MARIA DB
+
+  const translateType = (name) => {
+    if (!name) return "—";
+
+    return t(`types.${name}`, {
+      defaultValue: name,
+    });
+  };
+
+  // TRADUCIR ESTADOS SIN CAMBIAR SUS CÓDIGOS
+
+  const translateStatus = (value) =>
+    t(`statuses.${value}`, {
+      defaultValue: value ?? "—",
+    });
+
+  // RECARGA MANUAL
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -95,11 +122,14 @@ export default function VehiclesPage() {
       setTypes(vehicleTypes);
     } catch (err) {
       console.error(err);
-      setError(err.message || "No se pudo cargar la flota.");
+
+      setError(err.message || t("notifications.loadError"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
+
+  // CARGA INICIAL
 
   useEffect(() => {
     let cancelled = false;
@@ -120,7 +150,7 @@ export default function VehiclesPage() {
 
         console.error(err);
 
-        setError(err.message || "No se pudo cargar la flota.");
+        setError(err.message || t("notifications.loadError"));
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -133,14 +163,16 @@ export default function VehiclesPage() {
     return () => {
       cancelled = true;
     };
+    // La carga inicial solo ocurre al montar.
+    // Cambiar el idioma no debe repetir consultas a la API.
   }, []);
 
-  // ESTADÍSTICAS
+  // CARDS DE ESTADÍSTICAS
 
   const stats = useMemo(() => {
     return [
       {
-        label: "Total vehículos",
+        label: t("stats.total"),
         value: vehicles.length,
         icon: <DirectionsCarOutlinedIcon />,
         colors: {
@@ -149,7 +181,7 @@ export default function VehiclesPage() {
         },
       },
       {
-        label: "Operativos",
+        label: t("stats.operational"),
         value: vehicles.filter((vehicle) => vehicle.estado === "OPERATIVO")
           .length,
         icon: <CheckCircleIcon />,
@@ -159,7 +191,7 @@ export default function VehiclesPage() {
         },
       },
       {
-        label: "En mantenimiento",
+        label: t("stats.maintenance"),
         value: vehicles.filter((vehicle) => vehicle.estado === "MANTENIMIENTO")
           .length,
         icon: <BuildOutlinedIcon />,
@@ -169,7 +201,7 @@ export default function VehiclesPage() {
         },
       },
       {
-        label: "Fuera de servicio",
+        label: t("stats.outOfService"),
         value: vehicles.filter(
           (vehicle) => vehicle.estado === "FUERA_DE_SERVICIO",
         ).length,
@@ -180,9 +212,9 @@ export default function VehiclesPage() {
         },
       },
     ];
-  }, [vehicles]);
+  }, [vehicles, t]);
 
-  // FILTROS
+  // FILTRAR VEHÍCULOS
 
   const filteredVehicles = useMemo(() => {
     const searchText = search.trim().toLowerCase();
@@ -192,16 +224,24 @@ export default function VehiclesPage() {
 
       const matchesSearch =
         !searchText ||
-        [vehicle.matricula, vehicle.modelo, vehicle.tipo?.nombre].some(
-          (value) =>
-            String(value ?? "")
-              .toLowerCase()
-              .includes(searchText),
+        [
+          vehicle.matricula,
+          vehicle.modelo,
+          vehicle.tipo?.nombre,
+          vehicle.tipo?.nombre
+            ? t(`types.${vehicle.tipo.nombre}`, {
+                defaultValue: vehicle.tipo.nombre,
+              })
+            : "",
+        ].some((value) =>
+          String(value ?? "")
+            .toLowerCase()
+            .includes(searchText),
         );
 
       return matchesStatus && matchesSearch;
     });
-  }, [vehicles, search, status]);
+  }, [vehicles, search, status, t]);
 
   // PAGINACIÓN
 
@@ -210,43 +250,50 @@ export default function VehiclesPage() {
     Math.ceil(filteredVehicles.length / PAGE_SIZE),
   );
 
+  const currentPage = Math.min(page, totalPages);
+
   const visibleVehicles = filteredVehicles.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE,
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
   );
 
-  // MODAL
+  // ABRIR MODAL DE CREACIÓN
 
   const handleCreate = () => {
     setSelectedVehicle(null);
     setDialogOpen(true);
   };
 
+  // ABRIR MODAL DE EDICIÓN
+
   const handleEdit = (vehicle) => {
     setSelectedVehicle(vehicle);
     setDialogOpen(true);
   };
+
+  // CERRAR MODAL
 
   const handleClose = () => {
     setDialogOpen(false);
     setSelectedVehicle(null);
   };
 
-  // GUARDAR
+  // GUARDAR VEHÍCULO
 
   const handleSubmit = async (data) => {
     setSaving(true);
 
     try {
-      const response = await saveVehicle(
-        data,
-        selectedVehicle?.id_vehiculo ?? null,
-      );
+      const editing = Boolean(selectedVehicle);
+
+      await saveVehicle(data, selectedVehicle?.id_vehiculo ?? null);
 
       handleClose();
 
+      // Mostramos el mensaje traducido, no el del backend.
+
       showNotification(
-        response.mensaje || "Vehículo guardado correctamente.",
+        editing ? t("notifications.updated") : t("notifications.created"),
         "success",
       );
 
@@ -295,10 +342,7 @@ export default function VehiclesPage() {
           {/* ENCABEZADO */}
 
           <Stack
-            direction={{
-              xs: "column",
-              sm: "row",
-            }}
+            direction={{ xs: "column", sm: "row" }}
             sx={{
               justifyContent: "space-between",
               alignItems: {
@@ -317,7 +361,7 @@ export default function VehiclesPage() {
                   color: "var(--text-main-color)",
                 }}
               >
-                Vehículos
+                {t("title")}
               </Typography>
 
               <Typography
@@ -326,9 +370,11 @@ export default function VehiclesPage() {
                   color: "var(--text-muted-color)",
                 }}
               >
-                Gestiona los vehículos de la flota
+                {t("description")}
               </Typography>
             </Box>
+
+            {/* REGISTRAR VEHÍCULO */}
 
             <Button
               variant="contained"
@@ -350,17 +396,14 @@ export default function VehiclesPage() {
                 },
               }}
             >
-              Registrar vehículo
+              {t("add")}
             </Button>
           </Stack>
 
-          {/* FILTROS */}
+          {/* BÚSQUEDA Y FILTROS */}
 
           <Stack
-            direction={{
-              xs: "column",
-              sm: "row",
-            }}
+            direction={{ xs: "column", sm: "row" }}
             sx={{
               mb: 3,
               gap: 2,
@@ -372,10 +415,7 @@ export default function VehiclesPage() {
             }}
           >
             <Stack
-              direction={{
-                xs: "column",
-                sm: "row",
-              }}
+              direction={{ xs: "column", sm: "row" }}
               sx={{
                 gap: 2,
                 alignItems: {
@@ -384,9 +424,11 @@ export default function VehiclesPage() {
                 },
               }}
             >
+              {/* BUSCAR VEHÍCULO */}
+
               <TextField
                 size="small"
-                placeholder="Buscar vehículo"
+                placeholder={t("search")}
                 value={search}
                 onChange={(event) => {
                   setSearch(event.target.value);
@@ -400,10 +442,12 @@ export default function VehiclesPage() {
                 }}
               />
 
+              {/* FILTRO DE ESTADO */}
+
               <TextField
                 select
                 size="small"
-                label="Estado"
+                label={t("status")}
                 value={status}
                 onChange={(event) => {
                   setStatus(event.target.value);
@@ -416,15 +460,17 @@ export default function VehiclesPage() {
                   },
                 }}
               >
-                <MenuItem value="TODOS">Todos</MenuItem>
+                <MenuItem value="TODOS">{t("all")}</MenuItem>
 
-                {Object.entries(STATUS_CONFIG).map(([value, config]) => (
+                {Object.keys(STATUS_CONFIG).map((value) => (
                   <MenuItem key={value} value={value}>
-                    {config.label}
+                    {translateStatus(value)}
                   </MenuItem>
                 ))}
               </TextField>
             </Stack>
+
+            {/* RESULTADOS Y REFRESCAR */}
 
             <Stack
               direction="row"
@@ -442,16 +488,18 @@ export default function VehiclesPage() {
                   whiteSpace: "nowrap",
                 }}
               >
-                {filteredVehicles.length} vehículos encontrados
+                {t("found", {
+                  count: filteredVehicles.length,
+                })}
               </Typography>
 
-              <Tooltip title="Actualizar lista">
+              <Tooltip title={t("refresh")}>
                 <span>
                   <IconButton
                     onClick={fetchData}
                     disabled={loading}
                     size="small"
-                    aria-label="Actualizar vehículos"
+                    aria-label={t("refresh")}
                     sx={{
                       color: "var(--primary-color)",
                     }}
@@ -463,7 +511,7 @@ export default function VehiclesPage() {
             </Stack>
           </Stack>
 
-          {/* ERROR */}
+          {/* ERROR DE CARGA */}
 
           {error && (
             <Alert
@@ -471,7 +519,7 @@ export default function VehiclesPage() {
               sx={{ mb: 2 }}
               action={
                 <Button color="inherit" onClick={fetchData}>
-                  Reintentar
+                  {t("retry")}
                 </Button>
               }
             >
@@ -506,6 +554,8 @@ export default function VehiclesPage() {
                   tableLayout: "fixed",
                 }}
               >
+                {/* CABECERA */}
+
                 <TableHead>
                   <TableRow>
                     <TableCell
@@ -514,7 +564,7 @@ export default function VehiclesPage() {
                         width: "18%",
                       }}
                     >
-                      Matrícula
+                      {t("table.license")}
                     </TableCell>
 
                     <TableCell
@@ -523,7 +573,7 @@ export default function VehiclesPage() {
                         width: "32%",
                       }}
                     >
-                      Modelo
+                      {t("table.model")}
                     </TableCell>
 
                     <TableCell
@@ -532,7 +582,7 @@ export default function VehiclesPage() {
                         width: "20%",
                       }}
                     >
-                      Tipo
+                      {t("table.type")}
                     </TableCell>
 
                     <TableCell
@@ -542,7 +592,7 @@ export default function VehiclesPage() {
                         width: "20%",
                       }}
                     >
-                      Estado
+                      {t("table.status")}
                     </TableCell>
 
                     <TableCell
@@ -552,10 +602,12 @@ export default function VehiclesPage() {
                         width: "10%",
                       }}
                     >
-                      Acciones
+                      {t("table.actions")}
                     </TableCell>
                   </TableRow>
                 </TableHead>
+
+                {/* CUERPO */}
 
                 <TableBody>
                   {visibleVehicles.map((vehicle) => {
@@ -563,6 +615,8 @@ export default function VehiclesPage() {
 
                     return (
                       <TableRow key={vehicle.id_vehiculo} hover>
+                        {/* MATRÍCULA */}
+
                         <TableCell>
                           <Typography
                             variant="body2"
@@ -576,6 +630,8 @@ export default function VehiclesPage() {
                           </Typography>
                         </TableCell>
 
+                        {/* MODELO */}
+
                         <TableCell>
                           <Typography
                             variant="body2"
@@ -588,15 +644,19 @@ export default function VehiclesPage() {
                           </Typography>
                         </TableCell>
 
+                        {/* TIPO */}
+
                         <TableCell>
                           <Typography variant="body2">
-                            {vehicle.tipo?.nombre ?? "—"}
+                            {translateType(vehicle.tipo?.nombre)}
                           </Typography>
                         </TableCell>
 
+                        {/* ESTADO */}
+
                         <TableCell align="center">
                           <Chip
-                            label={state?.label ?? vehicle.estado}
+                            label={translateStatus(vehicle.estado)}
                             size="small"
                             sx={{
                               bgcolor:
@@ -609,12 +669,16 @@ export default function VehiclesPage() {
                           />
                         </TableCell>
 
+                        {/* EDITAR */}
+
                         <TableCell align="center">
-                          <Tooltip title="Editar vehículo">
+                          <Tooltip title={t("edit")}>
                             <IconButton
                               size="small"
                               onClick={() => handleEdit(vehicle)}
-                              aria-label={`Editar ${vehicle.matricula}`}
+                              aria-label={t("editLicense", {
+                                license: vehicle.matricula,
+                              })}
                               sx={{
                                 color: "var(--text-muted-color)",
                               }}
@@ -627,6 +691,8 @@ export default function VehiclesPage() {
                     );
                   })}
 
+                  {/* TABLA VACÍA */}
+
                   {visibleVehicles.length === 0 && (
                     <TableRow>
                       <TableCell
@@ -637,7 +703,7 @@ export default function VehiclesPage() {
                           color: "var(--text-muted-color)",
                         }}
                       >
-                        No se encontraron vehículos.
+                        {t("empty")}
                       </TableCell>
                     </TableRow>
                   )}
@@ -652,7 +718,7 @@ export default function VehiclesPage() {
             <Stack alignItems="center" sx={{ mt: 3 }}>
               <Pagination
                 count={totalPages}
-                page={Math.min(page, totalPages)}
+                page={currentPage}
                 onChange={(_, value) => setPage(value)}
                 size="small"
                 shape="rounded"

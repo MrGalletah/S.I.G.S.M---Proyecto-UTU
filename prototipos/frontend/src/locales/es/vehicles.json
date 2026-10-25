@@ -1,0 +1,56 @@
+{
+  "title": "Vehículos",
+  "description": "Gestiona los vehículos de la flota",
+  "add": "Registrar vehículo",
+  "search": "Buscar vehículo",
+  "status": "Estado",
+  "all": "Todos",
+  "found_one": "{{count}} vehículo encontrado",
+  "found_other": "{{count}} vehículos encontrados",
+  "refresh": "Actualizar lista",
+  "retry": "Reintentar",
+  "empty": "No se encontraron vehículos.",
+  "edit": "Editar vehículo",
+  "editLicense": "Editar vehículo {{license}}",
+  "stats": {
+    "total": "Total vehículos",
+    "operational": "Operativos",
+    "maintenance": "En mantenimiento",
+    "outOfService": "Fuera de servicio"
+  },
+  "statuses": {
+    "OPERATIVO": "Operativo",
+    "MANTENIMIENTO": "En mantenimiento",
+    "FUERA_DE_SERVICIO": "Fuera de servicio"
+  },
+  "types": {
+    "Ambulancia": "Ambulancia",
+    "Auto": "Auto",
+    "Otro": "Otro"
+  },
+  "table": {
+    "license": "Matrícula",
+    "model": "Modelo",
+    "type": "Tipo",
+    "status": "Estado",
+    "actions": "Acciones"
+  },
+  "dialog": {
+    "createTitle": "Registrar vehículo",
+    "editTitle": "Editar vehículo",
+    "license": "Matrícula",
+    "model": "Modelo",
+    "type": "Tipo de vehículo",
+    "status": "Estado",
+    "cancel": "Cancelar",
+    "save": "Guardar cambios",
+    "create": "Registrar",
+    "required": "Completá todos los campos obligatorios.",
+    "saveError": "No se pudo guardar el vehículo."
+  },
+  "notifications": {
+    "created": "Vehículo registrado correctamente.",
+    "updated": "Vehículo actualizado correctamente.",
+    "loadError": "No se pudo cargar la flota."
+  }
+}
