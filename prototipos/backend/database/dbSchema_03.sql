@@ -4,68 +4,44 @@ USE sigsm;
 
 CREATE TABLE tipo_vehiculo (
     id_tipo_vehiculo INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
     nombre VARCHAR(50) NOT NULL UNIQUE,
-
     descripcion VARCHAR(255) NULL
 );
 
-
-INSERT INTO tipo_vehiculo (nombre)
-VALUES
-    ('Ambulancia'),
+INSERT INTO
+    tipo_vehiculo (nombre)
+VALUES ('Ambulancia'),
     ('Auto'),
     ('Otro');
-
 
 -- VEHÍCULO
 
 CREATE TABLE vehiculo (
     id_vehiculo INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
     matricula VARCHAR(20) NOT NULL UNIQUE,
-
     modelo VARCHAR(100) NOT NULL,
-
     id_tipo_vehiculo INT UNSIGNED NOT NULL,
-
     estado ENUM(
         'OPERATIVO',
         'FUERA_DE_SERVICIO',
         'MANTENIMIENTO'
     ) NOT NULL DEFAULT 'OPERATIVO',
-
-    CONSTRAINT fk_vehiculo_tipo
-        FOREIGN KEY (id_tipo_vehiculo)
-        REFERENCES tipo_vehiculo(id_tipo_vehiculo)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT
+    CONSTRAINT fk_vehiculo_tipo FOREIGN KEY (id_tipo_vehiculo) REFERENCES tipo_vehiculo (id_tipo_vehiculo) ON UPDATE CASCADE ON DELETE RESTRICT
 );
-
 
 -- ESTADO DEL TRASLADO
 
 CREATE TABLE estado_traslado (
     id_estado INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
     nombre VARCHAR(50) NOT NULL UNIQUE,
-
     orden TINYINT UNSIGNED NOT NULL UNIQUE,
-
     descripcion VARCHAR(255) NULL,
-
-    CONSTRAINT chk_estado_orden
-        CHECK (orden > 0)
+    CONSTRAINT chk_estado_orden CHECK (orden > 0)
 );
 
-
-INSERT INTO estado_traslado (
-    nombre,
-    orden,
-    descripcion
-)
-VALUES
-    (
+INSERT INTO
+    estado_traslado (nombre, orden, descripcion)
+VALUES (
         'Registrado',
         1,
         'El traslado fue registrado en el sistema'
@@ -91,76 +67,54 @@ VALUES
         'El traslado finalizó'
     );
 
-
 -- TIPO DE ELEMENTO
 
 CREATE TABLE tipo_elemento (
     id_tipo_elemento INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
     nombre VARCHAR(50) NOT NULL UNIQUE,
-
     descripcion VARCHAR(255) NULL
 );
 
-
-INSERT INTO tipo_elemento (nombre)
-VALUES
-    ('Paciente'),
+INSERT INTO
+    tipo_elemento (nombre)
+VALUES ('Paciente'),
     ('Muestra biológica'),
     ('Equipamiento'),
     ('Insumo'),
     ('Otro');
 
-
 -- TIPO DE TRASLADO
 
 CREATE TABLE tipo_traslado (
     id_tipo_traslado INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
     nombre VARCHAR(100) NOT NULL UNIQUE,
-
     descripcion VARCHAR(255) NULL,
-
     activo BOOLEAN NOT NULL DEFAULT TRUE
 );
 
-
-INSERT INTO tipo_traslado (nombre)
-VALUES
-    ('Traslado interno'),
+INSERT INTO
+    tipo_traslado (nombre)
+VALUES ('Traslado interno'),
     ('Traslado a otro centro'),
     ('Traslado a domicilio'),
     ('Retorno al hospital'),
     ('Otro');
 
-
 -- COMPATIBILIDAD
 
 CREATE TABLE compatibilidad_transporte (
     id_tipo_elemento INT UNSIGNED NOT NULL,
-
     id_tipo_vehiculo INT UNSIGNED NOT NULL,
-
     PRIMARY KEY (
         id_tipo_elemento,
         id_tipo_vehiculo
     ),
-
-    CONSTRAINT fk_compatibilidad_elemento
-        FOREIGN KEY (id_tipo_elemento)
-        REFERENCES tipo_elemento(id_tipo_elemento)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
-
-    CONSTRAINT fk_compatibilidad_vehiculo
-        FOREIGN KEY (id_tipo_vehiculo)
-        REFERENCES tipo_vehiculo(id_tipo_vehiculo)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
+    CONSTRAINT fk_compatibilidad_elemento FOREIGN KEY (id_tipo_elemento) REFERENCES tipo_elemento (id_tipo_elemento) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT fk_compatibilidad_vehiculo FOREIGN KEY (id_tipo_vehiculo) REFERENCES tipo_vehiculo (id_tipo_vehiculo) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-
 -- TRASLADO
+
 
 CREATE TABLE traslado (
     id_traslado INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -229,44 +183,23 @@ CREATE TABLE traslado (
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
 
-    CONSTRAINT fk_traslado_vehiculo
-        FOREIGN KEY (id_vehiculo)
-        REFERENCES vehiculo(id_vehiculo)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
+-- RESTRICT: id_vehiculo participa en un CHECK
+CONSTRAINT fk_traslado_vehiculo FOREIGN KEY (id_vehiculo) REFERENCES vehiculo (id_vehiculo) ON UPDATE RESTRICT ON DELETE RESTRICT,
 
-    CONSTRAINT fk_traslado_conductor
-        FOREIGN KEY (id_conductor)
-        REFERENCES funcionario(id_func)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
+-- RESTRICT: id_conductor participa en un CHECK
+CONSTRAINT fk_traslado_conductor FOREIGN KEY (id_conductor) REFERENCES funcionario (id_func) ON UPDATE RESTRICT ON DELETE RESTRICT,
 
-    CONSTRAINT fk_traslado_enfermero
-        FOREIGN KEY (id_enfermero)
-        REFERENCES funcionario(id_func)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
+-- RESTRICT: id_enfermero participa en un CHECK
+CONSTRAINT fk_traslado_enfermero FOREIGN KEY (id_enfermero) REFERENCES funcionario (id_func) ON UPDATE RESTRICT ON DELETE RESTRICT,
+CONSTRAINT fk_traslado_solicitante FOREIGN KEY (id_func_solicitante) REFERENCES funcionario (id_func) ON UPDATE CASCADE ON DELETE RESTRICT,
 
-    CONSTRAINT fk_traslado_solicitante
-        FOREIGN KEY (id_func_solicitante)
-        REFERENCES funcionario(id_func)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
+-- RESTRICT: id_func_gestor participa en un CHECK
+CONSTRAINT fk_traslado_gestor FOREIGN KEY (id_func_gestor) REFERENCES funcionario (id_func) ON UPDATE RESTRICT ON DELETE RESTRICT,
+CONSTRAINT fk_traslado_estado FOREIGN KEY (id_estado) REFERENCES estado_traslado (id_estado) ON UPDATE CASCADE ON DELETE RESTRICT,
 
-    CONSTRAINT fk_traslado_gestor
-        FOREIGN KEY (id_func_gestor)
-        REFERENCES funcionario(id_func)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
+-- RESTRICCIONES DE TRASLADOS
 
-    CONSTRAINT fk_traslado_estado
-        FOREIGN KEY (id_estado)
-        REFERENCES estado_traslado(id_estado)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-
-    CONSTRAINT chk_traslado_origen_destino
+CONSTRAINT chk_traslado_origen_destino
         CHECK (
             TRIM(origen) <> ''
             AND TRIM(destino) <> ''
@@ -346,106 +279,55 @@ CREATE TABLE traslado (
         )
 );
 
-
 -- HISTORIAL DE ESTADOS
 
 CREATE TABLE historial_estado_traslado (
     id_historial INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-
     id_traslado INT UNSIGNED NOT NULL,
-
     id_estado INT UNSIGNED NOT NULL,
-
-    fecha_hora DATETIME
-        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
+    fecha_hora DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     observacion TEXT NULL,
-
     id_func INT UNSIGNED NOT NULL,
-
-    CONSTRAINT fk_historial_traslado
-        FOREIGN KEY (id_traslado)
-        REFERENCES traslado(id_traslado)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    CONSTRAINT fk_historial_estado
-        FOREIGN KEY (id_estado)
-        REFERENCES estado_traslado(id_estado)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT,
-
-    CONSTRAINT fk_historial_funcionario
-        FOREIGN KEY (id_func)
-        REFERENCES funcionario(id_func)
-        ON UPDATE CASCADE
-        ON DELETE RESTRICT
+    CONSTRAINT fk_historial_traslado FOREIGN KEY (id_traslado) REFERENCES traslado (id_traslado) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_historial_estado FOREIGN KEY (id_estado) REFERENCES estado_traslado (id_estado) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_historial_funcionario FOREIGN KEY (id_func) REFERENCES funcionario (id_func) ON UPDATE CASCADE ON DELETE RESTRICT
 );
-
 
 -- ÍNDICES
 
-CREATE INDEX idx_traslado_estado_prioridad
-ON traslado (
+CREATE INDEX idx_traslado_estado_prioridad ON traslado (
     id_estado,
     prioridad,
     fecha_requerida
 );
 
-
-CREATE INDEX idx_traslado_solicitante
-ON traslado (
+CREATE INDEX idx_traslado_solicitante ON traslado (
     id_func_solicitante,
     fecha_solicitud
 );
 
+CREATE INDEX idx_traslado_gestor ON traslado (id_func_gestor, id_estado);
 
-CREATE INDEX idx_traslado_gestor
-ON traslado (
-    id_func_gestor,
-    id_estado
-);
+CREATE INDEX idx_traslado_cedula_paciente ON traslado (cedula_paciente);
 
-
-CREATE INDEX idx_traslado_cedula_paciente
-ON traslado (
-    cedula_paciente
-);
-
-
-CREATE INDEX idx_traslado_vehiculo_horario
-ON traslado (
+CREATE INDEX idx_traslado_vehiculo_horario ON traslado (
     id_vehiculo,
     hora_salida_estimada,
     hora_llegada_estimada
 );
 
-
-CREATE INDEX idx_traslado_conductor_horario
-ON traslado (
+CREATE INDEX idx_traslado_conductor_horario ON traslado (
     id_conductor,
     hora_salida_estimada,
     hora_llegada_estimada
 );
 
-
-CREATE INDEX idx_traslado_enfermero_horario
-ON traslado (
+CREATE INDEX idx_traslado_enfermero_horario ON traslado (
     id_enfermero,
     hora_salida_estimada,
     hora_llegada_estimada
 );
 
+CREATE INDEX idx_historial_traslado_fecha ON historial_estado_traslado (id_traslado, fecha_hora);
 
-CREATE INDEX idx_historial_traslado_fecha
-ON historial_estado_traslado (
-    id_traslado,
-    fecha_hora
-);
-
-
-CREATE INDEX idx_vehiculo_tipo_estado
-ON vehiculo (
-    id_tipo_vehiculo,
-    estado
-);
+CREATE INDEX idx_vehiculo_tipo_estado ON vehiculo (id_tipo_vehiculo, estado);
