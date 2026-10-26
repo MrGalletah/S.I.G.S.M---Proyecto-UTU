@@ -1,0 +1,184 @@
+name: sigsm
+
+services:
+
+  # BASE DE DATOS
+  db:
+    image: sigsm-db:local
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+      args:
+        GIT_REF: main
+
+    restart: unless-stopped
+
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Falta MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: sigsm
+      MARIADB_USER: ${DB_USER:-sigsm_app}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+    volumes:
+      - db_data:/var/lib/mysql
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          healthcheck.sh --connect --innodb_initialized &&
+          MYSQL_PWD="$$MARIADB_PASSWORD" mariadb --protocol=tcp -h 127.0.0.1
+          -u"$$MARIADB_USER" "$$MARIADB_DATABASE"
+          -e 'SELECT 1 FROM encuesta LIMIT 1' >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+    networks:
+      - internal
+
+  # ADMINISTRADOR INICIAL
+  admin-init:
+    image: sigsm-backend:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        GIT_REF: main
+
+    restart: "no"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    entrypoint:
+      - php
+      - /usr/local/bin/bootstrap-admin.php
+
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: sigsm
+      DB_USER: ${DB_USER:-sigsm_app}
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+      ADMIN_NAME: ${ADMIN_NAME:?Falta ADMIN_NAME}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Falta ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD}
+
+    networks:
+      - internal
+
+  # SEED OPCIONAL
+  seed-demo:
+    profiles:
+      - demo
+
+    image: sigsm-db:local
+
+    # IMPORTANTE: Compose construye esta imagen localmente,
+    # sin intentar descargar "sigsm-db" de Docker Hub.
+    pull_policy: build
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+      args:
+        GIT_REF: main
+
+    restart: "no"
+
+    depends_on:
+      db:
+        condition: service_healthy
+      admin-init:
+        condition: service_completed_successfully
+
+    environment:
+      MARIADB_DATABASE: sigsm
+      MARIADB_USER: ${DB_USER:-sigsm_app}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        echo "Iniciando carga de datos de demostracion..."
+
+        export MYSQL_PWD="$$MARIADB_PASSWORD"
+
+        mariadb \
+          --protocol=tcp \
+          --host=db \
+          --user="$$MARIADB_USER" \
+          "$$MARIADB_DATABASE" \
+          < /opt/sigsm/seedDemo.sql
+
+        echo "Seed de demostracion cargado correctamente."
+
+    networks:
+      - internal
+
+  # BACKEND PHP + APACHE
+  backend:
+    image: sigsm-backend:local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        GIT_REF: main
+
+    restart: unless-stopped
+
+    depends_on:
+      db:
+        condition: service_healthy
+      admin-init:
+        condition: service_completed_successfully
+
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: sigsm
+      DB_USER: ${DB_USER:-sigsm_app}
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD}
+
+    volumes:
+      - docs_data:/var/www/api/storage
+
+    expose:
+      - "80"
+
+    networks:
+      - internal
+
+  # FRONTEND REACT + NGINX
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        GIT_REF: main
+
+    restart: unless-stopped
+
+    depends_on:
+      - backend
+
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+    networks:
+      - internal
+
+volumes:
+  db_data:
+  docs_data:
+
+networks:
+  internal:
+    driver: bridge
