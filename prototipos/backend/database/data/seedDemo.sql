@@ -1,20 +1,26 @@
--- S.I.G.S.M. | Seed de demostración compatible con dbSchema_01..04 (main, 26/10/2026)
--- IMPORTANTE: ejecutar manualmente sobre una base NUEVA, después de admin-init.
--- No añadir a /docker-entrypoint-initdb.d/: el administrador aún no existiría.
--- No modifica los esquemas y no crea registros de documentos sin PDFs reales.
--- Requisitos: exactamente 1 funcionario (admin), 1 rol_usuario y sin datos de negocio.
--- Resultados (incluyendo administrador): 80 funcionarios, 150 roles asignados,
--- 35 vehículos, 20 categorías, 2.000 traslados, 30 encuestas,
--- 200 preguntas, 600 opciones, 5.000 respuestas y 25.000 detalles.
--- Todos los nombres, correos, cédulas y matrículas son ficticios.
--- Cuentas sintéticas: hash bcrypt de contraseña aleatoria no divulgada; no permiten login.
+-- S.I.G.S.M. | Seed Demo v2, para instalacion limpia de MariaDB 11.4.
+-- Compatible con dbSchema_01.sql a dbSchema_04.sql del repositorio.
+-- ORDEN: inicializar DB -> completar admin-init -> importar este seed.
+-- NO copiar a /docker-entrypoint-initdb.d/: depende del administrador ya creado.
+-- INSTALACION LIMPIA: se espera SOLO el admin de admin-init (1 funcionario,
+-- 1 asignacion de rol) y ninguna categoria/documento/traslado/encuesta previa.
+-- Esta comprobacion ESTRICTA es intencionada: el instalador borra los volumenes.
+-- Las tolerancias de 1 o 2 usuarios/categorias eran solo para la prueba anterior.
+-- Genera: 80 funcionarios (incluye admin), 150 asignaciones de rol,
+-- 35 vehiculos, 20 categorias, 2000 traslados, 30 encuestas,
+-- 200 preguntas, 600 opciones, 5000 formularios y sus detalles.
+-- TODAS las preguntas activas y obligatorias reciben respuesta.
+-- Las opcionales pueden quedar sin responder en una fraccion de formularios.
+-- Datos sinteticos: nunca introducir cedulas o datos reales de pacientes.
+-- No genera documentos: se necesitan PDFs reales en el almacenamiento.
+-- No repetir sobre DB con seed previo: se bloquea antes de modificar datos.
+-- Las cuentas sinteticas usan un hash bcrypt no divulgado para pruebas de login.
 
 USE sigsm;
 
 DROP PROCEDURE IF EXISTS seed_sigsm_demo;
-
+-- Se cambia temporalmente el delimitador para definir el procedimiento.
 DELIMITER $$
-
 CREATE PROCEDURE seed_sigsm_demo()
 BEGIN
     DECLARE i INT DEFAULT 0;
@@ -23,7 +29,6 @@ BEGIN
     DECLARE n INT DEFAULT 0;
     DECLARE contador INT DEFAULT 0;
     DECLARE opciones INT DEFAULT 0;
-    DECLARE pos INT DEFAULT 0;
     DECLARE encuesta_seq INT DEFAULT 0;
     DECLARE num_preguntas INT DEFAULT 0;
     DECLARE num_no_abiertas INT DEFAULT 0;
@@ -82,17 +87,23 @@ BEGIN
     DECLARE con_asignacion BOOLEAN;
     DECLARE bcrypt_demo VARCHAR(255) DEFAULT '$2y$12$88ZKK6dlJ/rY4o7UF2Q3Zu2b9JUKr3dn7dcaemqQSdVBeuG0S7Ysi';
 
+    -- Si cualquier INSERT o comprobacion falla, revertir toda la carga.
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
     -- Esta protección evita mezclar el seed con una instalación en uso.
     SELECT COUNT(*) INTO contador FROM funcionario;
-
-    IF contador NOT IN (1, 2) THEN
-    SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Seed: se esperaban 1 o 2 funcionarios';
+    IF contador <> 1 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: se esperaba únicamente el funcionario administrador creado por admin-init';
     END IF;
     SELECT COUNT(*) INTO contador FROM rol_usuario;
-    IF contador < 1 THEN
+    IF contador <> 1 THEN
         SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Seed: no hay asignaciones de roles';
+            SET MESSAGE_TEXT = 'Seed: se esperaba una única asignación de rol de administrador';
     END IF;
     SELECT COUNT(*) INTO contador FROM traslado;
     IF contador <> 0 THEN
@@ -107,17 +118,12 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: ya existen vehículos';
     END IF;
     SELECT COUNT(*) INTO contador FROM categoria;
-
-    IF contador NOT IN (0, 1) THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Seed: se esperaba un máximo de una categoría existente';
+    IF contador <> 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: ya existen categorías';
     END IF;
-
     SELECT COUNT(*) INTO contador FROM documento;
-
-    IF contador NOT IN (0, 1) THEN
-        SIGNAL SQLSTATE '45000'
-            SET MESSAGE_TEXT = 'Seed: se esperaba un máximo de un documento existente';
+    IF contador <> 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: ya existen documentos';
     END IF;
     SELECT COUNT(*) INTO contador FROM compatibilidad_transporte;
     IF contador <> 0 THEN
@@ -440,9 +446,9 @@ BEGIN
     SET i = 1;
     WHILE i <= 30 DO
         SELECT id INTO creador_id FROM tmp_seed_func WHERE seq = 58 + ((i - 1) MOD 6);
-        -- Solo asociamos encuestas a categorías activas (excluimos las 7 y 14).
+        -- Solo asociamos encuestas a categorias activas (excluimos 7 y 14).
         SET k = 1 + ((i - 1) MOD 18);
-        SET k = CASE WHEN k >= 14 THEN k + 2 WHEN k >= 7 THEN k + 1 ELSE k END;
+        SET k = CASE WHEN k >= 13 THEN k + 2 WHEN k >= 7 THEN k + 1 ELSE k END;
         SELECT id INTO categoria_id FROM tmp_seed_category WHERE seq = k;
         INSERT INTO encuesta (
             id_cat, id_func, titulo, descripcion, fecha_creacion, anonima, activo
@@ -508,8 +514,11 @@ BEGIN
         SET i = i + 1;
     END WHILE;
 
-    -- 7) 5.000 respuestas distribuidas entre las 30 encuestas;
-    --    cada una contesta 5 preguntas distintas de su propia encuesta.
+    -- 7) 5.000 formularios distribuidos entre las 30 encuestas.
+    --    Se responde SIEMPRE a todas las preguntas obligatorias.
+    --    Solo se omite a veces la pregunta opcional (orden 5).
+    --    La distribucion depende de la ronda de respuestas, no solo de i MOD 30,
+    --    para evitar que una encuesta tenga siempre las mismas omisiones/opciones.
     SET i = 1;
     WHILE i <= 5000 DO
         SET encuesta_seq = 1 + ((i - 1) MOD 30);
@@ -520,41 +529,145 @@ BEGIN
             INTERVAL ((i * 17) MOD 360) MINUTE
         );
         INSERT INTO respuesta_encuesta (id_encuesta, cedula, fecha_respuesta)
-        VALUES (encuesta_id,
-                -- Encuestas anónimas nunca guardan cédula ficticia.
-                IF(encuesta_seq MOD 4 = 0, CONCAT('DEMO-R-', LPAD(i, 6, '0')), NULL),
-                momento_respuesta);
+        VALUES (
+            encuesta_id,
+            -- Las encuestas anonimas nunca guardan cedula, ni siquiera ficticia.
+            IF(encuesta_seq MOD 4 = 0, CONCAT('DEMO-R-', LPAD(i, 6, '0')), NULL),
+            momento_respuesta
+        );
         SET respuesta_id = LAST_INSERT_ID();
 
         SET j = 1;
-        WHILE j <= 5 DO
-            SET pos = 1 + ((i + j - 2) MOD num_preguntas);
-            SELECT id, abierta, numero_opciones
-            INTO pregunta_id, es_abierta, opciones
-            FROM tmp_seed_question
-            WHERE survey_seq = encuesta_seq AND question_seq = pos;
-            IF es_abierta THEN
-                INSERT INTO detalle_respuesta
-                    (id_pregunta, id_respuesta_encuesta, id_opcion, respuesta)
-                VALUES (pregunta_id, respuesta_id, NULL,
-                    ELT(1 + ((i + j) MOD 5),
-                        'Buena atención y trato cordial.',
-                        'Podría mejorar la señalización.',
-                        'El proceso fue claro y sencillo.',
-                        'Sería útil reducir los tiempos de espera.',
-                        'El personal brindó información suficiente.'));
-            ELSE
-                SELECT id INTO opcion_id FROM tmp_seed_option
-                WHERE id_pregunta = pregunta_id
-                  AND seq = 1 + ((i + j) MOD opciones);
-                INSERT INTO detalle_respuesta
-                    (id_pregunta, id_respuesta_encuesta, id_opcion, respuesta)
-                VALUES (pregunta_id, respuesta_id, opcion_id, NULL);
+        WHILE j <= num_preguntas DO
+            -- En la seccion de preguntas j MOD 5 = 0 es la unica opcional.
+            -- 1 de cada 4 rondas deja esa pregunta sin contestar.
+            IF j MOD 5 <> 0
+                OR ((FLOOR((i - 1) / 30) + encuesta_seq + j) MOD 4 <> 0)
+            THEN
+                SELECT id, abierta, numero_opciones
+                INTO pregunta_id, es_abierta, opciones
+                FROM tmp_seed_question
+                WHERE survey_seq = encuesta_seq AND question_seq = j;
+
+                IF es_abierta THEN
+                    INSERT INTO detalle_respuesta
+                        (id_pregunta, id_respuesta_encuesta, id_opcion, respuesta)
+                    VALUES (
+                        pregunta_id, respuesta_id, NULL,
+                        ELT(1 + ((FLOOR((i - 1) / 30) + j + encuesta_seq) MOD 5),
+                            'Buena atención y trato cordial.',
+                            'Podría mejorar la señalización.',
+                            'El proceso fue claro y sencillo.',
+                            'Sería útil reducir los tiempos de espera.',
+                            'El personal brindó información suficiente.')
+                    );
+                ELSE
+                    -- Variar por ronda garantiza distribuciones reales
+                    -- en preguntas de 3 o 4 opciones, sin opciones siempre a cero.
+                    SELECT id INTO opcion_id FROM tmp_seed_option
+                    WHERE id_pregunta = pregunta_id
+                      AND seq = 1 + ((FLOOR((i - 1) / 30) + j + encuesta_seq) MOD opciones);
+                    INSERT INTO detalle_respuesta
+                        (id_pregunta, id_respuesta_encuesta, id_opcion, respuesta)
+                    VALUES (pregunta_id, respuesta_id, opcion_id, NULL);
+                END IF;
             END IF;
+
             SET j = j + 1;
         END WHILE;
         SET i = i + 1;
     END WHILE;
+
+    -- Evitar encuestas publicas que apunten a categorias inactivas.
+    SELECT COUNT(*) INTO contador
+    FROM encuesta e
+    JOIN categoria c ON c.id_cat = e.id_cat
+    WHERE e.activo = TRUE AND c.activo = FALSE;
+    IF contador <> 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: encuesta activa en categoria inactiva';
+    END IF;
+
+    -- Validar integridad LOGICA antes del COMMIT. La BD no valida, por si
+    -- sola, que un formulario contestado incluya todas las obligatorias.
+    SELECT COUNT(*) INTO contador
+    FROM respuesta_encuesta re
+    JOIN pregunta p
+      ON p.id_encuesta = re.id_encuesta
+     AND p.activa = TRUE
+     AND p.obligatoria = TRUE
+    LEFT JOIN detalle_respuesta d
+      ON d.id_respuesta_encuesta = re.id_respuesta_encuesta
+     AND d.id_pregunta = p.id_pregunta
+    WHERE d.id_detalle_respuesta IS NULL;
+
+    IF contador <> 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: existen preguntas obligatorias sin responder';
+    END IF;
+
+    SELECT COUNT(*) INTO contador
+    FROM detalle_respuesta d
+    JOIN pregunta p ON p.id_pregunta = d.id_pregunta
+    WHERE (p.tipo = 'abierta' AND (d.respuesta IS NULL OR d.id_opcion IS NOT NULL))
+       OR (p.tipo <> 'abierta' AND (d.id_opcion IS NULL OR d.respuesta IS NOT NULL));
+
+    IF contador <> 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: respuestas no compatibles con el tipo de pregunta';
+    END IF;
+
+    -- VALIDAR TAMAÑOS ESPERADOS ANTES DEL COMMIT.
+    -- En una instalacion limpia cualquier diferencia aborta y hace ROLLBACK.
+    SELECT COUNT(*) INTO contador FROM funcionario;
+    IF contador <> 80 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de funcionarios';
+    END IF;
+
+    SELECT COUNT(*) INTO contador FROM rol_usuario;
+    IF contador <> 150 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de roles asignados';
+    END IF;
+
+    SELECT COUNT(*) INTO contador FROM categoria;
+    IF contador <> 20 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de categorias';
+    END IF;
+
+    SELECT COUNT(*) INTO contador FROM vehiculo;
+    IF contador <> 35 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de vehiculos';
+    END IF;
+
+    SELECT COUNT(*) INTO contador FROM traslado;
+    IF contador <> 2000 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de traslados';
+    END IF;
+
+    SELECT COUNT(*) INTO contador FROM encuesta;
+    IF contador <> 30 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de encuestas';
+    END IF;
+
+    SELECT COUNT(*) INTO contador FROM pregunta;
+    IF contador <> 200 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de preguntas';
+    END IF;
+
+    SELECT COUNT(*) INTO contador FROM opcion_respuesta;
+    IF contador <> 600 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de opciones';
+    END IF;
+
+    SELECT COUNT(*) INTO contador FROM respuesta_encuesta;
+    IF contador <> 5000 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de formularios';
+    END IF;
+
+    SELECT COUNT(*) INTO contador FROM detalle_respuesta;
+    IF contador <> 32090 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de detalles';
+    END IF;
 
     COMMIT;
 
@@ -568,77 +681,61 @@ END$$
 
 DELIMITER ;
 
-CALL seed_sigsm_demo ();
-
+CALL seed_sigsm_demo();
 DROP PROCEDURE IF EXISTS seed_sigsm_demo;
 
 -- VERIFICACIÓN: las consultas siguientes solo leen los datos.
-SELECT 'funcionarios' entidad, COUNT(*) cantidad
-FROM funcionario
-UNION ALL
-SELECT 'relaciones_rol', COUNT(*)
-FROM rol_usuario
-UNION ALL
-SELECT 'vehiculos', COUNT(*)
-FROM vehiculo
-UNION ALL
-SELECT 'categorias', COUNT(*)
-FROM categoria
-UNION ALL
-SELECT 'traslados', COUNT(*)
-FROM traslado
-UNION ALL
-SELECT 'historiales_traslado', COUNT(*)
-FROM historial_estado_traslado
-UNION ALL
-SELECT 'encuestas', COUNT(*)
-FROM encuesta
-UNION ALL
-SELECT 'preguntas', COUNT(*)
-FROM pregunta
-UNION ALL
-SELECT 'opciones', COUNT(*)
-FROM opcion_respuesta
-UNION ALL
-SELECT 'respuestas', COUNT(*)
-FROM respuesta_encuesta
-UNION ALL
-SELECT 'detalles', COUNT(*)
-FROM detalle_respuesta
-UNION ALL
-SELECT 'documentos', COUNT(*)
-FROM documento;
+SELECT 'funcionarios' entidad, COUNT(*) cantidad FROM funcionario
+UNION ALL SELECT 'relaciones_rol', COUNT(*) FROM rol_usuario
+UNION ALL SELECT 'vehiculos', COUNT(*) FROM vehiculo
+UNION ALL SELECT 'categorias', COUNT(*) FROM categoria
+UNION ALL SELECT 'traslados', COUNT(*) FROM traslado
+UNION ALL SELECT 'historiales_traslado', COUNT(*) FROM historial_estado_traslado
+UNION ALL SELECT 'encuestas', COUNT(*) FROM encuesta
+UNION ALL SELECT 'preguntas', COUNT(*) FROM pregunta
+UNION ALL SELECT 'opciones', COUNT(*) FROM opcion_respuesta
+UNION ALL SELECT 'respuestas', COUNT(*) FROM respuesta_encuesta
+UNION ALL SELECT 'detalles', COUNT(*) FROM detalle_respuesta
+UNION ALL SELECT 'documentos', COUNT(*) FROM documento;
 
 -- Comprobaciones de coherencia (los valores de incidencia deben ser cero).
 SELECT 'funcionarios_sin_rol' comprobacion, COUNT(*) incidencias
 FROM funcionario f
-    LEFT JOIN rol_usuario ru ON ru.id_func = f.id_func
-WHERE
-    ru.id_func IS NULL
+LEFT JOIN rol_usuario ru ON ru.id_func = f.id_func
+WHERE ru.id_func IS NULL
 UNION ALL
 SELECT 'encuestas_anonimas_con_cedula', COUNT(*)
-FROM
-    respuesta_encuesta re
-    JOIN encuesta e ON e.id_encuesta = re.id_encuesta
-WHERE
-    e.anonima = TRUE
-    AND re.cedula IS NOT NULL
+FROM respuesta_encuesta re
+JOIN encuesta e ON e.id_encuesta = re.id_encuesta
+WHERE e.anonima = TRUE AND re.cedula IS NOT NULL
 UNION ALL
 SELECT 'detalles_en_otra_encuesta', COUNT(*)
-FROM
-    detalle_respuesta dr
-    JOIN respuesta_encuesta re ON re.id_respuesta_encuesta = dr.id_respuesta_encuesta
-    JOIN pregunta p ON p.id_pregunta = dr.id_pregunta
-WHERE
-    re.id_encuesta <> p.id_encuesta;
+FROM detalle_respuesta dr
+JOIN respuesta_encuesta re ON re.id_respuesta_encuesta = dr.id_respuesta_encuesta
+JOIN pregunta p ON p.id_pregunta = dr.id_pregunta
+WHERE re.id_encuesta <> p.id_encuesta
+UNION ALL
+SELECT 'encuestas_activas_categoria_inactiva', COUNT(*)
+FROM encuesta e
+JOIN categoria c ON c.id_cat = e.id_cat
+WHERE e.activo = TRUE AND c.activo = FALSE
+UNION ALL
+SELECT 'obligatorias_sin_responder', COUNT(*)
+FROM respuesta_encuesta re
+JOIN pregunta p ON p.id_encuesta = re.id_encuesta
+               AND p.activa = TRUE AND p.obligatoria = TRUE
+LEFT JOIN detalle_respuesta d ON d.id_respuesta_encuesta = re.id_respuesta_encuesta
+                            AND d.id_pregunta = p.id_pregunta
+WHERE d.id_detalle_respuesta IS NULL
+UNION ALL
+SELECT 'cerradas_sin_opcion_o_abiertas_con_opcion', COUNT(*)
+FROM detalle_respuesta d
+JOIN pregunta p ON p.id_pregunta = d.id_pregunta
+WHERE (p.tipo = 'abierta' AND (d.respuesta IS NULL OR d.id_opcion IS NOT NULL))
+   OR (p.tipo <> 'abierta' AND (d.id_opcion IS NULL OR d.respuesta IS NOT NULL));
 
 SELECT et.nombre AS estado, COUNT(*) AS traslados
-FROM
-    traslado t
-    JOIN estado_traslado et ON et.id_estado = t.id_estado
-WHERE
-    t.activo = TRUE
-GROUP BY
-    et.id_estado,
-    et.nombre
+FROM traslado t JOIN estado_traslado et ON et.id_estado = t.id_estado
+WHERE t.activo = TRUE
+GROUP BY et.id_estado, et.nombre
 ORDER BY et.orden;
