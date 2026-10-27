@@ -285,7 +285,7 @@ BEGIN
     END WHILE;
 
     -- 4) Compatibilidad de carga para que resources.php tenga relaciones válidas.
-    INSERT INTO compatibilidad_transporte (id_tipo_elemento, id_tipo_vehiculo)
+    INSERT IGNORE INTO compatibilidad_transporte (id_tipo_elemento, id_tipo_vehiculo)
     SELECT te.id_tipo_elemento, tv.id_tipo_vehiculo
     FROM tipo_elemento AS te CROSS JOIN tipo_vehiculo AS tv
     WHERE (te.nombre = 'Paciente' AND tv.nombre = 'Ambulancia')
