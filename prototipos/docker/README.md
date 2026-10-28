@@ -1,11 +1,11 @@
 
 # S.I.G.S.M. — Despliegue con Docker
 
-Guía de instalación, configuración, ejecución y mantenimiento de **S.I.G.S.M.** mediante Docker Compose.
+Guía de instalación, configuración, ejecución y mantenimiento del **Sistema Integrado de Gestión de Servicios Médicos (S.I.G.S.M.)**, desarrollado por **Empre S.A.S.** como parte del proyecto académico de UTU.
 
-Este sistema permite desplegar la aplicación en otra computadora o servidor sin instalar manualmente PHP, Apache, Node.js, Nginx ni MariaDB.
+Docker Compose permite desplegar la aplicación en otra computadora o servidor sin instalar manualmente PHP, Apache, Node.js, Nginx ni MariaDB.
 
-La configuración actual está orientada a entornos locales, académicos y de demostración. Para publicar la aplicación en Internet es necesario incorporar medidas adicionales de seguridad, especialmente HTTPS.
+> **Importante:** la configuración actual está orientada a entornos locales, académicos y de demostración. Para exponer la aplicación en Internet es necesario incorporar HTTPS y otras medidas de seguridad.
 
 ---
 
@@ -22,13 +22,13 @@ La configuración actual está orientada a entornos locales, académicos y de de
 9. [Persistencia y respaldos](#9-persistencia-y-respaldos)
 10. [Acceso desde otros equipos](#10-acceso-desde-otros-equipos)
 11. [Resolución de problemas](#11-resolución-de-problemas)
-12. [Referencia rápida de comandos](#12-referencia-rápida-de-comandos)
+12. [Referencia rápida](#12-referencia-rápida)
 
 ---
 
 ## 1. Arquitectura del despliegue
 
-La aplicación utiliza Docker Compose para gestionar los servicios necesarios para su funcionamiento.
+La aplicación utiliza Docker Compose para administrar los servicios necesarios para su funcionamiento.
 
 ### 1.1 Servicios
 
@@ -36,65 +36,65 @@ La aplicación utiliza Docker Compose para gestionar los servicios necesarios pa
 |---|---|---|
 | `frontend` | React, Vite y Nginx | Interfaz web y proxy de la API |
 | `backend` | PHP 8.2 y Apache | API REST y lógica de negocio |
-| `db` | MariaDB 11.4 | Almacenamiento de información |
+| `db` | MariaDB 11.4 | Base de datos |
 | `admin-init` | PHP | Creación del administrador inicial |
 | `seed-demo` | MariaDB | Carga opcional de datos ficticios |
 
 Los servicios `frontend`, `backend` y `db` permanecen ejecutándose para mantener disponible la aplicación.
 
-Los servicios `admin-init` y `seed-demo` son tareas puntuales. Se ejecutan, realizan su trabajo y finalizan.
+Los servicios `admin-init` y `seed-demo` son tareas puntuales que finalizan después de realizar sus operaciones.
 
 ### 1.2 Comunicación entre servicios
 
-El funcionamiento general es:
-
 ```text
-                  USUARIO
-                     |
-                     v
+                 USUARIO
+                    |
+                    v
               Navegador web
-                     |
-                     v
-          FRONTEND - NGINX
-               Puerto 80
-                     |
-             Peticiones /api
-                     |
-                     v
+                    |
+                    v
+           FRONTEND - NGINX
+                    |
+              Peticiones /api
+                    |
+                    v
            BACKEND - APACHE
                   PHP
-                     |
-                     v
-               MARIADB
-                sigsm
+                    |
+                    v
+                 MARIADB
+                  sigsm
 ```
 
 El frontend es el único servicio publicado en un puerto del equipo anfitrión.
 
-Nginx se encarga de servir la aplicación React y redirigir las peticiones `/api/` hacia el backend.
+Nginx sirve la aplicación React y redirige las peticiones `/api/` hacia el backend.
 
 Apache ejecuta los endpoints PHP y se comunica con MariaDB mediante la red interna de Docker.
 
-No es necesario publicar directamente los puertos de Apache ni de MariaDB.
+No es necesario publicar directamente los puertos de Apache ni MariaDB.
 
 ### 1.3 Volúmenes persistentes
 
 La aplicación utiliza dos volúmenes:
 
-| Volumen | Ruta dentro del contenedor | Contenido |
+| Volumen | Ruta en el contenedor | Contenido |
 |---|---|---|
 | `db_data` | `/var/lib/mysql` | Base de datos MariaDB |
-| `docs_data` | `/var/www/api/storage` | Documentos y archivos de la aplicación |
+| `docs_data` | `/var/www/api/storage` | Documentos y archivos |
 
-Estos volúmenes permiten conservar los datos aunque los contenedores se detengan o se reconstruyan.
+Estos volúmenes permiten conservar los datos aunque los contenedores se detengan o reconstruyan.
 
-Como el proyecto se denomina `sigsm`, Docker normalmente crea los volúmenes con los nombres `sigsm_db_data` y `sigsm_docs_data`.
+Como el proyecto se denomina `sigsm`, Docker normalmente crea los volúmenes:
+
+```text
+sigsm_db_data
+sigsm_docs_data
+```
 
 **Importante:** los volúmenes no deben eliminarse durante una actualización normal.
 
 ### 1.4 Estructura de archivos
-
-La configuración de Docker se encuentra en:
 
 ```text
 prototipos/
@@ -125,7 +125,7 @@ El archivo `.env` debe crearse durante la instalación y no debe subirse al repo
 
 ## 2. Requisitos previos
 
-Para instalar S.I.G.S.M. en otro equipo se necesita:
+Para instalar S.I.G.S.M. se necesita:
 
 - Docker Engine o Docker Desktop.
 - Docker Compose v2.
@@ -134,20 +134,9 @@ Para instalar S.I.G.S.M. en otro equipo se necesita:
 - Un puerto disponible para acceder a la aplicación.
 - Espacio suficiente para imágenes, base de datos y documentos.
 
-No es necesario instalar localmente:
-
-- PHP.
-- Apache.
-- Node.js.
-- Nginx.
-- MariaDB.
-- XAMPP.
-
-Estas herramientas se ejecutan dentro de los contenedores correspondientes.
+No es necesario instalar localmente PHP, Apache, Node.js, Nginx, MariaDB ni XAMPP.
 
 ### 2.1 Comprobar Docker
-
-Ejecutar:
 
 ```bash
 docker --version
@@ -159,25 +148,21 @@ Comprobar Docker Compose:
 docker compose version
 ```
 
-Comprobar que el motor de Docker funciona:
+Comprobar que el motor funciona:
 
 ```bash
 docker info
 ```
 
-Si Docker está instalado correctamente, los comandos mostrarán información sobre sus versiones y configuración.
-
 En Windows es necesario que Docker Desktop esté iniciado.
 
-En Linux, el usuario debe tener permisos para utilizar el servicio Docker.
+En Linux, el usuario debe tener permisos para utilizar Docker.
 
 ### 2.2 Comprobar Git
 
 ```bash
 git --version
 ```
-
-Git se utiliza para descargar y actualizar los archivos de configuración del repositorio.
 
 ---
 
@@ -187,7 +172,9 @@ El código de S.I.G.S.M. está disponible en:
 
 https://github.com/MrGalletah/S.I.G.S.M---Proyecto-UTU
 
-### 3.1 Clonar el repositorio
+Existen dos alternativas para obtener los archivos necesarios.
+
+### 3.1 Clonar el repositorio completo
 
 Desde una terminal:
 
@@ -195,26 +182,68 @@ Desde una terminal:
 git clone https://github.com/MrGalletah/S.I.G.S.M---Proyecto-UTU.git
 ```
 
-Entrar en el directorio de Docker:
+Acceder a la carpeta Docker:
 
 ```bash
 cd S.I.G.S.M---Proyecto-UTU/prototipos/docker
 ```
 
-A partir de este momento, salvo que se indique lo contrario, **todos los comandos deben ejecutarse desde `prototipos/docker`**.
+Este procedimiento descarga el repositorio completo, incluyendo frontend, backend, base de datos y documentación.
 
-### 3.2 Código utilizado durante la construcción
+### 3.2 Clonar únicamente la carpeta Docker
 
-Los Dockerfiles actuales descargan el código directamente desde la rama `main` de GitHub.
+Si solamente se desea instalar y ejecutar S.I.G.S.M., no es necesario descargar todo el código fuente del proyecto.
+
+Git permite utilizar `sparse-checkout` para obtener únicamente los archivos necesarios para el despliegue.
+
+**1. Clonar el repositorio en modo parcial:**
+
+```bash
+git clone --depth 1 --filter=blob:none --sparse --branch main https://github.com/MrGalletah/S.I.G.S.M---Proyecto-UTU.git
+```
+
+**2. Entrar al repositorio:**
+
+```bash
+cd S.I.G.S.M---Proyecto-UTU
+```
+
+**3. Seleccionar únicamente la carpeta Docker:**
+
+```bash
+git sparse-checkout set prototipos/docker
+```
+
+**4. Acceder al directorio de despliegue:**
+
+```bash
+cd prototipos/docker
+```
+
+De esta manera, solamente se materializa la carpeta `prototipos/docker`, además de los archivos necesarios para el funcionamiento de Git.
+
+No es necesario descargar localmente el frontend, el backend ni los esquemas SQL, ya que los Dockerfiles los obtienen automáticamente desde la rama `main` de GitHub durante la construcción.
+
+Para actualizar posteriormente los archivos de configuración:
+
+```bash
+git pull origin main
+```
+
+Esta opción resulta especialmente útil para instalar S.I.G.S.M. en servidores destinados únicamente a ejecutar la aplicación.
+
+### 3.3 Código utilizado durante la construcción
+
+Los Dockerfiles descargan el código directamente desde `main`.
 
 Por tanto:
 
-- Las imágenes contienen el código que estaba publicado en `main` durante su construcción.
-- Los cambios locales no se incorporan automáticamente a las imágenes.
-- Es necesario publicar los cambios en GitHub y reconstruir la imagen correspondiente.
+- Las imágenes contienen el código publicado en GitHub durante su construcción.
+- Los cambios locales no se incorporan automáticamente.
+- Para actualizar el código es necesario publicarlo en `main` y reconstruir las imágenes afectadas.
 - Reiniciar un contenedor no descarga código nuevo.
 
-El frontend, el backend y la base de datos pueden reconstruirse por separado.
+**A partir de este momento, todos los comandos de Docker Compose deben ejecutarse desde `prototipos/docker`, salvo que se indique lo contrario.**
 
 ---
 
@@ -230,7 +259,7 @@ En Linux o macOS:
 cp .env.example .env
 ```
 
-En Windows, utilizando PowerShell:
+En Windows con PowerShell:
 
 ```powershell
 Copy-Item .env.example .env
@@ -263,7 +292,7 @@ ADMIN_PASSWORD=reemplazar_con_una_contrasena_de_12_caracteres_o_mas
 |---|---|
 | `WEB_PORT` | Puerto utilizado para acceder al frontend |
 | `DB_USER` | Usuario de MariaDB utilizado por la API |
-| `DB_PASSWORD` | Contraseña del usuario de la base de datos |
+| `DB_PASSWORD` | Contraseña del usuario de la base |
 | `MARIADB_ROOT_PASSWORD` | Contraseña del administrador de MariaDB |
 | `ADMIN_NAME` | Nombre del administrador inicial |
 | `ADMIN_EMAIL` | Correo utilizado para iniciar sesión |
@@ -271,17 +300,13 @@ ADMIN_PASSWORD=reemplazar_con_una_contrasena_de_12_caracteres_o_mas
 
 El puerto predeterminado es `8080`.
 
-La contraseña del administrador inicial debe tener **al menos 12 caracteres**, según la validación de `bootstrap-admin.php`.
+La contraseña del administrador inicial debe tener **al menos 12 caracteres**.
 
-### 4.4 Diferencia entre las credenciales
-
-Existen dos tipos de usuarios:
+### 4.4 Diferencia entre credenciales
 
 **Usuario de MariaDB**
 
 Se utiliza internamente para conectar la API con la base de datos.
-
-Se configura mediante:
 
 ```dotenv
 DB_USER=sigsm_app
@@ -292,8 +317,6 @@ DB_PASSWORD=...
 
 Es el usuario que inicia sesión desde la aplicación web.
 
-Se configura mediante:
-
 ```dotenv
 ADMIN_NAME=...
 ADMIN_EMAIL=...
@@ -302,50 +325,40 @@ ADMIN_PASSWORD=...
 
 Las credenciales de MariaDB no deben utilizarse para iniciar sesión en la aplicación.
 
-### 4.5 Seguridad de las variables
+### 4.5 Seguridad
 
 El archivo `.env` contiene contraseñas y no debe compartirse.
 
-Está excluido del control de versiones mediante `.gitignore`.
-
 Se recomienda:
 
-- Utilizar contraseñas largas y distintas.
-- Evitar credenciales predeterminadas.
+- Utilizar contraseñas largas y diferentes.
 - No subir `.env` a GitHub.
-- No compartir capturas que muestren las contraseñas.
-- Mantener una copia segura de las credenciales de administración.
+- No compartir capturas con credenciales.
+- Mantener una copia segura de las contraseñas.
+- Evitar utilizar credenciales predeterminadas.
 
-Modificar `ADMIN_PASSWORD` después de crear el administrador **no cambia su contraseña en la base de datos**.
+Modificar `ADMIN_PASSWORD` después de crear el administrador **no cambia automáticamente su contraseña en la base de datos**.
 
 De igual forma, modificar las credenciales de MariaDB en `.env` no actualiza automáticamente las de una base ya inicializada.
 
 ### 4.6 Validar la configuración
 
-Antes de iniciar:
-
 ```bash
 docker compose config --quiet
 ```
 
-Este comando comprueba la configuración de Docker Compose y la presencia de las variables necesarias.
-
-No muestra los valores de las contraseñas cuando se utiliza con `--quiet`.
+Este comando comprueba la configuración de Docker Compose y las variables necesarias sin imprimir sus valores.
 
 ---
 
 ## 5. Instalación inicial
 
-Existen dos formas de instalar la aplicación:
+Existen dos modalidades:
 
 1. Instalación normal, sin datos de demostración.
-2. Instalación de demostración, con información ficticia.
-
-Ambas utilizan los mismos contenedores principales.
+2. Instalación con información ficticia para pruebas.
 
 ### 5.1 Instalación normal
-
-Para instalar S.I.G.S.M. sin datos ficticios:
 
 ```bash
 docker compose up -d --build
@@ -356,18 +369,18 @@ Este comando:
 1. Construye las imágenes necesarias.
 2. Crea la red interna del proyecto.
 3. Inicializa MariaDB.
-4. Ejecuta los scripts de creación de tablas.
+4. Ejecuta los scripts SQL.
 5. Crea el administrador inicial.
 6. Inicia Apache y PHP.
 7. Inicia Nginx y el frontend.
 
 La opción `-d` ejecuta los servicios en segundo plano.
 
-La opción `--build` permite construir las imágenes antes de iniciar los contenedores.
+La opción `--build` construye las imágenes antes de iniciar los contenedores.
 
 ### 5.2 Inicialización de la base de datos
 
-En una instalación nueva, MariaDB ejecuta automáticamente los siguientes archivos:
+En una instalación nueva, MariaDB ejecuta automáticamente:
 
 ```text
 dbSchema_01.sql
@@ -376,13 +389,13 @@ dbSchema_03.sql
 dbSchema_04.sql
 ```
 
-Estos archivos se obtienen del repositorio durante la construcción de la imagen de la base de datos.
+Los archivos se obtienen de GitHub durante la construcción.
 
-Se ejecutan en el orden indicado y crean las tablas, relaciones, restricciones y catálogos necesarios.
+Se ejecutan en orden y crean las tablas, relaciones, restricciones y catálogos necesarios.
 
-**Los scripts de inicialización solo se ejecutan automáticamente cuando el volumen de MariaDB está vacío.**
+**Los scripts solamente se ejecutan automáticamente cuando el volumen de MariaDB está vacío.**
 
-Si la base de datos ya existe, reconstruir su imagen no vuelve a crear las tablas.
+Si la base ya existe, reconstruir su imagen no vuelve a crear las tablas.
 
 ### 5.3 Creación del administrador
 
@@ -391,31 +404,28 @@ El servicio `admin-init` se ejecuta después de que MariaDB esté disponible.
 Su función es:
 
 - Comprobar que existe el rol `Administrador`.
-- Comprobar si ya existe un funcionario con el correo configurado.
-- Crear el funcionario inicial si todavía no existe.
-- Generar el hash seguro de su contraseña.
+- Comprobar si el funcionario ya existe.
+- Crear el administrador inicial si todavía no existe.
+- Generar el hash de su contraseña.
 - Asignarle el rol de administrador.
 
-Si el administrador ya existe con el rol correspondiente, el servicio no modifica su contraseña.
+Si ya existe un administrador con el mismo correo y rol, el servicio no modifica su contraseña.
 
-Una vez terminado, `admin-init` finaliza correctamente.
+Una vez terminado, `admin-init` finaliza.
 
 ### 5.4 Instalación con datos de demostración
 
-Para instalar S.I.G.S.M. con datos ficticios:
+Para una instalación nueva con datos ficticios:
 
 ```bash
 docker compose --profile demo up -d --build
 ```
 
-La opción `--profile demo` activa el servicio adicional `seed-demo`.
+El perfil `demo` activa el servicio adicional `seed-demo`.
 
-Este servicio espera a que:
+Este servicio espera a que MariaDB esté disponible y que el administrador inicial se haya creado correctamente.
 
-1. MariaDB esté disponible.
-2. El administrador inicial se haya creado correctamente.
-
-Después ejecuta:
+Después ejecuta el archivo:
 
 ```text
 prototipos/backend/database/data/seedDemo.sql
@@ -423,11 +433,9 @@ prototipos/backend/database/data/seedDemo.sql
 
 ### 5.5 Datos generados por el seed
 
-El seed crea información sintética para probar los diferentes módulos de la aplicación.
-
 | Entidad | Cantidad |
 |---|---:|
-| Funcionarios, incluido el administrador inicial | 80 |
+| Funcionarios, incluido el administrador | 80 |
 | Asignaciones de roles | 150 |
 | Vehículos | 35 |
 | Categorías | 20 |
@@ -437,7 +445,7 @@ El seed crea información sintética para probar los diferentes módulos de la a
 | Opciones de respuesta | 600 |
 | Formularios respondidos | 5000 |
 
-#### Distribución de los traslados
+**Distribución de traslados:**
 
 | Estado | Cantidad |
 |---|---:|
@@ -458,13 +466,13 @@ Esto permite comprobar el funcionamiento de Seguimiento e Historial con diferent
 
 El seed no genera documentos PDF, ya que estos deben almacenarse como archivos reales.
 
-### 5.6 Verificar la ejecución del seed
+### 5.6 Verificar el seed
 
 ```bash
 docker compose --profile demo logs seed-demo
 ```
 
-Si el proceso terminó correctamente, debe aparecer el mensaje:
+Si terminó correctamente debe aparecer:
 
 ```text
 Seed de demostracion cargado correctamente.
@@ -476,9 +484,9 @@ También puede consultarse:
 docker compose --profile demo ps -a
 ```
 
-Es normal que `seed-demo` y `admin-init` aparezcan como `Exited (0)`.
+Es normal que `seed-demo` y `admin-init` aparezcan con estado `Exited (0)`.
 
-Son procesos diseñados para ejecutarse una sola vez y finalizar.
+Son procesos diseñados para ejecutarse una vez y finalizar.
 
 ### 5.7 Advertencia sobre el seed
 
@@ -491,13 +499,12 @@ Comprueba que:
 - No existan encuestas anteriores.
 - No existan categorías añadidas.
 - No existan documentos previos.
-- No existan otros datos que puedan interferir.
 
-Si ya existe información, el seed interrumpe su ejecución para evitar mezclar datos.
+Si ya existe información, interrumpe su ejecución para evitar mezclar datos.
 
 **No debe ejecutarse repetidamente sobre una instalación en uso.**
 
-Para posteriores arranques de una instalación que ya tiene datos, utilizar:
+Para arrancar normalmente una instalación que ya tiene datos:
 
 ```bash
 docker compose up -d
@@ -515,7 +522,7 @@ Sin activar el perfil `demo`.
 docker compose ps
 ```
 
-Para incluir los contenedores que ya finalizaron:
+Para incluir los contenedores que finalizaron:
 
 ```bash
 docker compose ps -a
@@ -523,7 +530,7 @@ docker compose ps -a
 
 Los servicios principales deben encontrarse en ejecución.
 
-MariaDB debe indicar un estado saludable cuando su comprobación de disponibilidad termine satisfactoriamente.
+MariaDB debe indicar un estado saludable cuando complete correctamente su comprobación de disponibilidad.
 
 ### 6.2 Consultar los logs
 
@@ -569,13 +576,9 @@ Logs del seed:
 docker compose --profile demo logs seed-demo
 ```
 
-Para salir de la visualización en tiempo real:
+Para salir de los logs en tiempo real, utilizar `Ctrl + C`.
 
-```text
-Ctrl + C
-```
-
-Esto interrumpe la visualización de los logs, pero no detiene los contenedores.
+Esto no detiene los contenedores.
 
 ### 6.3 Acceder a la aplicación
 
@@ -585,9 +588,9 @@ Abrir en el navegador:
 http://localhost:8080
 ```
 
-Si se configuró otro valor de `WEB_PORT`, utilizar el puerto correspondiente.
+Si se configuró otro `WEB_PORT`, utilizar el puerto correspondiente.
 
-Ejemplo:
+Por ejemplo:
 
 ```dotenv
 WEB_PORT=8090
@@ -601,7 +604,7 @@ http://localhost:8090
 
 ### 6.4 Iniciar sesión
 
-Utilizar el correo y la contraseña definidos previamente:
+Utilizar el correo y la contraseña definidos en `.env`:
 
 ```dotenv
 ADMIN_EMAIL=...
@@ -612,7 +615,7 @@ El administrador tiene acceso a las funcionalidades correspondientes a su rol.
 
 ### 6.5 Comprobar los datos de demostración
 
-Para abrir una terminal SQL dentro de MariaDB:
+Abrir una terminal SQL dentro de MariaDB:
 
 ```bash
 docker compose exec db sh -c 'MYSQL_PWD="$MARIADB_PASSWORD" mariadb -u"$MARIADB_USER" "$MARIADB_DATABASE"'
@@ -639,9 +642,7 @@ Para salir:
 exit;
 ```
 
-En la aplicación pueden utilizarse los filtros del Historial para comprobar los traslados completados y cancelados.
-
-En una instalación demo limpia, los códigos `TR-01981` y `TR-01995` corresponden a ejemplos de traslados cancelados con y sin recursos asignados, respectivamente.
+En una instalación demo limpia, los códigos `TR-01981` y `TR-01995` corresponden a ejemplos de cancelaciones con y sin recursos asignados, respectivamente, siempre que los identificadores comiencen en 1.
 
 ### 6.6 Comprobar la versión desplegada
 
@@ -667,8 +668,6 @@ docker compose exec db cat /etc/sigsm-commit
 
 Esto permite verificar qué versión del código contiene cada imagen.
 
-Es posible que las imágenes muestren commits diferentes si fueron actualizadas en distintos momentos.
-
 ---
 
 ## 7. Comandos de administración
@@ -680,8 +679,6 @@ Los siguientes comandos permiten administrar los servicios de Docker durante el 
 ```bash
 docker compose up -d
 ```
-
-Inicia los servicios utilizando las imágenes existentes.
 
 ### 7.2 Detener los servicios
 
@@ -696,8 +693,6 @@ Detiene los contenedores sin eliminarlos.
 ```bash
 docker compose start
 ```
-
-Inicia los contenedores que estaban detenidos.
 
 ### 7.4 Reiniciar todos los servicios
 
@@ -737,19 +732,19 @@ docker compose ps
 
 ### 7.7 Consultar procesos y recursos
 
-Mostrar los contenedores activos:
+Contenedores activos:
 
 ```bash
 docker ps
 ```
 
-Mostrar todos los contenedores:
+Todos los contenedores:
 
 ```bash
 docker ps -a
 ```
 
-Consultar consumo de CPU y memoria:
+Consumo de recursos:
 
 ```bash
 docker stats
@@ -775,13 +770,13 @@ MariaDB:
 docker compose exec db sh
 ```
 
-Para salir de la terminal:
+Para salir:
 
 ```bash
 exit
 ```
 
-### 7.9 Eliminar los contenedores sin perder datos
+### 7.9 Eliminar contenedores sin perder datos
 
 ```bash
 docker compose down
@@ -803,29 +798,29 @@ docker compose up -d
 
 Las imágenes obtienen su código desde `main` durante la construcción.
 
-Después de subir los cambios a GitHub, es necesario reconstruir los servicios afectados.
+Después de publicar cambios en GitHub, es necesario reconstruir los servicios afectados.
 
 ### 8.1 Actualizar solamente el frontend
 
-Si únicamente se modificó React, Material UI, estilos o traducciones:
+Si se modificó React, Material UI, estilos o traducciones:
 
 ```bash
 docker compose build --no-cache frontend
 ```
 
-Después recrear el contenedor:
+Recrear el contenedor:
 
 ```bash
 docker compose up -d --no-deps frontend
 ```
 
-El parámetro `--no-deps` evita iniciar o recrear intencionadamente las dependencias del servicio.
+El parámetro `--no-deps` evita iniciar o recrear deliberadamente las dependencias del servicio.
 
-De esta manera no es necesario reconstruir el backend ni MariaDB.
+No es necesario reconstruir el backend ni MariaDB.
 
 ### 8.2 Actualizar solamente el backend
 
-Si únicamente se modificaron endpoints, servicios o lógica PHP:
+Si se modificaron endpoints, servicios o lógica PHP:
 
 ```bash
 docker compose build --no-cache backend
@@ -837,7 +832,7 @@ Recrear el contenedor:
 docker compose up -d --no-deps backend
 ```
 
-Los datos de MariaDB y los documentos persistentes se conservan.
+Los datos persistentes se conservan.
 
 ### 8.3 Actualizar frontend y backend
 
@@ -851,9 +846,9 @@ Después:
 docker compose up -d --no-deps frontend backend
 ```
 
-### 8.4 Actualizar la configuración local de Docker
+### 8.4 Actualizar la configuración de Docker
 
-Si se modificaron los archivos de Compose o los Dockerfiles en GitHub:
+Si se modificaron `compose.yaml`, los Dockerfiles o sus archivos auxiliares:
 
 ```bash
 git pull origin main
@@ -885,9 +880,7 @@ Después:
 docker compose up -d --no-deps db
 ```
 
-**Atención:** reconstruir la imagen de MariaDB no vuelve a ejecutar los scripts de creación de tablas sobre una base existente.
-
-Los scripts `dbSchema_XX.sql` solo se ejecutan automáticamente durante la inicialización de un volumen vacío.
+**Atención:** reconstruir la imagen de MariaDB no vuelve a ejecutar los scripts SQL sobre una base existente.
 
 ### 8.6 Cambios en la estructura de la base de datos
 
@@ -895,25 +888,23 @@ Si se modifican tablas, columnas, restricciones o índices, hay que distinguir d
 
 **Instalación nueva**
 
-Los archivos SQL actualizados se ejecutarán durante la inicialización de MariaDB.
+Los archivos SQL actualizados se ejecutan durante la inicialización.
 
 **Instalación existente**
 
-Los cambios deben aplicarse mediante scripts de migración SQL apropiados para la versión existente.
+Los cambios deben aplicarse mediante scripts de migración apropiados.
 
 Se recomienda:
 
-1. Crear un respaldo de la base de datos.
+1. Crear un respaldo.
 2. Preparar la migración.
 3. Probarla sobre una copia.
 4. Aplicarla a la instalación correspondiente.
 5. Verificar los resultados.
 
-No se deben ejecutar directamente todos los scripts de creación sobre una base ya poblada.
+No deben ejecutarse todos los scripts de creación directamente sobre una base ya poblada.
 
 ### 8.7 Reconstrucción completa
-
-Para reconstruir todas las imágenes desde cero:
 
 ```bash
 docker compose build --no-cache
@@ -929,14 +920,14 @@ Los volúmenes persistentes se conservan.
 
 ### 8.8 Diferencia entre reiniciar y reconstruir
 
-| Comando | Descarga código nuevo | Recrea imagen |
-|---|---|---|
-| `docker compose restart frontend` | No | No |
-| `docker compose up -d` | No necesariamente | No |
-| `docker compose build frontend` | Puede utilizar caché | Sí |
-| `docker compose build --no-cache frontend` | Sí, desde `main` | Sí |
+| Comando | Incorpora código nuevo |
+|---|---|
+| `docker compose restart frontend` | No |
+| `docker compose up -d` | No, salvo que cambie la imagen utilizada |
+| `docker compose build frontend` | Reconstruye, pero puede utilizar caché |
+| `docker compose build --no-cache frontend` | Reconstruye desde el código actual de `main` |
 
-Después de reconstruir una imagen es necesario recrear el contenedor para utilizarla.
+Después de reconstruir una imagen es necesario recrear su contenedor para utilizarla.
 
 ---
 
@@ -944,27 +935,25 @@ Después de reconstruir una imagen es necesario recrear el contenedor para utili
 
 ### 9.1 Información persistente
 
-La información más importante de la aplicación se encuentra en:
+La información más importante se encuentra en dos ubicaciones.
 
 **MariaDB**
 
 Contiene:
 
-- Funcionarios.
-- Roles.
+- Funcionarios y roles.
 - Categorías.
 - Documentos registrados.
-- Encuestas.
-- Respuestas.
+- Encuestas y respuestas.
 - Vehículos.
 - Traslados.
-- Historial de traslados.
+- Historial de estados.
 
 **Almacenamiento de documentos**
 
-Contiene los archivos físicos almacenados por la aplicación, como los documentos PDF.
+Contiene los archivos físicos almacenados por la aplicación, especialmente los PDF.
 
-Para recuperar completamente el sistema es necesario conservar tanto la base de datos como los archivos físicos.
+Para recuperar completamente el sistema es necesario conservar ambos elementos.
 
 ### 9.2 Consultar los volúmenes
 
@@ -972,7 +961,7 @@ Para recuperar completamente el sistema es necesario conservar tanto la base de 
 docker volume ls
 ```
 
-Los volúmenes del proyecto normalmente aparecen como:
+Normalmente aparecen:
 
 ```text
 sigsm_db_data
@@ -981,35 +970,33 @@ sigsm_docs_data
 
 ### 9.3 Crear un respaldo de MariaDB
 
-El siguiente procedimiento funciona sin necesidad de tener instalado MariaDB en el equipo anfitrión.
+El respaldo se genera dentro del contenedor y después se copia al equipo anfitrión.
 
-Primero se crea el volcado SQL dentro del contenedor:
+**1. Crear el volcado SQL:**
 
 ```bash
 docker compose exec db sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb-dump -uroot --single-transaction --quick --routines --triggers sigsm > /tmp/sigsm_backup.sql'
 ```
 
-Después se copia al equipo anfitrión:
+**2. Copiarlo al equipo anfitrión:**
 
 ```bash
 docker compose cp db:/tmp/sigsm_backup.sql ./sigsm_backup.sql
 ```
 
-Finalmente se elimina el archivo temporal:
+**3. Eliminar el temporal:**
 
 ```bash
 docker compose exec db rm /tmp/sigsm_backup.sql
 ```
 
-El resultado es:
+El resultado será:
 
 ```text
 sigsm_backup.sql
 ```
 
-Este archivo contiene un respaldo lógico de la base de datos.
-
-Se recomienda almacenarlo fuera del directorio de despliegue y utilizar una carpeta protegida.
+Se recomienda almacenar el archivo fuera del directorio de despliegue y protegerlo adecuadamente.
 
 ### 9.4 Respaldar documentos
 
@@ -1019,68 +1006,66 @@ Crear una carpeta:
 mkdir storage_backup
 ```
 
-Copiar los archivos del backend:
+Copiar los documentos:
 
 ```bash
 docker compose cp backend:/var/www/api/storage/. ./storage_backup/
 ```
 
-La carpeta `storage_backup` contendrá los archivos persistentes almacenados por la aplicación.
+La carpeta contendrá los archivos persistentes de la aplicación.
 
 ### 9.5 Restaurar la base de datos
 
-**Advertencia:** restaurar un SQL puede sobrescribir información de la base de datos de destino.
+**Advertencia:** restaurar un archivo SQL puede sobrescribir información de la base de destino.
 
-Este procedimiento debe realizarse únicamente sobre un entorno preparado para restauración, con copia previa de cualquier información que sea necesario conservar.
+Debe realizarse sobre un entorno preparado para restauración y con una copia previa de cualquier información que se necesite conservar.
 
-Primero copiar el respaldo al contenedor:
+Copiar el respaldo al contenedor:
 
 ```bash
 docker compose cp ./sigsm_backup.sql db:/tmp/sigsm_backup.sql
 ```
 
-Después importar el respaldo:
+Importarlo:
 
 ```bash
 docker compose exec db sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot sigsm < /tmp/sigsm_backup.sql'
 ```
 
-Finalmente eliminar el archivo temporal:
+Eliminar el temporal:
 
 ```bash
 docker compose exec db rm /tmp/sigsm_backup.sql
 ```
 
-La base `sigsm` debe existir antes de importar el archivo.
-
-Para una restauración completa es preferible trabajar sobre una instalación nueva o una base preparada para recibir el respaldo, no sobre una instalación activa con datos diferentes.
+La base `sigsm` debe existir antes de importar.
 
 ### 9.6 Restaurar documentos
 
-Copiar los archivos al contenedor:
+Copiar los archivos:
 
 ```bash
 docker compose cp ./storage_backup/. backend:/var/www/api/storage/
 ```
 
-Corregir los permisos para Apache:
+Corregir permisos:
 
 ```bash
 docker compose exec -u root backend chown -R www-data:www-data /var/www/api/storage
 ```
 
-Después comprobar desde la aplicación que los documentos pueden visualizarse y descargarse correctamente.
+Después comprobar desde la aplicación que los PDF pueden visualizarse y descargarse.
 
 ### 9.7 Política recomendada de respaldos
 
 Se recomienda:
 
 - Realizar respaldos periódicos.
-- Mantener copias fuera del equipo principal.
+- Mantener copias fuera del servidor.
 - Conservar varias versiones.
-- Proteger los archivos de respaldo.
-- Verificar periódicamente que pueden restaurarse.
-- Respaldar la base de datos y los documentos conjuntamente.
+- Proteger los archivos.
+- Verificar que pueden restaurarse.
+- Respaldar conjuntamente la base de datos y los documentos.
 
 Los comandos anteriores son manuales.
 
@@ -1088,13 +1073,13 @@ El despliegue actual de Docker no incorpora un servicio que programe respaldos a
 
 ### 9.8 Reiniciar la instalación desde cero
 
-Para eliminar los contenedores y la red, conservando los datos:
+Para eliminar los contenedores conservando los datos:
 
 ```bash
 docker compose down
 ```
 
-Para eliminar los contenedores y también los volúmenes:
+Para eliminar también los volúmenes:
 
 ```bash
 docker compose down -v
@@ -1102,21 +1087,21 @@ docker compose down -v
 
 **ADVERTENCIA: `down -v` elimina la base de datos y los documentos persistentes del proyecto.**
 
-Solo debe utilizarse cuando se quiere descartar completamente una instalación de pruebas o cuando existe un respaldo verificado.
+Solo debe utilizarse cuando se quiera descartar completamente una instalación de pruebas o cuando exista un respaldo verificado.
 
-Para crear una nueva demo después de eliminar los volúmenes:
+Para crear una demo nueva después de eliminar los volúmenes:
 
 ```bash
 docker compose --profile demo up -d --build
 ```
 
-No es necesario eliminar los volúmenes para actualizar el frontend o el backend.
+No es necesario eliminar los volúmenes para actualizar frontend o backend.
 
 ---
 
 ## 10. Acceso desde otros equipos
 
-### 10.1 Acceso desde la misma computadora
+### 10.1 Acceso local
 
 Por defecto:
 
@@ -1126,7 +1111,7 @@ http://localhost:8080
 
 ### 10.2 Acceso desde la red local
 
-Docker publica el frontend mediante la configuración:
+Docker publica el frontend mediante:
 
 ```yaml
 ports:
@@ -1141,7 +1126,7 @@ Ejemplo:
 http://192.168.1.100:8080
 ```
 
-La dirección IP debe sustituirse por la IP real del equipo donde se ejecuta Docker.
+Sustituir la IP por la dirección real del equipo donde se ejecuta Docker.
 
 ### 10.3 Cambiar el puerto
 
@@ -1151,7 +1136,7 @@ Editar `.env`:
 WEB_PORT=8090
 ```
 
-Después recrear el frontend:
+Recrear el frontend:
 
 ```bash
 docker compose up -d --no-deps frontend
@@ -1165,13 +1150,13 @@ http://localhost:8090
 
 ### 10.4 Firewall
 
-Para permitir conexiones desde otros equipos de la red es necesario que el firewall autorice el puerto configurado.
+Para permitir conexiones desde otros equipos es necesario que el firewall autorice el puerto configurado.
 
-Por seguridad, conviene limitar el acceso a las redes o dispositivos que realmente necesitan utilizar la aplicación.
+Por seguridad, conviene limitar el acceso a las redes o dispositivos autorizados.
 
 No es necesario publicar el puerto `3306` de MariaDB.
 
-Tampoco es necesario publicar Apache directamente, ya que Nginx redirige las peticiones a la API.
+Tampoco es necesario publicar Apache directamente.
 
 ### 10.5 Acceso desde Internet
 
@@ -1179,7 +1164,7 @@ La configuración actual utiliza HTTP.
 
 Por tanto, no debe exponerse directamente a Internet para utilizar cuentas reales o información sensible.
 
-Para un despliegue remoto se recomienda utilizar:
+Para un despliegue remoto se recomienda:
 
 - HTTPS.
 - Un proxy inverso o túnel seguro.
@@ -1189,20 +1174,18 @@ Para un despliegue remoto se recomienda utilizar:
 - Copias de seguridad.
 - Actualizaciones periódicas.
 
-La incorporación de HTTPS y la publicación segura de la aplicación requieren configuración adicional.
+El despliegue público seguro requiere configuración adicional.
 
-### 10.6 Acceso únicamente desde el equipo anfitrión
+### 10.6 Restringir acceso al equipo anfitrión
 
-Si no se desea permitir conexiones desde otros equipos, puede restringirse la publicación del frontend a `localhost`.
-
-En `compose.yaml`:
+Si solo se desea utilizar la aplicación desde el servidor, puede cambiarse `compose.yaml`:
 
 ```yaml
 ports:
   - "127.0.0.1:${WEB_PORT:-8080}:80"
 ```
 
-Con esta configuración, el puerto no quedará publicado directamente en todas las interfaces de red del equipo.
+Así el puerto se publica únicamente en la interfaz local.
 
 ---
 
@@ -1216,15 +1199,11 @@ Comprobar:
 docker info
 ```
 
-En Windows, verificar que Docker Desktop está ejecutándose.
+En Windows, verificar que Docker Desktop esté ejecutándose.
 
-En Linux, verificar el estado del servicio Docker y los permisos del usuario.
+En Linux, verificar el servicio Docker y los permisos del usuario.
 
 ### 11.2 El puerto 8080 está ocupado
-
-Puede aparecer un error indicando que el puerto ya está en uso.
-
-Solución:
 
 Cambiar el valor en `.env`:
 
@@ -1232,7 +1211,7 @@ Cambiar el valor en `.env`:
 WEB_PORT=8090
 ```
 
-Después recrear el frontend:
+Después:
 
 ```bash
 docker compose up -d --no-deps frontend
@@ -1246,7 +1225,7 @@ Consultar:
 docker compose ps
 ```
 
-Verificar los logs:
+Revisar logs:
 
 ```bash
 docker compose logs --tail=100 frontend
@@ -1256,11 +1235,11 @@ docker compose logs --tail=100 frontend
 docker compose logs --tail=100 backend
 ```
 
-Comprobar que el puerto configurado coincide con la URL utilizada en el navegador.
+Comprobar que el puerto coincide con la URL utilizada.
 
 ### 11.4 La API devuelve un error 502
 
-Un error `502 Bad Gateway` puede indicar que Nginx no consigue comunicarse correctamente con Apache.
+Un error `502 Bad Gateway` puede indicar que Nginx no consigue comunicarse con Apache.
 
 Comprobar:
 
@@ -1272,17 +1251,24 @@ docker compose ps
 docker compose logs -f backend
 ```
 
-Verificar que el backend está en ejecución y conectado a la red interna del proyecto.
+Verificar que el backend está ejecutándose y conectado a la red interna.
 
 ### 11.5 No se puede iniciar sesión
 
 Comprobar:
 
-- Correo configurado.
-- Contraseña del administrador.
+- Correo y contraseña.
 - Estado del backend.
 - Conexión a MariaDB.
 - Resultado de `admin-init`.
+
+```bash
+docker compose logs admin-init
+```
+
+Modificar `ADMIN_PASSWORD` en `.env` no actualiza automáticamente una cuenta existente.
+
+### 11.6 El administrador inicial no se crea
 
 Consultar:
 
@@ -1290,24 +1276,12 @@ Consultar:
 docker compose logs admin-init
 ```
 
-Si el administrador ya existe, modificar `ADMIN_PASSWORD` en `.env` no actualizará automáticamente su contraseña.
+Verificar que:
 
-### 11.6 El administrador inicial no se crea
-
-Comprobar los logs:
-
-```bash
-docker compose logs admin-init
-```
-
-Verificar:
-
-- Que el correo sea válido.
-- Que la contraseña tenga al menos 12 caracteres.
-- Que MariaDB esté disponible.
-- Que exista el rol `Administrador`.
-
-Si el correo ya pertenece a un funcionario que no tiene el rol correspondiente, el proceso no creará una cuenta alternativa con ese mismo correo.
+- El correo sea válido.
+- La contraseña tenga al menos 12 caracteres.
+- MariaDB esté disponible.
+- Exista el rol `Administrador`.
 
 ### 11.7 MariaDB no está saludable
 
@@ -1317,19 +1291,11 @@ Consultar:
 docker compose logs db
 ```
 
-Comprobar:
+Comprobar variables de entorno, espacio en disco, permisos de volúmenes e inicialización de los archivos SQL.
 
-- Variables del `.env`.
-- Espacio en disco.
-- Permisos de los volúmenes.
-- Inicialización de los archivos SQL.
-- Estado del contenedor.
-
-Si se modificaron contraseñas después de crear el volumen, recordar que los valores internos de la base de datos no se actualizan automáticamente.
+Si se cambiaron contraseñas después de crear el volumen, recordar que no se actualizan automáticamente.
 
 ### 11.8 El seed falla
-
-Consultar:
 
 ```bash
 docker compose --profile demo logs seed-demo
@@ -1343,43 +1309,35 @@ No debe ejecutarse repetidamente sobre la misma instalación.
 
 ### 11.9 Los cambios de GitHub no aparecen
 
-Primero comprobar que los cambios se encuentran realmente publicados en `main`.
+Comprobar que los cambios estén publicados en `main`.
 
-Después reconstruir el servicio correspondiente.
-
-Para frontend:
+Para el frontend:
 
 ```bash
 docker compose build --no-cache frontend
 docker compose up -d --no-deps frontend
 ```
 
-Para backend:
+Para el backend:
 
 ```bash
 docker compose build --no-cache backend
 docker compose up -d --no-deps backend
 ```
 
-Si siguen apareciendo recursos antiguos, actualizar el navegador con:
+Si persisten recursos antiguos, actualizar el navegador con `Ctrl + Shift + R`.
 
-```text
-Ctrl + Shift + R
-```
-
-También puede verificarse el commit incorporado en cada imagen utilizando `/etc/sigsm-commit`.
+También puede verificarse el commit incorporado mediante `/etc/sigsm-commit`.
 
 ### 11.10 Cambié el esquema SQL, pero las tablas siguen iguales
 
 Este comportamiento es normal si MariaDB ya tiene un volumen inicializado.
 
-Los archivos de creación de tablas no se ejecutan nuevamente al reconstruir la imagen.
+Los scripts de creación no vuelven a ejecutarse al reconstruir la imagen.
 
-Para conservar los datos existentes es necesario utilizar migraciones SQL.
+Para modificar una base existente deben utilizarse migraciones SQL.
 
-Para comenzar desde cero debe utilizarse una instalación nueva con volúmenes vacíos.
-
-No debe ejecutarse `down -v` si se necesita conservar la información.
+No debe ejecutarse `down -v` si es necesario conservar la información.
 
 ### 11.11 No aparecen los documentos PDF
 
@@ -1388,18 +1346,18 @@ Verificar:
 - Que el volumen de documentos exista.
 - Que esté montado correctamente.
 - Que los archivos físicos estén presentes.
-- Que Apache tenga permisos de lectura.
-- Que las rutas registradas en la base de datos sean correctas.
+- Que Apache tenga permisos adecuados.
+- Que las rutas registradas en MariaDB sean correctas.
 
-Puede inspeccionarse el almacenamiento:
+Inspeccionar el almacenamiento:
 
 ```bash
 docker compose exec backend ls -la /var/www/api/storage
 ```
 
-Si los documentos desaparecieron tras eliminar los volúmenes, será necesario restaurar el respaldo correspondiente.
+Si los documentos desaparecieron por eliminar los volúmenes, será necesario restaurar el respaldo.
 
-### 11.12 Falló la descarga del repositorio durante el build
+### 11.12 Falló la descarga de GitHub durante el build
 
 Los Dockerfiles necesitan conexión con GitHub.
 
@@ -1407,7 +1365,7 @@ Comprobar:
 
 - Conexión a Internet.
 - Disponibilidad del repositorio.
-- Existencia de la rama `main`.
+- Existencia de `main`.
 - Que los archivos necesarios estén publicados.
 
 Volver a construir sin caché:
@@ -1418,7 +1376,7 @@ docker compose build --no-cache
 
 ---
 
-## 12. Referencia rápida de comandos
+## 12. Referencia rápida
 
 Todos los comandos se ejecutan desde:
 
@@ -1445,30 +1403,30 @@ docker compose ps
 # Ver también contenedores finalizados
 docker compose ps -a
 
-# Ver logs generales
+# Logs generales
 docker compose logs -f
 
-# Ver logs del frontend
+# Logs del frontend
 docker compose logs -f frontend
 
-# Ver logs del backend
+# Logs del backend
 docker compose logs -f backend
 
-# Ver logs de MariaDB
+# Logs de MariaDB
 docker compose logs -f db
 
-# Ver resultado del seed
+# Resultado del seed
 docker compose --profile demo logs seed-demo
 ```
 
-### Actualización desde GitHub
+### Actualización
 
 ```bash
-# Actualizar frontend
+# Actualizar solamente frontend
 docker compose build --no-cache frontend
 docker compose up -d --no-deps frontend
 
-# Actualizar backend
+# Actualizar solamente backend
 docker compose build --no-cache backend
 docker compose up -d --no-deps backend
 
@@ -1476,7 +1434,7 @@ docker compose up -d --no-deps backend
 docker compose build --no-cache frontend backend
 docker compose up -d --no-deps frontend backend
 
-# Actualizar configuración local de Docker
+# Actualizar configuración local
 git pull origin main
 
 # Reconstruir todas las imágenes
@@ -1489,16 +1447,16 @@ docker compose up -d
 ### Administración
 
 ```bash
-# Iniciar servicios existentes
+# Iniciar
 docker compose up -d
 
-# Detener servicios
+# Detener
 docker compose stop
 
 # Volver a iniciar
 docker compose start
 
-# Reiniciar todos
+# Reiniciar
 docker compose restart
 
 # Reiniciar frontend
@@ -1507,24 +1465,24 @@ docker compose restart frontend
 # Reiniciar backend
 docker compose restart backend
 
-# Detener y eliminar contenedores, conservando volúmenes
+# Eliminar contenedores conservando datos
 docker compose down
 ```
 
 ### Terminales
 
 ```bash
-# Terminal del backend
+# Backend
 docker compose exec backend bash
 
-# Terminal del frontend
+# Frontend
 docker compose exec frontend sh
 
-# Terminal de MariaDB
+# MariaDB
 docker compose exec db sh
 ```
 
-### Verificar commits
+### Verificar versiones
 
 ```bash
 # Frontend
@@ -1539,13 +1497,13 @@ docker compose exec db cat /etc/sigsm-commit
 
 ### Eliminar completamente una instalación de pruebas
 
-**ADVERTENCIA: este comando borra los volúmenes persistentes del proyecto, incluidos los datos de MariaDB y los documentos.**
+**ADVERTENCIA: el siguiente comando elimina los volúmenes persistentes del proyecto, incluidos MariaDB y los documentos.**
 
 ```bash
 docker compose down -v
 ```
 
-Utilizarlo únicamente cuando se quiera descartar toda la información y empezar desde cero.
+Utilizarlo únicamente cuando se quiera descartar toda la información.
 
 ---
 
@@ -1561,10 +1519,9 @@ Utilizarlo únicamente cuando se quiera descartar toda la información y empezar
 
 **Directorio del despliegue:** `prototipos/docker`
 
-**Tecnologías:**
+**Tecnologías utilizadas:**
 
-- React.
-- Vite.
+- React y Vite.
 - Material UI.
 - PHP 8.2.
 - Apache.
@@ -1573,6 +1530,6 @@ Utilizarlo únicamente cuando se quiera descartar toda la información y empezar
 - Docker.
 - Docker Compose.
 
-La configuración de Docker permite desplegar los componentes de S.I.G.S.M. de forma reproducible, manteniendo separados el frontend, el backend y la base de datos.
+La configuración permite desplegar los componentes de S.I.G.S.M. de forma reproducible, manteniendo separados el frontend, el backend y la base de datos.
 
-Para actualizar el sistema se recomienda reconstruir únicamente los servicios modificados, conservando los volúmenes persistentes y realizando respaldos antes de cualquier operación sobre la información almacenada.
+Para actualizar el sistema se recomienda reconstruir únicamente los servicios modificados, conservar los volúmenes persistentes y realizar respaldos antes de cualquier operación importante sobre la información almacenada.
