@@ -50,6 +50,7 @@ export default function TransferFilters({
   filteredCount,
   onClear,
   hasActiveFilters,
+  refreshControl,
 }) {
   const { t } = useTranslation("transfers");
 
@@ -76,6 +77,10 @@ export default function TransferFilters({
     {
       value: "Retornando",
       label: t("states.Retornando"),
+    },
+    {
+      value: "Cancelado",
+      label: t("states.Cancelado"),
     },
   ];
 
@@ -146,6 +151,7 @@ export default function TransferFilters({
         spacing={2}
         sx={{
           justifyContent: "space-between",
+          width: "100%",
           alignItems: {
             xs: "stretch",
             md: "center",
@@ -168,32 +174,34 @@ export default function TransferFilters({
         </Box>
 
         {/* BÚSQUEDA */}
-
-        <TextField
-          size="small"
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder={t("followUp.filters.search")}
-          sx={{
-            width: {
-              xs: "100%",
-              md: 365,
-            },
-          }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon
-                    sx={{
-                      color: "text.secondary",
-                    }}
-                  />
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
+        <Stack direction={"row"} spacing={2}>
+          <TextField
+            size="small"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={t("followUp.filters.search")}
+            sx={{
+              width: {
+                xs: "100%",
+                md: 365,
+              },
+            }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon
+                      sx={{
+                        color: "text.secondary",
+                      }}
+                    />
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+          {refreshControl}
+        </Stack>
       </Stack>
 
       {/* FILTROS */}

@@ -28,6 +28,7 @@ const initialFilters = {
   idVehiculo: "",
   idConductor: "",
   idEnfermero: "",
+  estado: "todos",
 };
 
 export default function TransferHistory() {
@@ -36,12 +37,14 @@ export default function TransferHistory() {
   // HISTORIAL
 
   const [transfers, setTransfers] = useState([]);
+
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
+
   const [loading, setLoading] = useState(true);
 
-  // CAMPOS DEL FORMULARIO DE FILTROS
+  // CAMPOS DEL FORMULARIO
 
   const [searchInput, setSearchInput] = useState("");
   const [desdeInput, setDesdeInput] = useState("");
@@ -51,13 +54,15 @@ export default function TransferHistory() {
   const [driverInput, setDriverInput] = useState("");
   const [nurseInput, setNurseInput] = useState("");
 
-  // FILTROS REALMENTE APLICADOS
+  const [statusInput, setStatusInput] = useState("todos");
+
+  // FILTROS APLICADOS
 
   const [filters, setFilters] = useState({
     ...initialFilters,
   });
 
-  // CATÁLOGOS DE RECURSOS
+  // CATÁLOGOS
 
   const [resources, setResources] = useState({
     vehiculos: [],
@@ -67,12 +72,10 @@ export default function TransferHistory() {
 
   const [loadingResources, setLoadingResources] = useState(true);
 
-  // DETALLE SELECCIONADO
+  // DETALLE
 
   const [selectedDetail, setSelectedDetail] = useState(null);
-
   const [loadingDetail, setLoadingDetail] = useState(false);
-
   const [detailError, setDetailError] = useState("");
 
   const detailsRef = useRef(null);
@@ -83,7 +86,6 @@ export default function TransferHistory() {
     useNotification();
 
   // REFERENCIAS ESTABLES
-  // EVITAMOS RECARGAR DATOS AL CAMBIAR DE IDIOMA
 
   const notificationRef = useRef(showNotification);
   const translationRef = useRef(t);
@@ -93,13 +95,31 @@ export default function TransferHistory() {
     translationRef.current = t;
   }, [showNotification, t]);
 
-  // COMPROBAR FILTROS APLICADOS
+  // COMPROBAR SI HAY FILTROS APLICADOS
 
-  const hasAppliedFilters = Object.values(filters).some(
-    (value) => value !== "",
+  const hasAppliedFilters = Object.entries(filters).some(([key, value]) =>
+    key === "estado" ? value !== "todos" : value !== "",
   );
 
-  // CARGAR CATÁLOGOS
+  // ACTUALIZAR ESTADO DE RESULTADOS
+
+  const applyHistoryResult = (data) => {
+    setTransfers(data.transfers);
+    setTotal(data.pagination.total);
+    setTotalPages(data.pagination.totalPages);
+  };
+
+  // ACTUALIZAR CATÁLOGOS
+
+  const applyCatalogs = (data) => {
+    setResources({
+      vehiculos: data.vehiculos_historial ?? [],
+      conductores: data.conductores_historial ?? [],
+      enfermeros: data.enfermeros_historial ?? [],
+    });
+  };
+
+  // CARGA INICIAL DE CATÁLOGOS
 
   useEffect(() => {
     let cancelled = false;
@@ -107,12 +127,7 @@ export default function TransferHistory() {
     getTransferCatalogs()
       .then((data) => {
         if (cancelled) return;
-
-        setResources({
-          vehiculos: data.vehiculos_historial ?? [],
-          conductores: data.conductores_historial ?? [],
-          enfermeros: data.enfermeros_historial ?? [],
-        });
+        applyCatalogs(data);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -135,12 +150,14 @@ export default function TransferHistory() {
     };
   }, []);
 
-  // CARGAR HISTORIAL
+  // CARGAR HISTORIAL AL CAMBIAR PÁGINA O FILTROS
 
   useEffect(() => {
     let cancelled = false;
 
     const loadHistory = async () => {
+      setLoading(true);
+
       try {
         const data = await getCompletedTransfers({
           page,
@@ -150,9 +167,7 @@ export default function TransferHistory() {
 
         if (cancelled) return;
 
-        setTransfers(data.transfers);
-        setTotal(data.pagination.total);
-        setTotalPages(data.pagination.totalPages);
+        applyHistoryResult(data);
       } catch (error) {
         if (cancelled) return;
 
@@ -176,6 +191,31 @@ export default function TransferHistory() {
     };
   }, [page, filters]);
 
+  // REFRESH MANUAL
+  // ACTUALIZA TABLA Y CATÁLOGOS
+
+  const handleRefreshFetch = async () => {
+    const [historyData, catalogData] = await Promise.all([
+      getCompletedTransfers({
+        page,
+        limit: rowsPerPage,
+        ...filters,
+      }),
+
+      getTransferCatalogs(),
+    ]);
+
+    return {
+      historyData,
+      catalogData,
+    };
+  };
+
+  const handleRefreshSetData = ({ historyData, catalogData }) => {
+    applyHistoryResult(historyData);
+    applyCatalogs(catalogData);
+  };
+
   // SCROLL AL DETALLE
 
   useEffect(() => {
@@ -196,13 +236,13 @@ export default function TransferHistory() {
     setPage(value);
   };
 
-  // CAMBIAR BÚSQUEDA
+  // CAMBIAR BUSCADOR
 
   const handleSearchInputChange = (value) => {
     setSearchInput(value);
 
-    // BORRAR AUTOMÁTICAMENTE EL FILTRO DE TEXTO
-    // SI SE VACÍA EL CAMPO
+    // SI SE BORRA EL TEXTO, LIMPIAR
+    // AUTOMÁTICAMENTE LA BÚSQUEDA APLICADA
 
     if (value === "" && filters.search !== "") {
       setLoading(true);
@@ -218,15 +258,17 @@ export default function TransferHistory() {
   // APLICAR FILTROS
 
   const handleSearch = () => {
-    // COMPROBAR RANGO DE FECHAS
-
     if (desdeInput && hastaInput && desdeInput > hastaInput) {
       showNotification(t("history.errors.dateRange"), "error");
+
       return;
     }
 
     setLoading(true);
     setPage(1);
+
+    setSelectedDetail(null);
+    setDetailError("");
 
     setFilters({
       search: searchInput.trim(),
@@ -235,6 +277,7 @@ export default function TransferHistory() {
       idVehiculo: vehicleInput,
       idConductor: driverInput,
       idEnfermero: nurseInput,
+      estado: statusInput,
     });
   };
 
@@ -249,15 +292,20 @@ export default function TransferHistory() {
     setDriverInput("");
     setNurseInput("");
 
+    setStatusInput("todos");
+
     setLoading(true);
     setPage(1);
+
+    setSelectedDetail(null);
+    setDetailError("");
 
     setFilters({
       ...initialFilters,
     });
   };
 
-  // CONSULTAR DETALLE DEL TRASLADO
+  // CONSULTAR DETALLE
 
   const handleView = async (id) => {
     if (loadingDetail) return;
@@ -283,12 +331,7 @@ export default function TransferHistory() {
       <Card
         sx={{
           borderRadius: 4,
-
-          p: {
-            xs: 2,
-            md: 3,
-          },
-
+          p: { xs: 2, md: 3 },
           boxShadow: "var(--card-shadow)",
           mt: 2,
           minWidth: 0,
@@ -304,6 +347,7 @@ export default function TransferHistory() {
           idVehiculo={vehicleInput}
           idConductor={driverInput}
           idEnfermero={nurseInput}
+          estado={statusInput}
           vehicles={resources.vehiculos}
           drivers={resources.conductores}
           nurses={resources.enfermeros}
@@ -316,11 +360,23 @@ export default function TransferHistory() {
           onVehicleChange={setVehicleInput}
           onDriverChange={setDriverInput}
           onNurseChange={setNurseInput}
+          onEstadoChange={setStatusInput}
           onSearch={handleSearch}
           onClear={handleClear}
+          refreshFetchData={handleRefreshFetch}
+          refreshSetData={handleRefreshSetData}
+          onRefreshSuccess={() =>
+            showNotification(t("common:refresh.success"), "success")
+          }
+          onRefreshError={(error) =>
+            showNotification(
+              error.message || t("common:refresh.error"),
+              "error",
+            )
+          }
         />
 
-        {/* TABLA SIEMPRE MONTADA */}
+        {/* TABLA */}
 
         <Box
           sx={{
@@ -343,11 +399,9 @@ export default function TransferHistory() {
               sx={{
                 position: "absolute",
                 inset: 0,
-
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-
                 bgcolor: "rgba(255,255,255,0.65)",
                 borderRadius: 2,
                 zIndex: 2,
@@ -359,7 +413,7 @@ export default function TransferHistory() {
         </Box>
       </Card>
 
-      {/* DETALLE DEL TRASLADO */}
+      {/* DETALLE SELECCIONADO */}
 
       {(selectedDetail || loadingDetail || detailError) && (
         <Box
@@ -369,30 +423,15 @@ export default function TransferHistory() {
             scrollMarginBottom: "24px",
           }}
         >
-          {/* ERROR AL CONSULTAR EL DETALLE */}
-
           {detailError && (
-            <Alert
-              severity="error"
-              sx={{
-                mt: 2,
-              }}
-            >
+            <Alert severity="error" sx={{ mt: 2 }}>
               {detailError}
             </Alert>
           )}
 
-          {/* DETALLE CARGADO */}
-
           {selectedDetail && (
-            <Box
-              sx={{
-                position: "relative",
-              }}
-            >
+            <Box sx={{ position: "relative" }}>
               <TransferDetailsCard transfer={selectedDetail} />
-
-              {/* RECARGANDO OTRO DETALLE */}
 
               {loadingDetail && (
                 <Box
@@ -400,11 +439,9 @@ export default function TransferHistory() {
                     position: "absolute",
                     inset: 0,
                     mt: 2,
-
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-
                     bgcolor: "rgba(255,255,255,0.65)",
                     borderRadius: 4,
                     zIndex: 2,
@@ -415,8 +452,6 @@ export default function TransferHistory() {
               )}
             </Box>
           )}
-
-          {/* PRIMERA CARGA DEL DETALLE */}
 
           {!selectedDetail && loadingDetail && (
             <Stack

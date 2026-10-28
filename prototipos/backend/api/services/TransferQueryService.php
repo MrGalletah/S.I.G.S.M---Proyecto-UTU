@@ -4,14 +4,12 @@ class TransferQueryService
 {
     private PDO $db;
 
-
     public function __construct(PDO $db)
     {
         $this->db = $db;
     }
 
-
-    // TRASLADOS ACTIVOS
+    // SEGUIMIENTO: TRASLADOS NO TERMINADOS
 
     public function getActiveTransfers(): array
     {
@@ -22,6 +20,7 @@ class TransferQueryService
                 t.fecha_requerida,
                 t.prioridad,
                 t.version,
+                t.hora_salida_real,
 
                 tt.id_tipo_traslado,
                 tt.nombre AS tipo_traslado,
@@ -31,10 +30,8 @@ class TransferQueryService
 
                 t.elemento,
                 t.cedula_paciente,
-
                 t.origen,
                 t.destino,
-
                 t.hora_salida_estimada,
 
                 et.id_estado,
@@ -55,14 +52,9 @@ class TransferQueryService
 
                 CASE
                     WHEN
-                        et.nombre = 'Registrado'
-                        AND t.id_vehiculo IS NULL
-                        AND t.id_conductor IS NULL
-                        AND t.id_enfermero IS NULL
-                        AND t.id_func_gestor IS NULL
-                        AND t.fecha_gestion IS NULL
-                        AND t.hora_salida_estimada IS NULL
-                        AND t.hora_llegada_estimada IS NULL
+                        t.activo = TRUE
+                        AND et.nombre = 'Registrado'
+                        AND t.hora_salida_real IS NULL
                     THEN 1
                     ELSE 0
                 END AS anulable
@@ -70,57 +62,43 @@ class TransferQueryService
             FROM traslado t
 
             INNER JOIN tipo_traslado tt
-                ON tt.id_tipo_traslado =
-                    t.id_tipo_traslado
+                ON tt.id_tipo_traslado = t.id_tipo_traslado
 
             INNER JOIN tipo_elemento te
-                ON te.id_tipo_elemento =
-                    t.id_tipo_elemento
+                ON te.id_tipo_elemento = t.id_tipo_elemento
 
             INNER JOIN estado_traslado et
-                ON et.id_estado =
-                    t.id_estado
+                ON et.id_estado = t.id_estado
 
             WHERE
                 t.activo = TRUE
-                AND et.nombre <> 'Completado'
+                AND et.nombre NOT IN (
+                    'Completado',
+                    'Cancelado'
+                )
 
             ORDER BY
                 CASE
-                    WHEN t.prioridad = 'URGENTE'
-                        THEN 0
+                    WHEN t.prioridad = 'URGENTE' THEN 0
                     ELSE 1
                 END,
-
                 t.fecha_requerida ASC,
                 t.fecha_solicitud ASC
         ";
 
-
-        $stmt =
-            $this->db->prepare($sql);
-
-
+        $stmt = $this->db->prepare($sql);
         $stmt->execute();
 
-
-        $rows =
-            $stmt->fetchAll(
-                PDO::FETCH_ASSOC
-            );
-
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(
             fn(array $row) =>
-            $this->formatTransferListItem(
-                $row
-            ),
+                $this->formatTransferListItem($row),
             $rows
         );
     }
 
-
-    // TRASLADOS COMPLETADOS
+    // HISTORIAL: COMPLETADOS Y CANCELADOS
 
     public function getCompletedTransfers(
         int $page,
@@ -130,28 +108,45 @@ class TransferQueryService
         ?string $hasta = null,
         ?int $idVehiculo = null,
         ?int $idConductor = null,
-        ?int $idEnfermero = null
+        ?int $idEnfermero = null,
+        string $estado = "todos"
     ): array {
 
-        $offset =
-            ($page - 1) * $limit;
+        $offset = ($page - 1) * $limit;
 
+        // SOLO ESTADOS TERMINALES
 
         $where = [
-            "t.activo = TRUE",
-            "et.nombre = 'Completado'"
+            "(
+                (
+                    t.activo = TRUE
+                    AND et.nombre = 'Completado'
+                )
+                OR
+                (
+                    t.activo = FALSE
+                    AND et.nombre = 'Cancelado'
+                )
+            )"
         ];
-
 
         $params = [];
 
+        // FILTRO DE ESTADO
+
+        if ($estado === "completados") {
+            $where[] = "et.nombre = 'Completado'";
+        } elseif ($estado === "cancelados") {
+            $where[] = "et.nombre = 'Cancelado'";
+        } elseif ($estado !== "todos") {
+            throw new InvalidArgumentException(
+                "El filtro de estado no es válido."
+            );
+        }
 
         // BÚSQUEDA GENERAL
 
-        if (
-            $search !== null
-            && $search !== ""
-        ) {
+        if ($search !== null && $search !== "") {
 
             if (
                 preg_match(
@@ -160,191 +155,117 @@ class TransferQueryService
                     $matches
                 )
             ) {
+                $where[] = "t.id_traslado = :search_id";
 
-                $where[] =
-                    "t.id_traslado = :search_id";
+                $params["search_id"] = (int) $matches[1];
 
-
-                $params["search_id"] =
-                    (int) $matches[1];
             } else {
 
                 $where[] = "
                     (
-                        t.cedula_paciente
-                            LIKE :search_cedula
-
-                        OR t.elemento
-                            LIKE :search_elemento
-
-                        OR t.origen
-                            LIKE :search_origen
-
-                        OR t.destino
-                            LIKE :search_destino
+                        t.cedula_paciente LIKE :search_cedula
+                        OR t.elemento LIKE :search_elemento
+                        OR t.origen LIKE :search_origen
+                        OR t.destino LIKE :search_destino
                     )
                 ";
 
+                $searchValue = "%" . $search . "%";
 
-                $searchValue =
-                    "%" . $search . "%";
-
-
-                $params["search_cedula"] =
-                    $searchValue;
-
-                $params["search_elemento"] =
-                    $searchValue;
-
-                $params["search_origen"] =
-                    $searchValue;
-
-                $params["search_destino"] =
-                    $searchValue;
+                $params["search_cedula"] = $searchValue;
+                $params["search_elemento"] = $searchValue;
+                $params["search_origen"] = $searchValue;
+                $params["search_destino"] = $searchValue;
             }
         }
 
+        // FECHA DE CIERRE:
+        // - COMPLETADO: HISTORIAL
+        // - CANCELADO: FECHA_BAJA
 
-        // FECHA DESDE
+        $closureDateSql = "
+            CASE
+                WHEN et.nombre = 'Cancelado'
+                    THEN t.fecha_baja
+                ELSE finalizacion.fecha_finalizacion
+            END
+        ";
 
         if ($desde !== null) {
-
-            $where[] =
-                "finalizacion.fecha_finalizacion >= :desde";
-
-
-            $params["desde"] =
-                $desde . " 00:00:00";
+            $where[] = "($closureDateSql) >= :desde";
+            $params["desde"] = $desde . " 00:00:00";
         }
-
-
-        // FECHA HASTA
 
         if ($hasta !== null) {
-
-            $where[] =
-                "finalizacion.fecha_finalizacion <= :hasta";
-
-
-            $params["hasta"] =
-                $hasta . " 23:59:59";
+            $where[] = "($closureDateSql) <= :hasta";
+            $params["hasta"] = $hasta . " 23:59:59";
         }
 
-
-        // VEHÍCULO
+        // FILTROS DE RECURSOS
 
         if ($idVehiculo !== null) {
-
-            $where[] =
-                "t.id_vehiculo = :id_vehiculo";
-
-
-            $params["id_vehiculo"] =
-                $idVehiculo;
+            $where[] = "t.id_vehiculo = :id_vehiculo";
+            $params["id_vehiculo"] = $idVehiculo;
         }
-
-
-        // CONDUCTOR
 
         if ($idConductor !== null) {
-
-            $where[] =
-                "t.id_conductor = :id_conductor";
-
-
-            $params["id_conductor"] =
-                $idConductor;
+            $where[] = "t.id_conductor = :id_conductor";
+            $params["id_conductor"] = $idConductor;
         }
-
-
-        // ENFERMERO
 
         if ($idEnfermero !== null) {
-
-            $where[] =
-                "t.id_enfermero = :id_enfermero";
-
-
-            $params["id_enfermero"] =
-                $idEnfermero;
+            $where[] = "t.id_enfermero = :id_enfermero";
+            $params["id_enfermero"] = $idEnfermero;
         }
 
+        $whereSql = implode(" AND ", $where);
 
-        $whereSql =
-            implode(
-                " AND ",
-                $where
-            );
-
-
-        // FECHA DE FINALIZACIÓN
+        // HISTORIAL DE FINALIZACIÓN
+        // LEFT JOIN PARA INCLUIR CANCELADOS
 
         $completionJoin = "
-            INNER JOIN (
+            LEFT JOIN (
                 SELECT
                     h.id_traslado,
-
-                    MAX(
-                        h.fecha_hora
-                    ) AS fecha_finalizacion
+                    MAX(h.fecha_hora) AS fecha_finalizacion
 
                 FROM historial_estado_traslado h
 
                 INNER JOIN estado_traslado eh
-                    ON eh.id_estado =
-                        h.id_estado
+                    ON eh.id_estado = h.id_estado
 
-                WHERE
-                    eh.nombre = 'Completado'
+                WHERE eh.nombre = 'Completado'
 
-                GROUP BY
-                    h.id_traslado
+                GROUP BY h.id_traslado
 
             ) finalizacion
-                ON finalizacion.id_traslado =
-                    t.id_traslado
+                ON finalizacion.id_traslado = t.id_traslado
         ";
-
 
         // CONTAR RESULTADOS
 
         $countSql = "
-            SELECT
-                COUNT(*)
+            SELECT COUNT(*)
 
             FROM traslado t
 
             INNER JOIN estado_traslado et
-                ON et.id_estado =
-                    t.id_estado
+                ON et.id_estado = t.id_estado
 
             $completionJoin
 
-            WHERE
-                $whereSql
+            WHERE $whereSql
         ";
 
+        $countStmt = $this->db->prepare($countSql);
 
-        $countStmt =
-            $this->db->prepare(
-                $countSql
-            );
-
-
-        $this->bindQueryParams(
-            $countStmt,
-            $params
-        );
-
+        $this->bindQueryParams($countStmt, $params);
 
         $countStmt->execute();
 
+        $total = (int) $countStmt->fetchColumn();
 
-        $total =
-            (int) $countStmt->fetchColumn();
-
-
-        // OBTENER RESULTADOS
+        // OBTENER RESULTADOS PAGINADOS
 
         $sql = "
             SELECT
@@ -361,50 +282,39 @@ class TransferQueryService
 
                 t.elemento,
                 t.cedula_paciente,
-
                 t.origen,
                 t.destino,
 
-                finalizacion.fecha_finalizacion
+                et.nombre AS estado,
+
+                $closureDateSql AS fecha_cierre
 
             FROM traslado t
 
             INNER JOIN tipo_traslado tt
-                ON tt.id_tipo_traslado =
-                    t.id_tipo_traslado
+                ON tt.id_tipo_traslado = t.id_tipo_traslado
 
             INNER JOIN tipo_elemento te
-                ON te.id_tipo_elemento =
-                    t.id_tipo_elemento
+                ON te.id_tipo_elemento = t.id_tipo_elemento
 
             INNER JOIN estado_traslado et
-                ON et.id_estado =
-                    t.id_estado
+                ON et.id_estado = t.id_estado
 
             $completionJoin
 
-            WHERE
-                $whereSql
+            WHERE $whereSql
 
             ORDER BY
-                finalizacion.fecha_finalizacion DESC
+                fecha_cierre DESC,
+                t.id_traslado DESC
 
             LIMIT :limit
             OFFSET :offset
         ";
 
+        $stmt = $this->db->prepare($sql);
 
-        $stmt =
-            $this->db->prepare(
-                $sql
-            );
-
-
-        $this->bindQueryParams(
-            $stmt,
-            $params
-        );
-
+        $this->bindQueryParams($stmt, $params);
 
         $stmt->bindValue(
             ":limit",
@@ -412,96 +322,57 @@ class TransferQueryService
             PDO::PARAM_INT
         );
 
-
         $stmt->bindValue(
             ":offset",
             $offset,
             PDO::PARAM_INT
         );
 
-
         $stmt->execute();
 
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $rows =
-            $stmt->fetchAll(
-                PDO::FETCH_ASSOC
-            );
-
-
-        $transfers =
-            array_map(
-                fn(array $row) =>
-                $this->formatCompletedTransferListItem(
-                    $row
-                ),
-                $rows
-            );
-
+        $transfers = array_map(
+            fn(array $row) =>
+                $this->formatCompletedTransferListItem($row),
+            $rows
+        );
 
         return [
-            "traslados" =>
-            $transfers,
-
+            "traslados" => $transfers,
 
             "paginacion" => [
-                "pagina" =>
-                $page,
-
-                "limite" =>
-                $limit,
-
-                "total" =>
-                $total,
-
-                "total_paginas" =>
-                $total === 0
+                "pagina" => $page,
+                "limite" => $limit,
+                "total" => $total,
+                "total_paginas" => $total === 0
                     ? 0
-                    : (int) ceil(
-                        $total / $limit
-                    )
+                    : (int) ceil($total / $limit)
             ],
 
-
             "filtros" => [
-                "search" =>
-                $search,
-
-                "desde" =>
-                $desde,
-
-                "hasta" =>
-                $hasta,
-
-                "id_vehiculo" =>
-                $idVehiculo,
-
-                "id_conductor" =>
-                $idConductor,
-
-                "id_enfermero" =>
-                $idEnfermero
+                "estado" => $estado,
+                "search" => $search,
+                "desde" => $desde,
+                "hasta" => $hasta,
+                "id_vehiculo" => $idVehiculo,
+                "id_conductor" => $idConductor,
+                "id_enfermero" => $idEnfermero
             ]
         ];
     }
 
-
-    // BIND DE PARÁMETROS
+    // PARÁMETROS DE CONSULTA
 
     private function bindQueryParams(
         PDOStatement $stmt,
         array $params
     ): void {
 
-        foreach (
-            $params as $key => $value
-        ) {
-
-            $type =
-                is_int($value)
+        foreach ($params as $key => $value) {
+            $type = is_int($value)
                 ? PDO::PARAM_INT
                 : PDO::PARAM_STR;
-
 
             $stmt->bindValue(
                 ":" . $key,
@@ -510,7 +381,6 @@ class TransferQueryService
             );
         }
     }
-
 
     // DETALLE DE UN TRASLADO
 
@@ -535,7 +405,6 @@ class TransferQueryService
 
                 t.elemento,
                 t.cedula_paciente,
-
                 t.origen,
                 t.destino,
 
@@ -575,56 +444,46 @@ class TransferQueryService
             FROM traslado t
 
             INNER JOIN tipo_traslado tt
-                ON tt.id_tipo_traslado =
-                    t.id_tipo_traslado
+                ON tt.id_tipo_traslado = t.id_tipo_traslado
 
             INNER JOIN tipo_elemento te
-                ON te.id_tipo_elemento =
-                    t.id_tipo_elemento
+                ON te.id_tipo_elemento = t.id_tipo_elemento
 
             INNER JOIN estado_traslado et
-                ON et.id_estado =
-                    t.id_estado
+                ON et.id_estado = t.id_estado
 
             INNER JOIN funcionario solicitante
-                ON solicitante.id_func =
-                    t.id_func_solicitante
+                ON solicitante.id_func = t.id_func_solicitante
 
             LEFT JOIN funcionario gestor
-                ON gestor.id_func =
-                    t.id_func_gestor
+                ON gestor.id_func = t.id_func_gestor
 
             LEFT JOIN vehiculo v
-                ON v.id_vehiculo =
-                    t.id_vehiculo
+                ON v.id_vehiculo = t.id_vehiculo
 
             LEFT JOIN tipo_vehiculo tv
-                ON tv.id_tipo_vehiculo =
-                    v.id_tipo_vehiculo
+                ON tv.id_tipo_vehiculo = v.id_tipo_vehiculo
 
             LEFT JOIN funcionario conductor
-                ON conductor.id_func =
-                    t.id_conductor
+                ON conductor.id_func = t.id_conductor
 
             LEFT JOIN funcionario enfermero
-                ON enfermero.id_func =
-                    t.id_enfermero
+                ON enfermero.id_func = t.id_enfermero
 
             WHERE
-                t.id_traslado =
-                    :id_transfer
-
-                AND t.activo = TRUE
+                t.id_traslado = :id_transfer
+                AND (
+                    t.activo = TRUE
+                    OR (
+                        t.activo = FALSE
+                        AND et.nombre = 'Cancelado'
+                    )
+                )
 
             LIMIT 1
         ";
 
-
-        $stmt =
-            $this->db->prepare(
-                $sql
-            );
-
+        $stmt = $this->db->prepare($sql);
 
         $stmt->bindValue(
             ":id_transfer",
@@ -632,33 +491,18 @@ class TransferQueryService
             PDO::PARAM_INT
         );
 
-
         $stmt->execute();
 
-
-        $row =
-            $stmt->fetch(
-                PDO::FETCH_ASSOC
-            );
-
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$row) {
             return null;
         }
 
+        $history = $this->getTransferHistory($idTransfer);
 
-        $history =
-            $this->getTransferHistory(
-                $idTransfer
-            );
-
-
-        return $this->formatTransferDetail(
-            $row,
-            $history
-        );
+        return $this->formatTransferDetail($row, $history);
     }
-
 
     // HISTORIAL DE ESTADOS
 
@@ -682,28 +526,19 @@ class TransferQueryService
             FROM historial_estado_traslado h
 
             INNER JOIN estado_traslado et
-                ON et.id_estado =
-                    h.id_estado
+                ON et.id_estado = h.id_estado
 
             INNER JOIN funcionario f
-                ON f.id_func =
-                    h.id_func
+                ON f.id_func = h.id_func
 
-            WHERE
-                h.id_traslado =
-                    :id_transfer
+            WHERE h.id_traslado = :id_transfer
 
             ORDER BY
                 h.fecha_hora ASC,
                 h.id_historial ASC
         ";
 
-
-        $stmt =
-            $this->db->prepare(
-                $sql
-            );
-
+        $stmt = $this->db->prepare($sql);
 
         $stmt->bindValue(
             ":id_transfer",
@@ -711,57 +546,31 @@ class TransferQueryService
             PDO::PARAM_INT
         );
 
-
         $stmt->execute();
 
-
-        $rows =
-            $stmt->fetchAll(
-                PDO::FETCH_ASSOC
-            );
-
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(
             fn(array $row) => [
-
-                "id_historial" =>
-                (int) $row["id_historial"],
-
+                "id_historial" => (int) $row["id_historial"],
 
                 "estado" => [
-
-                    "id_estado" =>
-                    (int) $row["id_estado"],
-
-                    "nombre" =>
-                    $row["estado"],
-
-                    "orden" =>
-                    (int) $row["estado_orden"]
+                    "id_estado" => (int) $row["id_estado"],
+                    "nombre" => $row["estado"],
+                    "orden" => (int) $row["estado_orden"]
                 ],
 
-
-                "fecha_hora" =>
-                $row["fecha_hora"],
-
-
-                "observacion" =>
-                $row["observacion"],
-
+                "fecha_hora" => $row["fecha_hora"],
+                "observacion" => $row["observacion"],
 
                 "funcionario" => [
-
-                    "id_func" =>
-                    (int) $row["id_func"],
-
-                    "nombre" =>
-                    $row["funcionario"]
+                    "id_func" => (int) $row["id_func"],
+                    "nombre" => $row["funcionario"]
                 ]
             ],
             $rows
         );
     }
-
 
     // FORMATEAR DETALLE
 
@@ -771,356 +580,188 @@ class TransferQueryService
     ): array {
 
         return [
-            "id_traslado" =>
-            (int) $row["id_traslado"],
+            "id_traslado" => (int) $row["id_traslado"],
 
-
-            "codigo" =>
-            "TR-" . str_pad(
+            "codigo" => "TR-" . str_pad(
                 $row["id_traslado"],
                 5,
                 "0",
                 STR_PAD_LEFT
             ),
 
+            "fecha_solicitud" => $row["fecha_solicitud"],
+            "fecha_requerida" => $row["fecha_requerida"],
 
-            "fecha_solicitud" =>
-            $row["fecha_solicitud"],
+            "prioridad" => $row["prioridad"],
+            "observaciones" => $row["observaciones"],
+            "fecha_baja" => $row["fecha_baja"],
 
-
-            "fecha_requerida" =>
-            $row["fecha_requerida"],
-
-
-            "prioridad" =>
-            $row["prioridad"],
-
-
-            "observaciones" =>
-            $row["observaciones"],
-
+            "activo" => (bool) $row["activo"],
 
             "tipo_traslado" => [
-
-                "id_tipo_traslado" =>
-                (int) $row["id_tipo_traslado"],
-
-                "nombre" =>
-                $row["tipo_traslado"]
+                "id_tipo_traslado" => (int) $row["id_tipo_traslado"],
+                "nombre" => $row["tipo_traslado"]
             ],
-
 
             "tipo_elemento" => [
-
-                "id_tipo_elemento" =>
-                (int) $row["id_tipo_elemento"],
-
-                "nombre" =>
-                $row["tipo_elemento"]
+                "id_tipo_elemento" => (int) $row["id_tipo_elemento"],
+                "nombre" => $row["tipo_elemento"]
             ],
 
+            "elemento" => $row["elemento"],
+            "cedula_paciente" => $row["cedula_paciente"],
 
-            "elemento" =>
-            $row["elemento"],
-
-
-            "cedula_paciente" =>
-            $row["cedula_paciente"],
-
-
-            "origen" =>
-            $row["origen"],
-
-
-            "destino" =>
-            $row["destino"],
-
+            "origen" => $row["origen"],
+            "destino" => $row["destino"],
 
             "horarios" => [
-
-                "salida_estimada" =>
-                $row["hora_salida_estimada"],
-
-                "llegada_estimada" =>
-                $row["hora_llegada_estimada"],
-
-                "salida_real" =>
-                $row["hora_salida_real"],
-
-                "llegada_destino" =>
-                $row["hora_llegada_destino"]
+                "salida_estimada" => $row["hora_salida_estimada"],
+                "llegada_estimada" => $row["hora_llegada_estimada"],
+                "salida_real" => $row["hora_salida_real"],
+                "llegada_destino" => $row["hora_llegada_destino"]
             ],
 
-
-            "vehiculo" =>
-            $row["id_vehiculo"] !== null
+            "vehiculo" => $row["id_vehiculo"] !== null
                 ? [
-
-                    "id_vehiculo" =>
-                    (int) $row["id_vehiculo"],
-
-                    "matricula" =>
-                    $row["vehiculo_matricula"],
-
-                    "modelo" =>
-                    $row["vehiculo_modelo"],
+                    "id_vehiculo" => (int) $row["id_vehiculo"],
+                    "matricula" => $row["vehiculo_matricula"],
+                    "modelo" => $row["vehiculo_modelo"],
 
                     "tipo" => [
-
                         "id_tipo_vehiculo" =>
-                        (int) $row["id_tipo_vehiculo"],
-
-                        "nombre" =>
-                        $row["tipo_vehiculo"]
+                            (int) $row["id_tipo_vehiculo"],
+                        "nombre" => $row["tipo_vehiculo"]
                     ]
                 ]
                 : null,
 
-
-            "conductor" =>
-            $row["id_conductor"] !== null
+            "conductor" => $row["id_conductor"] !== null
                 ? [
-
-                    "id_func" =>
-                    (int) $row["id_conductor"],
-
-                    "nombre" =>
-                    $row["conductor"]
+                    "id_func" => (int) $row["id_conductor"],
+                    "nombre" => $row["conductor"]
                 ]
                 : null,
 
-
-            "enfermero" =>
-            $row["id_enfermero"] !== null
+            "enfermero" => $row["id_enfermero"] !== null
                 ? [
-
-                    "id_func" =>
-                    (int) $row["id_enfermero"],
-
-                    "nombre" =>
-                    $row["enfermero"]
+                    "id_func" => (int) $row["id_enfermero"],
+                    "nombre" => $row["enfermero"]
                 ]
                 : null,
-
 
             "solicitante" => [
-
-                "id_func" =>
-                (int) $row["id_func_solicitante"],
-
-                "nombre" =>
-                $row["solicitante"]
+                "id_func" => (int) $row["id_func_solicitante"],
+                "nombre" => $row["solicitante"]
             ],
 
-
-            "gestor" =>
-            $row["id_func_gestor"] !== null
+            "gestor" => $row["id_func_gestor"] !== null
                 ? [
-
-                    "id_func" =>
-                    (int) $row["id_func_gestor"],
-
-                    "nombre" =>
-                    $row["gestor"],
-
-                    "fecha_gestion" =>
-                    $row["fecha_gestion"]
+                    "id_func" => (int) $row["id_func_gestor"],
+                    "nombre" => $row["gestor"],
+                    "fecha_gestion" => $row["fecha_gestion"]
                 ]
                 : null,
 
-
             "estado" => [
-
-                "id_estado" =>
-                (int) $row["id_estado"],
-
-                "nombre" =>
-                $row["estado"],
-
-                "orden" =>
-                (int) $row["estado_orden"]
+                "id_estado" => (int) $row["id_estado"],
+                "nombre" => $row["estado"],
+                "orden" => (int) $row["estado_orden"]
             ],
 
-
-            "version" =>
-            (int) $row["version"],
-
-
-            "historial" =>
-            $history
+            "version" => (int) $row["version"],
+            "historial" => $history
         ];
     }
 
-
-    // FORMATEAR LISTADO COMPLETADO
+    // FORMATEAR LISTADO DEL HISTORIAL
 
     private function formatCompletedTransferListItem(
         array $row
     ): array {
 
         return [
-            "id_traslado" =>
-            (int) $row["id_traslado"],
+            "id_traslado" => (int) $row["id_traslado"],
 
-
-            "codigo" =>
-            "TR-" . str_pad(
+            "codigo" => "TR-" . str_pad(
                 $row["id_traslado"],
                 5,
                 "0",
                 STR_PAD_LEFT
             ),
 
+            "fecha_solicitud" => $row["fecha_solicitud"],
+            "fecha_requerida" => $row["fecha_requerida"],
+            "fecha_cierre" => $row["fecha_cierre"],
 
-            "fecha_solicitud" =>
-            $row["fecha_solicitud"],
-
-
-            "fecha_requerida" =>
-            $row["fecha_requerida"],
-
-
-            "fecha_finalizacion" =>
-            $row["fecha_finalizacion"],
-
-
-            "prioridad" =>
-            $row["prioridad"],
-
+            "estado" => $row["estado"],
+            "prioridad" => $row["prioridad"],
 
             "tipo_traslado" => [
-
-                "id_tipo_traslado" =>
-                (int) $row["id_tipo_traslado"],
-
-                "nombre" =>
-                $row["tipo_traslado"]
+                "id_tipo_traslado" => (int) $row["id_tipo_traslado"],
+                "nombre" => $row["tipo_traslado"]
             ],
-
 
             "tipo_elemento" => [
-
-                "id_tipo_elemento" =>
-                (int) $row["id_tipo_elemento"],
-
-                "nombre" =>
-                $row["tipo_elemento"]
+                "id_tipo_elemento" => (int) $row["id_tipo_elemento"],
+                "nombre" => $row["tipo_elemento"]
             ],
 
+            "cedula_paciente" => $row["cedula_paciente"],
+            "elemento" => $row["elemento"],
 
-            "cedula_paciente" =>
-            $row["cedula_paciente"],
-
-
-            "elemento" =>
-            $row["elemento"],
-
-
-            "origen" =>
-            $row["origen"],
-
-
-            "destino" =>
-            $row["destino"]
+            "origen" => $row["origen"],
+            "destino" => $row["destino"]
         ];
     }
 
-
-    // FORMATEAR LISTADO ACTIVO
+    // FORMATEAR LISTADO DE SEGUIMIENTO
 
     private function formatTransferListItem(
         array $row
     ): array {
 
         return [
-            "id_traslado" =>
-            (int) $row["id_traslado"],
+            "id_traslado" => (int) $row["id_traslado"],
 
-
-            "codigo" =>
-            "TR-" . str_pad(
+            "codigo" => "TR-" . str_pad(
                 $row["id_traslado"],
                 5,
                 "0",
                 STR_PAD_LEFT
             ),
 
-
-            "fecha_solicitud" =>
-            $row["fecha_solicitud"],
-
-
-            "fecha_requerida" =>
-            $row["fecha_requerida"],
-
-
-            "prioridad" =>
-            $row["prioridad"],
-
+            "fecha_solicitud" => $row["fecha_solicitud"],
+            "fecha_requerida" => $row["fecha_requerida"],
+            "prioridad" => $row["prioridad"],
 
             "tipo_traslado" => [
-
-                "id_tipo_traslado" =>
-                (int) $row["id_tipo_traslado"],
-
-                "nombre" =>
-                $row["tipo_traslado"]
+                "id_tipo_traslado" => (int) $row["id_tipo_traslado"],
+                "nombre" => $row["tipo_traslado"]
             ],
-
 
             "tipo_elemento" => [
-
-                "id_tipo_elemento" =>
-                (int) $row["id_tipo_elemento"],
-
-                "nombre" =>
-                $row["tipo_elemento"]
+                "id_tipo_elemento" => (int) $row["id_tipo_elemento"],
+                "nombre" => $row["tipo_elemento"]
             ],
 
+            "elemento" => $row["elemento"],
+            "cedula_paciente" => $row["cedula_paciente"],
 
-            "elemento" =>
-            $row["elemento"],
-
-
-            "cedula_paciente" =>
-            $row["cedula_paciente"],
-
-
-            "origen" =>
-            $row["origen"],
-
-
-            "destino" =>
-            $row["destino"],
-
+            "origen" => $row["origen"],
+            "destino" => $row["destino"],
 
             "hora_salida_estimada" =>
-            $row["hora_salida_estimada"],
-
+                $row["hora_salida_estimada"],
 
             "estado" => [
-
-                "id_estado" =>
-                (int) $row["id_estado"],
-
-                "nombre" =>
-                $row["estado"],
-
-                "orden" =>
-                (int) $row["estado_orden"]
+                "id_estado" => (int) $row["id_estado"],
+                "nombre" => $row["estado"],
+                "orden" => (int) $row["estado_orden"]
             ],
 
-
-            "asignado" =>
-            (bool) $row["asignado"],
-
-
-            "version" =>
-            (int) $row["version"],
-
-
-            "anulable" =>
-            (bool) $row["anulable"]
+            "asignado" => (bool) $row["asignado"],
+            "version" => (int) $row["version"],
+            "anulable" => (bool) $row["anulable"]
         ];
     }
 }

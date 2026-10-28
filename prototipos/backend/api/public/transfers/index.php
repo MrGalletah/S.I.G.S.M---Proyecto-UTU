@@ -7,7 +7,6 @@ require_once __DIR__ . "/../../handlers/transfers/getTransfers.php";
 require_once __DIR__ . "/../../handlers/transfers/createTransfer.php";
 require_once __DIR__ . "/../../handlers/transfers/deleteTransfer.php";
 
-
 switch ($_SERVER["REQUEST_METHOD"]) {
 
     case "GET":
@@ -19,7 +18,6 @@ switch ($_SERVER["REQUEST_METHOD"]) {
 
         handleGetTransfers();
         break;
-
 
     case "POST":
 
@@ -34,17 +32,18 @@ switch ($_SERVER["REQUEST_METHOD"]) {
 
         break;
 
-
     case "DELETE":
 
-        requireRole([
+        $user = requireRole([
             "Administrador",
             "Gestor de traslados"
         ]);
 
-        handleDeleteTransfer();
-        break;
+        handleDeleteTransfer(
+            (int) $user["id_func"]
+        );
 
+        break;
 
     default:
 

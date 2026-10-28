@@ -59,7 +59,8 @@
     "En camino": "En camino",
     "Llegó al destino": "Llegó al destino",
     "Retornando": "Retornando",
-    "Completado": "Completado"
+    "Completado": "Completado",
+    "Cancelado": "Cancelado"
   },
   "followUp": {
     "table": {
@@ -76,7 +77,7 @@
       "noMatches": "No se encontraron traslados con los filtros seleccionados.",
       "manage": "Gestionar traslado",
       "viewDetail": "Ver detalle",
-      "cancel": "Anular solicitud"
+      "cancel": "Cancelar solicitud"
     },
     "filters": {
       "title": "Traslados en curso",
@@ -99,8 +100,8 @@
       "clear": "Limpiar filtros"
     },
     "notifications": {
-      "cancelSuccess": "Traslado anulado correctamente.",
-      "cancelError": "No se pudo anular el traslado.",
+      "cancelSuccess": "Traslado cancelado correctamente.",
+      "cancelError": "No se pudo cancelar el traslado.",
       "listError": "No se pudo cargar el listado de traslados.",
       "refreshError": "No se pudo actualizar el listado de traslados.",
       "detailError": "No se pudo cargar el detalle del traslado.",
@@ -109,12 +110,12 @@
       "stateSuccess": "Estado actualizado correctamente."
     },
     "cancelDialog": {
-      "title": "Anular solicitud",
-      "question": "¿Estás seguro de que querés anular el traslado <strong>{{code}}</strong>?",
-      "description": "La solicitud dejará de aparecer en el listado de traslados activos.",
+      "title": "Cancelar traslado",
+      "question": "¿Estás seguro de que querés cancelar el traslado <strong>{{code}}</strong>?",
+      "description": "El traslado dejará de aparecer en Seguimiento y podrá consultarse en Historial como Cancelado.",
       "back": "Volver",
-      "cancelling": "Anulando...",
-      "confirm": "Anular traslado"
+      "cancelling": "Cancelando...",
+      "confirm": "Cancelar traslado"
     },
     "management": {
       "title": "Gestionar traslado",
@@ -230,10 +231,14 @@
   "history": {
     "filters": {
       "title": "Historial de traslados",
-      "description": "Consulta de traslados completados",
+      "description": "Consulta de traslados completados y cancelados",
       "search": "Código, cédula, elemento o ubicación...",
-      "finishedFrom": "Finalizado desde",
-      "finishedTo": "Finalizado hasta",
+      "status": "Estado del traslado",
+      "allStatuses": "Todos",
+      "completed": "Completados",
+      "cancelled": "Cancelados",
+      "finishedFrom": "Cerrado desde",
+      "finishedTo": "Cerrado hasta",
       "vehicle": "Vehículo",
       "driver": "Conductor",
       "nurse": "Enfermero",
@@ -249,10 +254,12 @@
       "origin": "Origen",
       "destination": "Destino",
       "requiredDate": "Fecha requerida",
+      "status": "Estado",
+      "closedAt": "Fecha de cierre",
       "completedAt": "Finalizado",
       "priority": "Prioridad",
       "actions": "Acciones",
-      "empty": "No se encontraron traslados completados.",
+      "empty": "No se encontraron traslados en el historial.",
       "viewDetail": "Ver detalle"
     },
     "errors": {

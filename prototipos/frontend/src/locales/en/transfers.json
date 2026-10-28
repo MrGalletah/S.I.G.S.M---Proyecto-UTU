@@ -59,7 +59,8 @@
     "En camino": "On the way",
     "Llegó al destino": "Arrived at destination",
     "Retornando": "Returning",
-    "Completado": "Completed"
+    "Completado": "Completed",
+    "Cancelado": "Cancelled"
   },
   "followUp": {
     "table": {
@@ -109,9 +110,9 @@
       "stateSuccess": "Status updated successfully."
     },
     "cancelDialog": {
-      "title": "Cancel request",
+      "title": "Cancel transfer",
       "question": "Are you sure you want to cancel transfer <strong>{{code}}</strong>?",
-      "description": "The request will no longer appear in the active transfers list.",
+      "description": "The transfer will disappear from Tracking and remain available in History as Cancelled.",
       "back": "Back",
       "cancelling": "Cancelling...",
       "confirm": "Cancel transfer"
@@ -230,10 +231,14 @@
   "history": {
     "filters": {
       "title": "Transfer history",
-      "description": "Review completed transfers",
+      "description": "Review completed and cancelled transfers",
       "search": "Code, patient ID, item or location...",
-      "finishedFrom": "Completed from",
-      "finishedTo": "Completed until",
+      "status": "Transfer status",
+      "allStatuses": "All",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "finishedFrom": "Closed from",
+      "finishedTo": "Closed until",
       "vehicle": "Vehicle",
       "driver": "Driver",
       "nurse": "Nurse",
@@ -249,10 +254,12 @@
       "origin": "Origin",
       "destination": "Destination",
       "requiredDate": "Required date",
+      "status": "Status",
+      "closedAt": "Closed at",
       "completedAt": "Completed",
       "priority": "Priority",
       "actions": "Actions",
-      "empty": "No completed transfers were found.",
+      "empty": "No transfers were found in the history.",
       "viewDetail": "View details"
     },
     "errors": {

@@ -9,7 +9,6 @@ class TransferCatalogService
         $this->db = $db;
     }
 
-
     public function getCatalogs(): array
     {
         // TIPOS DE TRASLADO
@@ -19,14 +18,10 @@ class TransferCatalogService
                 id_tipo_traslado,
                 nombre,
                 descripcion
-
             FROM tipo_traslado
-
             WHERE activo = TRUE
-
             ORDER BY id_tipo_traslado ASC
         ";
-
 
         // TIPOS DE ELEMENTO
 
@@ -35,15 +30,28 @@ class TransferCatalogService
                 id_tipo_elemento,
                 nombre,
                 descripcion
-
             FROM tipo_elemento
-
             ORDER BY id_tipo_elemento ASC
         ";
 
+        // CONDICIÓN COMÚN PARA LOS RECURSOS
+        // QUE APARECEN EN EL HISTORIAL
 
-        // VEHÍCULOS QUE APARECEN
-        // EN TRASLADOS COMPLETADOS
+        $terminalWhere = "
+            (
+                (
+                    t.activo = TRUE
+                    AND et.nombre = 'Completado'
+                )
+                OR
+                (
+                    t.activo = FALSE
+                    AND et.nombre = 'Cancelado'
+                )
+            )
+        ";
+
+        // VEHÍCULOS DEL HISTORIAL
 
         $historyVehiclesSql = "
             SELECT DISTINCT
@@ -59,18 +67,14 @@ class TransferCatalogService
             INNER JOIN vehiculo v
                 ON v.id_vehiculo = t.id_vehiculo
 
-            WHERE
-                t.activo = TRUE
-                AND et.nombre = 'Completado'
+            WHERE $terminalWhere
 
             ORDER BY
                 v.matricula ASC,
                 v.modelo ASC
         ";
 
-
-        // CONDUCTORES QUE APARECEN
-        // EN TRASLADOS COMPLETADOS
+        // CONDUCTORES DEL HISTORIAL
 
         $historyDriversSql = "
             SELECT DISTINCT
@@ -85,16 +89,12 @@ class TransferCatalogService
             INNER JOIN funcionario f
                 ON f.id_func = t.id_conductor
 
-            WHERE
-                t.activo = TRUE
-                AND et.nombre = 'Completado'
+            WHERE $terminalWhere
 
             ORDER BY f.nombre ASC
         ";
 
-
-        // ENFERMEROS QUE APARECEN
-        // EN TRASLADOS COMPLETADOS
+        // ENFERMEROS DEL HISTORIAL
 
         $historyNursesSql = "
             SELECT DISTINCT
@@ -109,149 +109,105 @@ class TransferCatalogService
             INNER JOIN funcionario f
                 ON f.id_func = t.id_enfermero
 
-            WHERE
-                t.activo = TRUE
-                AND et.nombre = 'Completado'
+            WHERE $terminalWhere
 
             ORDER BY f.nombre ASC
         ";
 
-
         // EJECUTAR CONSULTAS
 
-        $transferTypesStmt =
-            $this->db->prepare(
-                $transferTypesSql
-            );
+        $transferTypesStmt = $this->db->prepare(
+            $transferTypesSql
+        );
+
+        $elementTypesStmt = $this->db->prepare(
+            $elementTypesSql
+        );
+
+        $historyVehiclesStmt = $this->db->prepare(
+            $historyVehiclesSql
+        );
+
+        $historyDriversStmt = $this->db->prepare(
+            $historyDriversSql
+        );
+
+        $historyNursesStmt = $this->db->prepare(
+            $historyNursesSql
+        );
 
         $transferTypesStmt->execute();
-
-
-        $elementTypesStmt =
-            $this->db->prepare(
-                $elementTypesSql
-            );
-
         $elementTypesStmt->execute();
-
-
-        $historyVehiclesStmt =
-            $this->db->prepare(
-                $historyVehiclesSql
-            );
-
         $historyVehiclesStmt->execute();
-
-
-        $historyDriversStmt =
-            $this->db->prepare(
-                $historyDriversSql
-            );
-
         $historyDriversStmt->execute();
-
-
-        $historyNursesStmt =
-            $this->db->prepare(
-                $historyNursesSql
-            );
-
         $historyNursesStmt->execute();
-
 
         // OBTENER RESULTADOS
 
-        $transferTypes =
-            $transferTypesStmt->fetchAll(
-                PDO::FETCH_ASSOC
-            );
+        $transferTypes = $transferTypesStmt->fetchAll(
+            PDO::FETCH_ASSOC
+        );
 
-        $elementTypes =
-            $elementTypesStmt->fetchAll(
-                PDO::FETCH_ASSOC
-            );
+        $elementTypes = $elementTypesStmt->fetchAll(
+            PDO::FETCH_ASSOC
+        );
 
-        $historyVehicles =
-            $historyVehiclesStmt->fetchAll(
-                PDO::FETCH_ASSOC
-            );
+        $historyVehicles = $historyVehiclesStmt->fetchAll(
+            PDO::FETCH_ASSOC
+        );
 
-        $historyDrivers =
-            $historyDriversStmt->fetchAll(
-                PDO::FETCH_ASSOC
-            );
+        $historyDrivers = $historyDriversStmt->fetchAll(
+            PDO::FETCH_ASSOC
+        );
 
-        $historyNurses =
-            $historyNursesStmt->fetchAll(
-                PDO::FETCH_ASSOC
-            );
+        $historyNurses = $historyNursesStmt->fetchAll(
+            PDO::FETCH_ASSOC
+        );
 
+        // FORMATEAR RESPUESTA
 
         return [
             "tipos_traslado" => array_map(
                 fn(array $row) => [
                     "id_tipo_traslado" =>
-                    (int) $row["id_tipo_traslado"],
-
-                    "nombre" =>
-                    $row["nombre"],
-
-                    "descripcion" =>
-                    $row["descripcion"]
+                        (int) $row["id_tipo_traslado"],
+                    "nombre" => $row["nombre"],
+                    "descripcion" => $row["descripcion"]
                 ],
                 $transferTypes
             ),
 
-
             "tipos_elemento" => array_map(
                 fn(array $row) => [
                     "id_tipo_elemento" =>
-                    (int) $row["id_tipo_elemento"],
-
-                    "nombre" =>
-                    $row["nombre"],
-
-                    "descripcion" =>
-                    $row["descripcion"]
+                        (int) $row["id_tipo_elemento"],
+                    "nombre" => $row["nombre"],
+                    "descripcion" => $row["descripcion"]
                 ],
                 $elementTypes
             ),
 
-
             "vehiculos_historial" => array_map(
                 fn(array $row) => [
-                    "id_vehiculo" =>
-                    (int) $row["id_vehiculo"],
-
-                    "matricula" =>
-                    $row["matricula"],
-
-                    "modelo" =>
-                    $row["modelo"]
+                    "id_vehiculo" => (int) $row["id_vehiculo"],
+                    "matricula" => $row["matricula"],
+                    "modelo" => $row["modelo"]
                 ],
                 $historyVehicles
             ),
 
-
             "conductores_historial" => array_map(
                 fn(array $row) => [
-                    "id_func" =>
-                    (int) $row["id_func"],
-
-                    "nombre" =>
-                    $row["nombre"]
+                    "id_func" => (int) $row["id_func"],
+                    "nombre" => $row["nombre"]
                 ],
                 $historyDrivers
             ),
 
-
             "enfermeros_historial" => array_map(
                 fn(array $row) => [
-                    "id_func" =>
-                    (int) $row["id_func"],
-
-                    "nombre" =>
-                    $row["nombre"]
+                    "id_func" => (int) $row["id_func"],
+                    "nombre" => $row["nombre"]
                 ],
                 $historyNurses
             )

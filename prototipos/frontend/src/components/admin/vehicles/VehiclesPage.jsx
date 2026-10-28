@@ -25,7 +25,6 @@ import {
 
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import DirectionsCarOutlinedIcon from "@mui/icons-material/DirectionsCarOutlined";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
@@ -41,6 +40,7 @@ import {
   getVehicleTypes,
   saveVehicle,
 } from "../../../apiCalls/vehicles/vehiclesApi";
+import RefreshButton from "../../utils/RefreshButton";
 
 const PAGE_SIZE = 10;
 
@@ -442,73 +442,80 @@ export default function VehiclesPage() {
                 }}
               />
 
-              {/* FILTRO DE ESTADO */}
-
-              <TextField
-                select
-                size="small"
-                label={t("status")}
-                value={status}
-                onChange={(event) => {
-                  setStatus(event.target.value);
-                  setPage(1);
-                }}
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
                 sx={{
                   width: {
                     xs: "100%",
-                    sm: 200,
+                    sm: "auto",
                   },
                 }}
               >
-                <MenuItem value="TODOS">{t("all")}</MenuItem>
+                <TextField
+                  select
+                  size="small"
+                  label={t("status")}
+                  value={status}
+                  onChange={(event) => {
+                    setStatus(event.target.value);
+                    setPage(1);
+                  }}
+                  sx={{
+                    flex: 1,
+                    minWidth: 0,
+                    width: {
+                      sm: 200,
+                    },
+                  }}
+                >
+                  <MenuItem value="TODOS">{t("all")}</MenuItem>
 
-                {Object.keys(STATUS_CONFIG).map((value) => (
-                  <MenuItem key={value} value={value}>
-                    {translateStatus(value)}
-                  </MenuItem>
-                ))}
-              </TextField>
+                  {Object.keys(STATUS_CONFIG).map((value) => (
+                    <MenuItem key={value} value={value}>
+                      {translateStatus(value)}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+                <RefreshButton
+                  fetchData={async () => {
+                    const [vehicleData, vehicleTypes] = await Promise.all([
+                      getVehicles(),
+                      getVehicleTypes(),
+                    ]);
+
+                    return { vehicleData, vehicleTypes };
+                  }}
+                  setData={({ vehicleData, vehicleTypes }) => {
+                    setVehicles(vehicleData);
+                    setTypes(vehicleTypes);
+                    setError("");
+                  }}
+                  onSuccess={() => {
+                    showNotification(t("common:refresh.success"), "success");
+                  }}
+                  onError={(error) => {
+                    setError(error.message || t("common:refresh.error"));
+                  }}
+                />
+              </Stack>
             </Stack>
 
-            {/* RESULTADOS Y REFRESCAR */}
+            {/* RESULTADOS */}
 
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              justifyContent={{
-                xs: "space-between",
-                sm: "flex-end",
+            <Typography
+              variant="body2"
+              sx={{
+                color: "var(--text-muted-color)",
+                whiteSpace: "nowrap",
               }}
             >
-              <Typography
-                variant="body2"
-                sx={{
-                  color: "var(--text-muted-color)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {t("found", {
-                  count: filteredVehicles.length,
-                })}
-              </Typography>
-
-              <Tooltip title={t("refresh")}>
-                <span>
-                  <IconButton
-                    onClick={fetchData}
-                    disabled={loading}
-                    size="small"
-                    aria-label={t("refresh")}
-                    sx={{
-                      color: "var(--primary-color)",
-                    }}
-                  >
-                    <RefreshIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            </Stack>
+              {t("found", {
+                count: filteredVehicles.length,
+              })}
+            </Typography>
           </Stack>
 
           {/* ERROR DE CARGA */}

@@ -3,10 +3,11 @@ import { useTranslation } from "react-i18next";
 import { Box, Tooltip, Typography } from "@mui/material";
 
 import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 
 import { formatDate } from "./formatDate";
 
-// ESTADOS ORIGINALES DEL SISTEMA
+// ESTADOS NORMALES
 
 const transferSteps = [
   "Registrado",
@@ -31,11 +32,17 @@ function formatDateTime(value) {
 export default function StatusTimeline({ transfer }) {
   const { t } = useTranslation("transfers");
 
-  const currentStepIndex = transferSteps.indexOf(transfer.estado);
+  const isCancelled = transfer.estado === "Cancelado";
+
+  // LOS CANCELADOS TIENEN SU PROPIA RUTA
+
+  const steps = isCancelled ? ["Registrado", "Cancelado"] : transferSteps;
+
+  const currentStepIndex = steps.indexOf(transfer.estado);
 
   const history = transfer.historial ?? [];
 
-  // TRADUCIR ESTADOS SIN MODIFICAR SUS VALORES
+  // TRADUCIR ESTADOS
 
   const translateState = (state) =>
     t(`states.${state}`, {
@@ -58,26 +65,51 @@ export default function StatusTimeline({ transfer }) {
 
       {/* ESTADOS DEL TRASLADO */}
 
-      {transferSteps.map((step, index) => {
+      {steps.map((step, index) => {
+        const cancelledStep = step === "Cancelado";
+
         const isDone = index <= currentStepIndex;
 
         const isCompleted =
           index < currentStepIndex ||
-          (index === currentStepIndex && step === "Completado");
+          (index === currentStepIndex &&
+            (step === "Completado" || cancelledStep));
 
         const isCurrent = index === currentStepIndex && !isCompleted;
 
-        // BUSCAR EL REGISTRO DEL ESTADO ORIGINAL
+        // BUSCAR REGISTRO HISTÓRICO
 
         const entry = history.find((item) => item.estado === step);
 
+        // PARA CANCELACIONES ANTIGUAS SIN HISTORIAL
+        // UTILIZAR LA FECHA DE BAJA ORIGINAL
+
         const fechaHora =
-          entry?.fechaHora ?? (index === 0 ? transfer.fechaSolicitud : null);
+          entry?.fechaHora ??
+          (cancelledStep
+            ? transfer.fechaCancelacion
+            : index === 0
+              ? transfer.fechaSolicitud
+              : null);
 
         const funcionario =
           entry?.funcionario ?? (index === 0 ? transfer.solicitante : null);
 
         const observacion = entry?.observacion?.trim();
+
+        // COLORES
+
+        const completedColor = cancelledStep
+          ? "var(--priority-urgent-text)"
+          : "var(--green-chip)";
+
+        const circleColor = cancelledStep
+          ? "var(--priority-urgent-text)"
+          : isCompleted
+            ? "var(--green-chip)"
+            : isCurrent
+              ? "var(--primary-color)"
+              : "var(--inactive-chip)";
 
         return (
           <Box
@@ -100,7 +132,7 @@ export default function StatusTimeline({ transfer }) {
             >
               {/* LÍNEA VERTICAL */}
 
-              {index < transferSteps.length - 1 && (
+              {index < steps.length - 1 && (
                 <Box
                   sx={{
                     position: "absolute",
@@ -108,14 +140,16 @@ export default function StatusTimeline({ transfer }) {
                     bottom: 0,
                     width: 2,
 
-                    bgcolor: isCompleted
-                      ? "var(--green-chip)"
-                      : "rgba(0,0,0,0.14)",
+                    bgcolor: isCancelled
+                      ? "var(--priority-urgent-text)"
+                      : isCompleted
+                        ? "var(--green-chip)"
+                        : "rgba(0,0,0,0.14)",
                   }}
                 />
               )}
 
-              {/* INDICADOR DEL ESTADO */}
+              {/* INDICADOR */}
 
               <Box
                 sx={{
@@ -131,11 +165,7 @@ export default function StatusTimeline({ transfer }) {
                   alignItems: "center",
                   justifyContent: "center",
 
-                  bgcolor: isCompleted
-                    ? "var(--green-chip)"
-                    : isCurrent
-                      ? "var(--primary-color)"
-                      : "var(--inactive-chip)",
+                  bgcolor: circleColor,
 
                   color: isDone
                     ? "var(--white-color)"
@@ -145,7 +175,13 @@ export default function StatusTimeline({ transfer }) {
                   fontWeight: 700,
                 }}
               >
-                {isCompleted ? <CheckIcon sx={{ fontSize: 16 }} /> : index + 1}
+                {cancelledStep ? (
+                  <CloseIcon sx={{ fontSize: 16 }} />
+                ) : isCompleted ? (
+                  <CheckIcon sx={{ fontSize: 16 }} />
+                ) : (
+                  index + 1
+                )}
               </Box>
             </Box>
 
@@ -154,7 +190,7 @@ export default function StatusTimeline({ transfer }) {
             <Box
               sx={{
                 minWidth: 0,
-                pb: index === transferSteps.length - 1 ? 0 : 2,
+                pb: index === steps.length - 1 ? 0 : 2,
               }}
             >
               {/* ESTADO Y FECHA */}
@@ -174,11 +210,13 @@ export default function StatusTimeline({ transfer }) {
                     fontSize: 13,
                     fontWeight: 800,
 
-                    color: isCurrent
-                      ? "var(--primary-color)"
-                      : isDone
-                        ? "var(--text-main-color)"
-                        : "var(--text-muted-color)",
+                    color: cancelledStep
+                      ? completedColor
+                      : isCurrent
+                        ? "var(--primary-color)"
+                        : isDone
+                          ? "var(--text-main-color)"
+                          : "var(--text-muted-color)",
                   }}
                 >
                   {translateState(step)}
@@ -241,7 +279,9 @@ export default function StatusTimeline({ transfer }) {
                       component="span"
                       sx={{
                         fontWeight: 700,
-                        color: "var(--primary-color)",
+                        color: cancelledStep
+                          ? "var(--priority-urgent-text)"
+                          : "var(--primary-color)",
                       }}
                     >
                       {t("timeline.observation")}{" "}

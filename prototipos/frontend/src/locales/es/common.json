@@ -24,5 +24,10 @@
     "openMenu": "Abrir menú de navegación",
     "closeMenu": "Cerrar menú de navegación",
     "navigation": "Navegación principal"
+  },
+  "refresh": {
+    "label": "Actualizar datos",
+    "success": "Datos actualizados correctamente.",
+    "error": "No se pudieron actualizar los datos."
   }
 }

@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Box,
@@ -22,9 +24,6 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
-import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-
 import {
   createOrUpdateCategory,
   getAllCategories,
@@ -32,8 +31,13 @@ import {
 
 import { formatDate } from "../../utils/formatDate";
 import CategoryModal from "../../modals/CategoryDialog";
+import RefreshButton from "../../utils/RefreshButton";
 import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
+
+// ESTADO DE CATEGORÍA
+
+const isActive = (value) => value === true || Number(value) === 1;
 
 export default function CategoriesCard({ variant }) {
   const { t } = useTranslation("documents");
@@ -49,6 +53,7 @@ export default function CategoriesCard({ variant }) {
   const [loading, setLoading] = useState(true);
 
   // FILTROS Y PAGINACIÓN
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -57,39 +62,57 @@ export default function CategoriesCard({ variant }) {
   const rowsPerPage = isFull ? 15 : 5;
 
   // REFERENCIA ESTABLE PARA NOTIFICACIONES
+
   const notificationRef = useRef(showNotification);
 
   useEffect(() => {
     notificationRef.current = showNotification;
   }, [showNotification]);
 
-  // RECARGA MANUAL
+  // OBTENER CATEGORÍAS
+
+  const loadCategories = async () => {
+    const data = await getAllCategories();
+
+    if (!data?.ok || !Array.isArray(data.categorias)) {
+      throw new Error(t("categories.loadError"));
+    }
+
+    return data.categorias;
+  };
+
+  // RECARGA DESPUÉS DE GUARDAR
+
   const fetchData = async () => {
     try {
       setLoading(true);
 
-      const data = await getAllCategories();
+      const data = await loadCategories();
 
-      if (data.ok) {
-        setCategories(data.categorias);
-      }
+      setCategories(data);
     } catch (error) {
       console.error(error);
-      showNotification(t("categories.loadError"), "error");
+
+      showNotification(error.message || t("categories.loadError"), "error");
     } finally {
       setLoading(false);
     }
   };
 
   // CARGA INICIAL
+
   useEffect(() => {
     let cancelled = false;
 
     getAllCategories()
       .then((data) => {
-        if (!cancelled && data.ok) {
-          setCategories(data.categorias);
+        if (cancelled) return;
+
+        if (!data?.ok || !Array.isArray(data.categorias)) {
+          throw new Error(t("categories.loadError"));
         }
+
+        setCategories(data.categorias);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -97,7 +120,7 @@ export default function CategoriesCard({ variant }) {
         console.error(error);
 
         notificationRef.current(
-          t("categories.loadError"),
+          error.message || t("categories.loadError"),
           "error",
         );
       })
@@ -113,27 +136,19 @@ export default function CategoriesCard({ variant }) {
   }, [t]);
 
   // CREAR O ACTUALIZAR CATEGORÍA
+
   const handleSubmitCategory = async (data) => {
     try {
       setSaving(true);
 
       if (selectedCategory) {
-        await createOrUpdateCategory(
-          data,
-          selectedCategory.id_cat,
-        );
+        await createOrUpdateCategory(data, selectedCategory.id_cat);
 
-        showNotification(
-          t("categories.updateSuccess"),
-          "success",
-        );
+        showNotification(t("categories.updateSuccess"), "success");
       } else {
         await createOrUpdateCategory(data);
 
-        showNotification(
-          t("categories.createSuccess"),
-          "success",
-        );
+        showNotification(t("categories.createSuccess"), "success");
       }
 
       setOpenCategoryModal(false);
@@ -143,10 +158,7 @@ export default function CategoriesCard({ variant }) {
     } catch (error) {
       console.error(error);
 
-      showNotification(
-        error.message || t("categories.saveError"),
-        "error",
-      );
+      showNotification(error.message || t("categories.saveError"), "error");
     } finally {
       setSaving(false);
     }
@@ -163,35 +175,38 @@ export default function CategoriesCard({ variant }) {
   };
 
   // FILTRADO
+
   const filteredCategories = categories.filter((category) => {
-    const searchText = search.toLowerCase();
+    const searchText = search.trim().toLowerCase();
 
     const matchesSearch =
-      category.nombre.toLowerCase().includes(searchText) ||
-      category.descripcion.toLowerCase().includes(searchText);
+      String(category.nombre ?? "")
+        .toLowerCase()
+        .includes(searchText) ||
+      String(category.descripcion ?? "")
+        .toLowerCase()
+        .includes(searchText);
 
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "active"
-        ? category.activo === 1
-        : category.activo !== 1);
+        ? isActive(category.activo)
+        : !isActive(category.activo));
 
     return matchesSearch && matchesStatus;
   });
 
   // PAGINACIÓN
-  const totalPages = Math.ceil(
-    filteredCategories.length / rowsPerPage,
-  );
+
+  const totalPages = Math.ceil(filteredCategories.length / rowsPerPage);
 
   const currentPage = Math.min(page, Math.max(totalPages, 1));
 
   const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
 
   const visibleCategories = filteredCategories.slice(
     startIndex,
-    endIndex,
+    startIndex + rowsPerPage,
   );
 
   const showPagination = totalPages > 1;
@@ -211,20 +226,21 @@ export default function CategoriesCard({ variant }) {
         }}
       >
         {/* ENCABEZADO */}
+
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           sx={{
             justifyContent: "space-between",
-            alignItems: "flex-start",
+            alignItems: {
+              xs: "stretch",
+              sm: "flex-start",
+            },
             mb: 2,
             gap: 2,
           }}
         >
           <Box>
-            <Typography
-              variant="h6"
-              sx={{ fontWeight: 700 }}
-            >
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {t("categories.title")}
             </Typography>
 
@@ -247,6 +263,7 @@ export default function CategoriesCard({ variant }) {
               textTransform: "none",
               bgcolor: "var(--primary-color)",
               whiteSpace: "nowrap",
+              alignSelf: "flex-start",
               "&:hover": {
                 bgcolor: "var(--primary-hover-color)",
               },
@@ -256,18 +273,22 @@ export default function CategoriesCard({ variant }) {
           </Button>
         </Stack>
 
-        {/* BÚSQUEDA Y FILTROS */}
+        {/* BÚSQUEDA, FILTROS Y RECARGA */}
+
         <Stack
           direction={{ xs: "column", sm: "row" }}
           sx={{
+            width: "100%",
             mb: 2,
-            gap: 2,
+            gap: 1.5,
             alignItems: {
               xs: "stretch",
               sm: "center",
             },
           }}
         >
+          {/* BUSCADOR */}
+
           <TextField
             size="small"
             placeholder={t("categories.search")}
@@ -282,44 +303,72 @@ export default function CategoriesCard({ variant }) {
               },
             }}
             sx={{
+              minWidth: 0,
               width: {
                 xs: "100%",
-                sm: "250px",
+                sm: 250,
               },
             }}
           />
 
-          <TextField
-            select
-            size="small"
-            label={t("categories.status")}
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value);
-              setPage(1);
-            }}
+          {/* ESTADO Y REFRESH */}
+
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
             sx={{
               width: {
                 xs: "100%",
-                sm: "160px",
+                sm: "auto",
               },
+              minWidth: 0,
             }}
           >
-            <MenuItem value="all">
-              {t("categories.all")}
-            </MenuItem>
+            <TextField
+              select
+              size="small"
+              label={t("categories.status")}
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setPage(1);
+              }}
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                width: {
+                  sm: 160,
+                },
+              }}
+            >
+              <MenuItem value="all">{t("categories.all")}</MenuItem>
 
-            <MenuItem value="active">
-              {t("categories.activePlural")}
-            </MenuItem>
+              <MenuItem value="active">{t("categories.activePlural")}</MenuItem>
 
-            <MenuItem value="inactive">
-              {t("categories.inactivePlural")}
-            </MenuItem>
-          </TextField>
+              <MenuItem value="inactive">
+                {t("categories.inactivePlural")}
+              </MenuItem>
+            </TextField>
+
+            <RefreshButton
+              fetchData={loadCategories}
+              setData={setCategories}
+              onSuccess={() => {
+                showNotification(t("common:refresh.success"), "success");
+              }}
+              onError={(error) => {
+                showNotification(
+                  error.message || t("common:refresh.error"),
+                  "error",
+                );
+              }}
+            />
+          </Stack>
         </Stack>
 
         {/* TABLA */}
+
         {loading ? (
           <Box
             sx={{
@@ -335,57 +384,64 @@ export default function CategoriesCard({ variant }) {
         ) : (
           <TableContainer
             sx={{
-              minWidth: "100%",
+              width: "100%",
               overflowX: "auto",
             }}
           >
             <Table
               size="small"
               sx={{
-                minWidth: {
-                  xs: "650px",
-                  md: "100%",
-                },
+                minWidth: isFull ? 970 : 800,
                 tableLayout: "fixed",
               }}
             >
               <TableHead>
                 <TableRow>
+                  {/* CATEGORÍA */}
+
                   <TableCell
                     sx={{
                       fontWeight: 700,
-                      width: isFull ? "20%" : "25%",
+                      width: 175,
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {t("categories.name")}
                   </TableCell>
 
+                  {/* DESCRIPCIÓN */}
+
                   <TableCell
                     sx={{
                       fontWeight: 700,
-                      width: isFull ? "30%" : "35%",
+                      width: isFull ? 290 : 270,
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {t("categories.details")}
                   </TableCell>
 
+                  {/* DOCUMENTOS */}
+
                   <TableCell
                     align="center"
                     sx={{
                       fontWeight: 700,
-                      width: "12%",
+                      width: 125,
                       whiteSpace: "nowrap",
                     }}
                   >
                     {t("categories.documents")}
                   </TableCell>
 
+                  {/* FECHA DE CREACIÓN */}
+
                   {isFull && (
                     <TableCell
                       align="center"
                       sx={{
                         fontWeight: 700,
-                        width: "14%",
+                        width: 145,
                         whiteSpace: "nowrap",
                       }}
                     >
@@ -393,22 +449,26 @@ export default function CategoriesCard({ variant }) {
                     </TableCell>
                   )}
 
+                  {/* ESTADO */}
+
                   <TableCell
                     align="center"
                     sx={{
                       fontWeight: 700,
-                      width: isFull ? "12%" : "13%",
+                      width: 125,
                       whiteSpace: "nowrap",
                     }}
                   >
                     {t("categories.status")}
                   </TableCell>
 
+                  {/* ACCIONES */}
+
                   <TableCell
                     align="center"
                     sx={{
                       fontWeight: 700,
-                      width: isFull ? "12%" : "15%",
+                      width: 95,
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -419,10 +479,13 @@ export default function CategoriesCard({ variant }) {
 
               <TableBody>
                 {visibleCategories.map((category) => (
-                  <TableRow key={category.id_cat}>
+                  <TableRow key={category.id_cat} hover>
+                    {/* NOMBRE */}
+
                     <TableCell>
                       <Typography
                         variant="body2"
+                        title={category.nombre}
                         sx={{
                           fontWeight: 500,
                           whiteSpace: "nowrap",
@@ -434,9 +497,12 @@ export default function CategoriesCard({ variant }) {
                       </Typography>
                     </TableCell>
 
+                    {/* DESCRIPCIÓN */}
+
                     <TableCell>
                       <Typography
                         variant="body2"
+                        title={category.descripcion ?? ""}
                         sx={{
                           whiteSpace: "nowrap",
                           overflow: "hidden",
@@ -447,9 +513,11 @@ export default function CategoriesCard({ variant }) {
                       </Typography>
                     </TableCell>
 
-                    <TableCell align="center">
-                      {category.documentos}
-                    </TableCell>
+                    {/* DOCUMENTOS */}
+
+                    <TableCell align="center">{category.documentos}</TableCell>
+
+                    {/* FECHA */}
 
                     {isFull && (
                       <TableCell align="center">
@@ -457,53 +525,43 @@ export default function CategoriesCard({ variant }) {
                       </TableCell>
                     )}
 
+                    {/* ESTADO */}
+
                     <TableCell align="center">
                       <Chip
                         label={
-                          category.activo === 1
+                          isActive(category.activo)
                             ? t("categories.active")
                             : t("categories.inactive")
                         }
                         size="small"
                         sx={{
-                          bgcolor:
-                            category.activo === 1
-                              ? "var(--primary-color)"
-                              : "var(--inactive-chip)",
-                          color:
-                            category.activo === 1
-                              ? "var(--white-color)"
-                              : "var(--text-main-color)",
+                          bgcolor: isActive(category.activo)
+                            ? "var(--primary-color)"
+                            : "var(--inactive-chip)",
+                          color: isActive(category.activo)
+                            ? "var(--white-color)"
+                            : "var(--text-main-color)",
                           fontWeight: 600,
                           whiteSpace: "nowrap",
-                          minWidth:
-                            category.activo === 0 ? 78 : 64,
+                          minWidth: isActive(category.activo) ? 64 : 78,
                           justifyContent: "center",
                         }}
                       />
                     </TableCell>
 
                     {/* ACCIONES */}
-                    <TableCell>
-                      <Stack
-                        direction="row"
-                        spacing={0.5}
-                        sx={{
-                          justifyContent: "center",
-                        }}
+
+                    <TableCell align="center">
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditCategory(category)}
+                        aria-label={t("categories.edit", {
+                          name: category.nombre,
+                        })}
                       >
-                        <IconButton
-                          size="small"
-                          onClick={() =>
-                            handleEditCategory(category)
-                          }
-                          aria-label={t("categories.edit", {
-                            name: category.nombre,
-                          })}
-                        >
-                          <EditOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Stack>
+                        <EditOutlinedIcon fontSize="small" />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -513,6 +571,7 @@ export default function CategoriesCard({ variant }) {
         )}
 
         {/* PAGINACIÓN */}
+
         {!loading && showPagination && (
           <Stack
             direction="row"
@@ -525,7 +584,7 @@ export default function CategoriesCard({ variant }) {
             <Pagination
               count={totalPages}
               page={currentPage}
-              onChange={(event, value) => setPage(value)}
+              onChange={(_, value) => setPage(value)}
               size="small"
               shape="rounded"
             />
@@ -534,6 +593,7 @@ export default function CategoriesCard({ variant }) {
       </Card>
 
       {/* MODAL DE CATEGORÍAS */}
+
       {openCategoryModal && (
         <CategoryModal
           open={openCategoryModal}
@@ -548,6 +608,7 @@ export default function CategoriesCard({ variant }) {
       )}
 
       {/* NOTIFICACIONES */}
+
       <NotificationSnackbar
         notification={notification}
         onClose={closeNotification}

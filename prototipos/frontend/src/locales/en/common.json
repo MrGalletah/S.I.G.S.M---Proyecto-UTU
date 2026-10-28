@@ -25,5 +25,10 @@
     "openMenu": "Open navigation menu",
     "closeMenu": "Close navigation menu",
     "navigation": "Main navigation"
+  },
+  "refresh": {
+    "label": "Refresh data",
+    "success": "Data refreshed successfully.",
+    "error": "Couldn't refresh the data."
   }
 }

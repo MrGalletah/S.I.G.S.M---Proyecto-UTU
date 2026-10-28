@@ -16,6 +16,8 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import FilterAltOffOutlinedIcon from "@mui/icons-material/FilterAltOffOutlined";
 
+import RefreshButton from "../../../utils/RefreshButton";
+
 // FECHA LOCAL DE HOY
 
 function getToday() {
@@ -68,6 +70,7 @@ export default function HistoryFilters({
   idVehiculo,
   idConductor,
   idEnfermero,
+  estado,
 
   vehicles,
   drivers,
@@ -83,14 +86,21 @@ export default function HistoryFilters({
   onVehicleChange,
   onDriverChange,
   onNurseChange,
+  onEstadoChange,
+
   onSearch,
   onClear,
+
+  refreshFetchData,
+  refreshSetData,
+  onRefreshSuccess,
+  onRefreshError,
 }) {
   const { t } = useTranslation("transfers");
 
   const today = getToday();
 
-  // COMPROBAR FILTROS PENDIENTES DE APLICAR
+  // FILTROS PENDIENTES
 
   const hasDraftFilters =
     Boolean(search.trim()) ||
@@ -98,11 +108,12 @@ export default function HistoryFilters({
     Boolean(hasta) ||
     Boolean(idVehiculo) ||
     Boolean(idConductor) ||
-    Boolean(idEnfermero);
+    Boolean(idEnfermero) ||
+    estado !== "todos";
 
   const showClearFilters = hasDraftFilters || hasAppliedFilters;
 
-  // OPCIONES DE LOS CATÁLOGOS
+  // CATÁLOGOS
 
   const vehicleOptions = vehicles.map((vehicle) => ({
     value: vehicle.id_vehiculo,
@@ -128,7 +139,7 @@ export default function HistoryFilters({
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
-      {/* ENCABEZADO Y BUSCADOR */}
+      {/* ENCABEZADO Y BÚSQUEDA */}
 
       <Stack
         direction={{
@@ -164,7 +175,7 @@ export default function HistoryFilters({
           </Typography>
         </Box>
 
-        {/* BÚSQUEDA GENERAL */}
+        {/* BUSCADOR */}
 
         <TextField
           size="small"
@@ -203,7 +214,7 @@ export default function HistoryFilters({
             xs: "1fr",
             sm: "repeat(2, minmax(0, 1fr))",
             lg: "repeat(3, minmax(0, 1fr))",
-            xl: "repeat(5, minmax(0, 1fr)) auto",
+            xl: "repeat(6, minmax(0, 1fr))",
           },
 
           gap: 1.5,
@@ -247,6 +258,26 @@ export default function HistoryFilters({
             },
           }}
         />
+        {/* ESTADO */}
+
+        <TextField
+          select
+          size="small"
+          fullWidth
+          label={t("history.filters.status")}
+          value={estado}
+          onChange={(event) => onEstadoChange(event.target.value)}
+        >
+          <MenuItem value="todos">{t("history.filters.allStatuses")}</MenuItem>
+
+          <MenuItem value="completados">
+            {t("history.filters.completed")}
+          </MenuItem>
+
+          <MenuItem value="cancelados">
+            {t("history.filters.cancelled")}
+          </MenuItem>
+        </TextField>
 
         {/* VEHÍCULO */}
 
@@ -281,20 +312,42 @@ export default function HistoryFilters({
           allLabel={t("history.filters.all")}
         />
 
-        {/* BOTÓN APLICAR */}
+        {/* ACCIONES */}
 
-        <Button
-          type="submit"
-          variant="outlined"
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
           sx={{
-            textTransform: "none",
-            borderRadius: 2,
-            height: 40,
-            whiteSpace: "nowrap",
+            gridColumn: {
+              xs: "1 / -1",
+            },
+            justifyContent: {
+              xs: "flex-start",
+              xl: "flex-end",
+            },
           }}
         >
-          {t("history.filters.apply")}
-        </Button>
+          <Button
+            type="submit"
+            variant="outlined"
+            sx={{
+              textTransform: "none",
+              borderRadius: 2,
+              height: 40,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {t("history.filters.apply")}
+          </Button>
+
+          <RefreshButton
+            fetchData={refreshFetchData}
+            setData={refreshSetData}
+            onSuccess={onRefreshSuccess}
+            onError={onRefreshError}
+          />
+        </Stack>
       </Box>
 
       {/* RESULTADOS Y LIMPIAR */}

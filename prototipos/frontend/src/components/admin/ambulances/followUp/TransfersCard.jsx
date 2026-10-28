@@ -32,6 +32,7 @@ const stateColors = {
   "Llegó al destino": ["var(--state-arrived-bg)", "var(--state-arrived-text)"],
   Retornando: ["var(--state-returning-bg)", "var(--state-returning-text)"],
   Completado: ["var(--state-completed-bg)", "var(--state-completed-text)"],
+  Cancelado: ["var(--priority-urgent-bg)", "var(--priority-urgent-text)"],
 };
 
 const priorityColors = {
@@ -151,6 +152,7 @@ export default function TransfersCard({
   onClearFilters,
   hasActiveFilters,
   onCancelTransfer,
+  refreshControl,
 }) {
   const { t } = useTranslation("transfers");
 
@@ -215,6 +217,7 @@ export default function TransfersCard({
         filteredCount={filteredCount}
         onClear={onClearFilters}
         hasActiveFilters={hasActiveFilters}
+        refreshControl={refreshControl}
       />
 
       {/* TABLA */}
@@ -397,16 +400,17 @@ export default function TransfersCard({
                     >
                       {/* GESTIONAR */}
 
-                      <Tooltip title={t("followUp.table.manage")}>
-                        <IconButton
-                          size="small"
-                          aria-label={t("followUp.table.manage")}
-                          onClick={() => setEditTransferId(transfer.id)}
-                        >
-                          <EditOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-
+                      {transfer.estado !== "Cancelado" && (
+                        <Tooltip title={t("followUp.table.manage")}>
+                          <IconButton
+                            size="small"
+                            aria-label={t("followUp.table.manage")}
+                            onClick={() => setEditTransferId(transfer.id)}
+                          >
+                            <EditOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       {/* VER DETALLE */}
 
                       <Tooltip title={t("followUp.table.viewDetail")}>

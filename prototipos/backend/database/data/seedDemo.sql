@@ -1,4 +1,4 @@
--- S.I.G.S.M. | Seed Demo v2, para instalacion limpia de MariaDB 11.4.
+-- S.I.G.S.M. | Seed Demo v3 (cancelados), para instalacion limpia de MariaDB 11.4.
 -- Compatible con dbSchema_01.sql a dbSchema_04.sql del repositorio.
 -- ORDEN: inicializar DB -> completar admin-init -> importar este seed.
 -- NO copiar a /docker-entrypoint-initdb.d/: depende del administrador ya creado.
@@ -7,7 +7,7 @@
 -- Esta comprobacion ESTRICTA es intencionada: el instalador borra los volumenes.
 -- Las tolerancias de 1 o 2 usuarios/categorias eran solo para la prueba anterior.
 -- Genera: 80 funcionarios (incluye admin), 150 asignaciones de rol,
--- 35 vehiculos, 20 categorias, 2000 traslados, 30 encuestas,
+-- 35 vehiculos, 20 categorias, 2000 traslados (20 cancelados), 30 encuestas,
 -- 200 preguntas, 600 opciones, 5000 formularios y sus detalles.
 -- TODAS las preguntas activas y obligatorias reciben respuesta.
 -- Las opcionales pueden quedar sin responder en una fraccion de formularios.
@@ -21,6 +21,7 @@ USE sigsm;
 DROP PROCEDURE IF EXISTS seed_sigsm_demo;
 -- Se cambia temporalmente el delimitador para definir el procedimiento.
 DELIMITER $$
+
 CREATE PROCEDURE seed_sigsm_demo()
 BEGIN
     DECLARE i INT DEFAULT 0;
@@ -54,6 +55,7 @@ BEGIN
     DECLARE id_llego INT UNSIGNED;
     DECLARE id_retornando INT UNSIGNED;
     DECLARE id_completado INT UNSIGNED;
+    DECLARE id_cancelado INT UNSIGNED;
     DECLARE estado_actual INT UNSIGNED;
     DECLARE traslado_id INT UNSIGNED;
     DECLARE encuesta_id INT UNSIGNED;
@@ -125,10 +127,8 @@ BEGIN
     IF contador <> 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: ya existen documentos';
     END IF;
-    SELECT COUNT(*) INTO contador FROM compatibilidad_transporte;
-    IF contador <> 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: ya hay compatibilidades definidas';
-    END IF;
+    -- dbSchema_03.sql ya inserta compatibilidades; no deben estar vacias.
+    -- La sección 4 usa INSERT IGNORE para evitar duplicados.
     SELECT COUNT(*) INTO contador FROM rol;
     IF contador <> 8 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: el catálogo de roles no coincide con dbSchema_01';
@@ -152,9 +152,16 @@ BEGIN
     SELECT id_estado INTO id_llego FROM estado_traslado WHERE nombre = 'Llegó al destino';
     SELECT id_estado INTO id_retornando FROM estado_traslado WHERE nombre = 'Retornando';
     SELECT id_estado INTO id_completado FROM estado_traslado WHERE nombre = 'Completado';
-    IF id_registrado IS NULL OR id_camino IS NULL OR id_llego IS NULL
-        OR id_retornando IS NULL OR id_completado IS NULL THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: falta algún estado de traslado';
+    SELECT id_estado INTO id_cancelado FROM estado_traslado WHERE nombre = 'Cancelado';
+    IF id_registrado IS NULL
+        OR id_camino IS NULL
+        OR id_llego IS NULL
+        OR id_retornando IS NULL
+        OR id_completado IS NULL
+        OR id_cancelado IS NULL
+    THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: falta algún estado de traslado';
     END IF;
 
     CREATE TEMPORARY TABLE tmp_seed_func (
@@ -292,28 +299,44 @@ BEGIN
        OR (te.nombre = 'Muestra biológica' AND tv.nombre IN ('Ambulancia', 'Auto'))
        OR (te.nombre IN ('Equipamiento', 'Insumo', 'Otro'));
 
-    -- 5) 2.000 traslados:
-    --    1.800 completados; 15 en curso (5 por estado intermedio);
-    --    165 registrados próximos; 20 bajas lógicas.
-    SET i = 1;
-    WHILE i <= 2000 DO
-        SET con_asignacion = i <= 1815;
-        SET esta_activo = i <= 1980;
-        SET estado_actual = CASE
-            WHEN i <= 1800 THEN id_completado
-            WHEN i <= 1805 THEN id_camino
-            WHEN i <= 1810 THEN id_llego
-            WHEN i <= 1815 THEN id_retornando
-            ELSE id_registrado
-        END;
-        SET version_actual = CASE
-            WHEN i <= 1800 THEN 5
-            WHEN i <= 1805 THEN 2
-            WHEN i <= 1810 THEN 3
-            WHEN i <= 1815 THEN 4
-            WHEN i <= 1980 THEN 1
-            ELSE 2
-        END;
+        -- 5) 2.000 TRASLADOS:
+        -- 1.800 completados
+        -- 15 en curso
+        -- 165 registrados
+        -- 20 cancelados:
+        --   10 con recursos asignados
+        --   10 sin recursos asignados
+
+        SET i = 1;
+
+        WHILE i <= 2000 DO
+
+        -- Los últimos 10 asignados se cancelarán antes de salir.
+
+            SET con_asignacion =
+                i <= 1815
+                OR (i BETWEEN 1981 AND 1990);
+
+            SET esta_activo = i <= 1980;
+
+            SET estado_actual = CASE
+                WHEN i <= 1800 THEN id_completado
+                WHEN i <= 1805 THEN id_camino
+                WHEN i <= 1810 THEN id_llego
+                WHEN i <= 1815 THEN id_retornando
+                WHEN i <= 1980 THEN id_registrado
+                ELSE id_cancelado
+            END;
+
+            SET version_actual = CASE
+                WHEN i <= 1800 THEN 5
+                WHEN i <= 1805 THEN 2
+                WHEN i <= 1810 THEN 3
+                WHEN i <= 1815 THEN 4
+                WHEN i <= 1980 THEN 1
+                WHEN i <= 1990 THEN 3
+                ELSE 2
+            END;
         SET salida = CASE
             WHEN i <= 1800 THEN DATE_ADD(
                 DATE_SUB(CURDATE(), INTERVAL (121 - CEIL(i / 15)) DAY),
@@ -329,12 +352,14 @@ BEGIN
             ELSE DATE_SUB(NOW(), INTERVAL 1 DAY)
         END;
         SET llegada_estimada = IF(con_asignacion, DATE_ADD(salida, INTERVAL 105 MINUTE), NULL);
-        SET salida_real = IF(con_asignacion, DATE_ADD(salida, INTERVAL 2 MINUTE), NULL);
+        SET salida_real = IF(estado_actual = id_cancelado, NULL,  IF(con_asignacion, DATE_ADD(salida, INTERVAL 2 MINUTE), NULL));
         SET llegada_real = IF(estado_actual IN (id_llego, id_retornando, id_completado),
                              DATE_ADD(salida, INTERVAL 60 MINUTE), NULL);
         SET momento_solicitud = DATE_SUB(salida, INTERVAL 1 DAY);
         SET momento_gestion = IF(con_asignacion, DATE_SUB(salida, INTERVAL 2 HOUR), NULL);
-        SET momento_baja = IF(esta_activo, NULL, DATE_ADD(salida, INTERVAL 2 HOUR));
+        -- Los cancelados se anulan media hora antes de la salida prevista.
+        -- Si hubo asignacion, se cancela despues de la fecha_gestion.
+        SET momento_baja = IF(esta_activo, NULL, DATE_SUB(salida, INTERVAL 30 MINUTE));
 
         SELECT tt.id_tipo_traslado INTO id_tipo_traslado FROM tipo_traslado AS tt
         WHERE tt.nombre = ELT(1 + ((i - 1) MOD 5),
@@ -412,7 +437,12 @@ BEGIN
             (id_traslado, id_estado, fecha_hora, observacion, id_func)
         VALUES (traslado_id, id_registrado, momento_solicitud,
                 'Solicitud registrada (datos de demostración)', solicitante_id);
-        IF con_asignacion THEN
+        IF estado_actual IN (
+            id_camino,
+            id_llego,
+            id_retornando,
+            id_completado
+        ) THEN
             INSERT INTO historial_estado_traslado
                 (id_traslado, id_estado, fecha_hora, observacion, id_func)
             VALUES (traslado_id, id_camino, DATE_ADD(salida, INTERVAL 2 MINUTE),
@@ -435,6 +465,25 @@ BEGIN
                 (id_traslado, id_estado, fecha_hora, observacion, id_func)
             VALUES (traslado_id, id_completado, DATE_ADD(salida, INTERVAL 95 MINUTE),
                     'Traslado finalizado', gestor_id);
+        END IF;
+        -- REGISTRAR CANCELACIÓN
+        IF estado_actual = id_cancelado THEN
+
+            INSERT INTO historial_estado_traslado (
+                id_traslado,
+                id_estado,
+                fecha_hora,
+                observacion,
+                id_func
+            )
+            VALUES (
+                traslado_id,
+                id_cancelado,
+                momento_baja,
+                'Cancelación de demostración antes de la salida',
+                admin_id
+            );
+
         END IF;
         SET i = i + 1;
     END WHILE;
@@ -669,6 +718,85 @@ BEGIN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seed: cantidad incorrecta de detalles';
     END IF;
 
+    -- VALIDACIONES ESPECIFICAS DE TRASLADOS CANCELADOS
+    SELECT COUNT(*) INTO contador
+    FROM traslado t
+    JOIN estado_traslado et ON et.id_estado = t.id_estado
+    WHERE et.nombre = 'Cancelado';
+    IF contador <> 20 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: se esperaban 20 traslados cancelados';
+    END IF;
+
+    SELECT COUNT(*) INTO contador
+    FROM traslado t
+    JOIN estado_traslado et ON et.id_estado = t.id_estado
+    WHERE et.nombre = 'Cancelado'
+      AND t.id_vehiculo IS NOT NULL
+      AND t.id_conductor IS NOT NULL;
+    IF contador <> 10 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: se esperaban 10 cancelados con recursos asignados';
+    END IF;
+
+    SELECT COUNT(*) INTO contador
+    FROM traslado t
+    JOIN estado_traslado et ON et.id_estado = t.id_estado
+    WHERE et.nombre = 'Cancelado'
+      AND t.id_vehiculo IS NULL
+      AND t.id_conductor IS NULL;
+    IF contador <> 10 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: se esperaban 10 cancelados sin recursos asignados';
+    END IF;
+
+    -- Los cancelados deben tener baja, estar inactivos y no haber salido.
+    -- Las cancelaciones asignadas deben ocurrir antes de su salida estimada
+    -- y despues de haberse gestionado.
+    SELECT COUNT(*) INTO contador
+    FROM traslado t
+    JOIN estado_traslado et ON et.id_estado = t.id_estado
+    WHERE et.nombre = 'Cancelado'
+      AND (
+           t.activo <> FALSE
+           OR t.fecha_baja IS NULL
+           OR t.hora_salida_real IS NOT NULL
+           OR t.hora_llegada_destino IS NOT NULL
+           OR (t.hora_salida_estimada IS NOT NULL
+               AND t.fecha_baja >= t.hora_salida_estimada)
+           OR (t.fecha_gestion IS NOT NULL
+               AND t.fecha_baja <= t.fecha_gestion)
+      );
+    IF contador <> 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: datos inconsistentes en traslados cancelados';
+    END IF;
+
+    -- Cada cancelado debe tener historial de cancelacion y NO de salida.
+    SELECT COUNT(*) INTO contador
+    FROM traslado t
+    JOIN estado_traslado et ON et.id_estado = t.id_estado
+    LEFT JOIN historial_estado_traslado h
+      ON h.id_traslado = t.id_traslado
+     AND h.id_estado = t.id_estado
+    WHERE et.nombre = 'Cancelado'
+      AND h.id_historial IS NULL;
+    IF contador <> 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: traslados cancelados sin historial de cancelacion';
+    END IF;
+
+    SELECT COUNT(*) INTO contador
+    FROM traslado t
+    JOIN estado_traslado et ON et.id_estado = t.id_estado
+    JOIN historial_estado_traslado h ON h.id_traslado = t.id_traslado
+    JOIN estado_traslado eh ON eh.id_estado = h.id_estado
+    WHERE et.nombre = 'Cancelado' AND eh.nombre = 'En camino';
+    IF contador <> 0 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Seed: cancelados con historial de salida';
+    END IF;
+
     COMMIT;
 
     DROP TEMPORARY TABLE tmp_seed_func;
@@ -682,60 +810,127 @@ END$$
 DELIMITER ;
 
 CALL seed_sigsm_demo();
+
 DROP PROCEDURE IF EXISTS seed_sigsm_demo;
 
 -- VERIFICACIÓN: las consultas siguientes solo leen los datos.
-SELECT 'funcionarios' entidad, COUNT(*) cantidad FROM funcionario
-UNION ALL SELECT 'relaciones_rol', COUNT(*) FROM rol_usuario
-UNION ALL SELECT 'vehiculos', COUNT(*) FROM vehiculo
-UNION ALL SELECT 'categorias', COUNT(*) FROM categoria
-UNION ALL SELECT 'traslados', COUNT(*) FROM traslado
-UNION ALL SELECT 'historiales_traslado', COUNT(*) FROM historial_estado_traslado
-UNION ALL SELECT 'encuestas', COUNT(*) FROM encuesta
-UNION ALL SELECT 'preguntas', COUNT(*) FROM pregunta
-UNION ALL SELECT 'opciones', COUNT(*) FROM opcion_respuesta
-UNION ALL SELECT 'respuestas', COUNT(*) FROM respuesta_encuesta
-UNION ALL SELECT 'detalles', COUNT(*) FROM detalle_respuesta
-UNION ALL SELECT 'documentos', COUNT(*) FROM documento;
+SELECT 'funcionarios' entidad, COUNT(*) cantidad
+FROM funcionario
+UNION ALL
+SELECT 'relaciones_rol', COUNT(*)
+FROM rol_usuario
+UNION ALL
+SELECT 'vehiculos', COUNT(*)
+FROM vehiculo
+UNION ALL
+SELECT 'categorias', COUNT(*)
+FROM categoria
+UNION ALL
+SELECT 'traslados', COUNT(*)
+FROM traslado
+UNION ALL
+SELECT 'historiales_traslado', COUNT(*)
+FROM historial_estado_traslado
+UNION ALL
+SELECT 'encuestas', COUNT(*)
+FROM encuesta
+UNION ALL
+SELECT 'preguntas', COUNT(*)
+FROM pregunta
+UNION ALL
+SELECT 'opciones', COUNT(*)
+FROM opcion_respuesta
+UNION ALL
+SELECT 'respuestas', COUNT(*)
+FROM respuesta_encuesta
+UNION ALL
+SELECT 'detalles', COUNT(*)
+FROM detalle_respuesta
+UNION ALL
+SELECT 'documentos', COUNT(*)
+FROM documento;
 
 -- Comprobaciones de coherencia (los valores de incidencia deben ser cero).
 SELECT 'funcionarios_sin_rol' comprobacion, COUNT(*) incidencias
 FROM funcionario f
-LEFT JOIN rol_usuario ru ON ru.id_func = f.id_func
-WHERE ru.id_func IS NULL
+    LEFT JOIN rol_usuario ru ON ru.id_func = f.id_func
+WHERE
+    ru.id_func IS NULL
 UNION ALL
 SELECT 'encuestas_anonimas_con_cedula', COUNT(*)
-FROM respuesta_encuesta re
-JOIN encuesta e ON e.id_encuesta = re.id_encuesta
-WHERE e.anonima = TRUE AND re.cedula IS NOT NULL
+FROM
+    respuesta_encuesta re
+    JOIN encuesta e ON e.id_encuesta = re.id_encuesta
+WHERE
+    e.anonima = TRUE
+    AND re.cedula IS NOT NULL
 UNION ALL
 SELECT 'detalles_en_otra_encuesta', COUNT(*)
-FROM detalle_respuesta dr
-JOIN respuesta_encuesta re ON re.id_respuesta_encuesta = dr.id_respuesta_encuesta
-JOIN pregunta p ON p.id_pregunta = dr.id_pregunta
-WHERE re.id_encuesta <> p.id_encuesta
+FROM
+    detalle_respuesta dr
+    JOIN respuesta_encuesta re ON re.id_respuesta_encuesta = dr.id_respuesta_encuesta
+    JOIN pregunta p ON p.id_pregunta = dr.id_pregunta
+WHERE
+    re.id_encuesta <> p.id_encuesta
 UNION ALL
 SELECT 'encuestas_activas_categoria_inactiva', COUNT(*)
 FROM encuesta e
-JOIN categoria c ON c.id_cat = e.id_cat
-WHERE e.activo = TRUE AND c.activo = FALSE
+    JOIN categoria c ON c.id_cat = e.id_cat
+WHERE
+    e.activo = TRUE
+    AND c.activo = FALSE
 UNION ALL
 SELECT 'obligatorias_sin_responder', COUNT(*)
-FROM respuesta_encuesta re
-JOIN pregunta p ON p.id_encuesta = re.id_encuesta
-               AND p.activa = TRUE AND p.obligatoria = TRUE
-LEFT JOIN detalle_respuesta d ON d.id_respuesta_encuesta = re.id_respuesta_encuesta
-                            AND d.id_pregunta = p.id_pregunta
-WHERE d.id_detalle_respuesta IS NULL
+FROM
+    respuesta_encuesta re
+    JOIN pregunta p ON p.id_encuesta = re.id_encuesta
+    AND p.activa = TRUE
+    AND p.obligatoria = TRUE
+    LEFT JOIN detalle_respuesta d ON d.id_respuesta_encuesta = re.id_respuesta_encuesta
+    AND d.id_pregunta = p.id_pregunta
+WHERE
+    d.id_detalle_respuesta IS NULL
 UNION ALL
 SELECT 'cerradas_sin_opcion_o_abiertas_con_opcion', COUNT(*)
-FROM detalle_respuesta d
-JOIN pregunta p ON p.id_pregunta = d.id_pregunta
-WHERE (p.tipo = 'abierta' AND (d.respuesta IS NULL OR d.id_opcion IS NOT NULL))
-   OR (p.tipo <> 'abierta' AND (d.id_opcion IS NULL OR d.respuesta IS NOT NULL));
+FROM
+    detalle_respuesta d
+    JOIN pregunta p ON p.id_pregunta = d.id_pregunta
+WHERE (
+        p.tipo = 'abierta'
+        AND (
+            d.respuesta IS NULL
+            OR d.id_opcion IS NOT NULL
+        )
+    )
+    OR (
+        p.tipo <> 'abierta'
+        AND (
+            d.id_opcion IS NULL
+            OR d.respuesta IS NOT NULL
+        )
+    );
 
 SELECT et.nombre AS estado, COUNT(*) AS traslados
-FROM traslado t JOIN estado_traslado et ON et.id_estado = t.id_estado
-WHERE t.activo = TRUE
-GROUP BY et.id_estado, et.nombre
+FROM
+    traslado t
+    JOIN estado_traslado et ON et.id_estado = t.id_estado
+GROUP BY
+    et.id_estado,
+    et.nombre
 ORDER BY et.orden;
+
+-- CANCELADOS DE PRUEBA PARA EL HISTORIAL (esperado: 20 = 10 + 10).
+SELECT
+    COUNT(*) AS total_cancelados,
+    SUM(t.id_vehiculo IS NOT NULL AND t.id_conductor IS NOT NULL)
+        AS cancelados_con_asignacion,
+    SUM(t.id_vehiculo IS NULL AND t.id_conductor IS NULL)
+        AS cancelados_sin_asignacion,
+    SUM(t.hora_salida_real IS NOT NULL) AS cancelados_que_salieron,
+    SUM(t.activo = TRUE) AS cancelados_activos
+FROM traslado t
+JOIN estado_traslado et ON et.id_estado = t.id_estado
+WHERE et.nombre = 'Cancelado';
+
+-- Ejemplos: TR-01981 (con recursos) y TR-01995 (sin recursos),
+-- siempre que una instalacion limpia empiece con id_traslado = 1.

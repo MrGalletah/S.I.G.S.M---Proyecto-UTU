@@ -34,6 +34,7 @@ import {
 
 import { useNotification } from "../../../../hooks/useNotification";
 import NotificationSnackbar from "../../../utils/NotificationSnackbar";
+import RefreshButton from "../../../utils/RefreshButton";
 
 const rowsPerPage = 8;
 
@@ -62,11 +63,12 @@ export default function FollowUp() {
 
   const detailsRef = useRef(null);
 
-  // BÚSQUEDA, FILTROS Y ORDENACIÓN
+  // BÚSQUEDA, FILTROS, REFRESH Y ORDENACIÓN
 
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({ ...initialFilters });
   const [sort, setSort] = useState({ ...initialSort });
+  const [detailRefreshKey, setDetailRefreshKey] = useState(0);
 
   // ANULACIÓN
 
@@ -189,7 +191,7 @@ export default function FollowUp() {
     return () => {
       cancelled = true;
     };
-  }, [effectiveSelectedTransferId]);
+  }, [effectiveSelectedTransferId, detailRefreshKey]);
 
   // CARGAR DETALLE PARA GESTIÓN
 
@@ -304,23 +306,47 @@ export default function FollowUp() {
     setCancelling(true);
 
     try {
+      // CANCELAR EN EL BACKEND
+
       await deleteTransfer(id, version);
 
-      setTransfers((prev) => prev.filter((transfer) => transfer.id !== id));
-
-      if (selectedTransferId === id) {
-        setSelectedTransferId(null);
-      }
-
       showNotification(t("followUp.notifications.cancelSuccess"), "success");
+
+      // ACTUALIZAR LISTADO Y DETALLE
+
+      try {
+        const updatedTransfers = await getTransfers();
+
+        setTransfers(updatedTransfers);
+
+        // SI ESTAMOS VIENDO EL TRASLADO CANCELADO,
+        // ACTUALIZAMOS SU DETALLE SIN DESELECCIONARLO.
+
+        if (effectiveSelectedTransferId === id) {
+          const detail = await getTransferDetail(id);
+
+          setSelectedTransferDetail(detail);
+          setDetailError(null);
+        }
+      } catch (error) {
+        console.error(error);
+
+        showNotification(
+          t("followUp.notifications.viewRefreshError"),
+          "warning",
+        );
+      }
     } catch (error) {
       showNotification(
         error.message || t("followUp.notifications.cancelError"),
         "error",
       );
 
+      // RECARGAR POR SI HUBO UN CONFLICTO DE VERSIONES
+
       try {
         const updatedTransfers = await getTransfers();
+
         setTransfers(updatedTransfers);
       } catch {
         showNotification(t("followUp.notifications.refreshError"), "warning");
@@ -414,6 +440,25 @@ export default function FollowUp() {
           onClearFilters={handleClearFilters}
           hasActiveFilters={hasActiveFilters}
           onCancelTransfer={setTransferToCancel}
+          refreshControl={
+            <RefreshButton
+              fetchData={getTransfers}
+              setData={setTransfers}
+              onSuccess={() => {
+                setSelectedTransferDetail(null);
+                setDetailError(null);
+                setDetailRefreshKey((prev) => prev + 1);
+
+                showNotification(t("common:refresh.success"), "success");
+              }}
+              onError={(error) => {
+                showNotification(
+                  error.message || t("common:refresh.error"),
+                  "error",
+                );
+              }}
+            />
+          }
         />
       )}
 

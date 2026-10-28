@@ -65,6 +65,11 @@ VALUES (
         'Completado',
         5,
         'El traslado finalizó'
+    ),
+    (
+        'Cancelado',
+        6,
+        'El traslado fue cancelado antes de su salida'
     );
 
 -- TIPO DE ELEMENTO
@@ -113,12 +118,30 @@ CREATE TABLE compatibilidad_transporte (
     CONSTRAINT fk_compatibilidad_vehiculo FOREIGN KEY (id_tipo_vehiculo) REFERENCES tipo_vehiculo (id_tipo_vehiculo) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
-    INSERT INTO compatibilidad_transporte (id_tipo_elemento, id_tipo_vehiculo)
-    SELECT te.id_tipo_elemento, tv.id_tipo_vehiculo
-    FROM tipo_elemento AS te CROSS JOIN tipo_vehiculo AS tv
-    WHERE (te.nombre = 'Paciente' AND tv.nombre = 'Ambulancia')
-       OR (te.nombre = 'Muestra biológica' AND tv.nombre IN ('Ambulancia', 'Auto'))
-       OR (te.nombre IN ('Equipamiento', 'Insumo', 'Otro'));
+INSERT INTO
+    compatibilidad_transporte (
+        id_tipo_elemento,
+        id_tipo_vehiculo
+    )
+SELECT te.id_tipo_elemento, tv.id_tipo_vehiculo
+FROM
+    tipo_elemento AS te
+    CROSS JOIN tipo_vehiculo AS tv
+WHERE (
+        te.nombre = 'Paciente'
+        AND tv.nombre = 'Ambulancia'
+    )
+    OR (
+        te.nombre = 'Muestra biológica'
+        AND tv.nombre IN ('Ambulancia', 'Auto')
+    )
+    OR (
+        te.nombre IN (
+            'Equipamiento',
+            'Insumo',
+            'Otro'
+        )
+    );
 
 -- TRASLADO
 
@@ -206,6 +229,7 @@ CONSTRAINT fk_traslado_estado FOREIGN KEY (id_estado) REFERENCES estado_traslado
 
 -- RESTRICCIONES DE TRASLADOS
 
+
 CONSTRAINT chk_traslado_origen_destino
         CHECK (
             TRIM(origen) <> ''
@@ -285,8 +309,6 @@ CONSTRAINT chk_traslado_origen_destino
             )
         )
 );
-
-
 
 -- HISTORIAL DE ESTADOS
 

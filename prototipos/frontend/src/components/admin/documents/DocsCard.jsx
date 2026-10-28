@@ -1,3 +1,6 @@
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+
 import {
   Box,
   Button,
@@ -23,9 +26,6 @@ import RemoveRedEyeIcon from "@mui/icons-material/RemoveRedEye";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 
-import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-
 import {
   createOrUpdateDocument,
   deleteDocument,
@@ -34,6 +34,7 @@ import {
 } from "../../../apiCalls/documents/documentsApi";
 
 import PdfSvg from "../../utils/PdfSvg";
+import RefreshButton from "../../utils/RefreshButton";
 import { useNotification } from "../../../hooks/useNotification";
 import NotificationSnackbar from "../../utils/NotificationSnackbar";
 import { formatDate } from "../../utils/formatDate";
@@ -41,9 +42,10 @@ import DocumentModal from "../../modals/DocumentDialog";
 import DeleteConfirmDialog from "../../modals/DeleteConfirmDialog";
 
 // ADAPTACIÓN DE DATOS
+
 function formatDocuments(categories) {
   return categories.flatMap((category) =>
-    category.documentos.map((document) => ({
+    (category.documentos ?? []).map((document) => ({
       id: document.id_doc,
       category: category.nombre,
       idUser: document.id_func,
@@ -64,19 +66,23 @@ export default function DocsCard({ variant }) {
     useNotification();
 
   // DOCUMENTOS
+
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // CREACIÓN Y EDICIÓN
+
   const [openDocumentModal, setOpenDocumentModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [saving, setSaving] = useState(false);
 
   // ELIMINACIÓN
+
   const [documentToDelete, setDocumentToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   // FILTROS Y PAGINACIÓN
+
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -85,47 +91,64 @@ export default function DocsCard({ variant }) {
   const rowsPerPage = isFull ? 15 : 4;
 
   // REFERENCIA ESTABLE PARA NOTIFICACIONES
+
   const notificationRef = useRef(showNotification);
 
   useEffect(() => {
     notificationRef.current = showNotification;
   }, [showNotification]);
 
-  // RECARGA MANUAL
+  // OBTENER DOCUMENTOS
+
+  const loadDocuments = async () => {
+    const data = await getAllDocuments();
+
+    if (!data?.ok || !Array.isArray(data.categorias)) {
+      throw new Error(t("files.loadError"));
+    }
+
+    return formatDocuments(data.categorias);
+  };
+
+  // RECARGA DESPUÉS DE GUARDAR O ELIMINAR
+
   const fetchData = async () => {
     try {
       setLoading(true);
 
-      const data = await getAllDocuments();
+      const data = await loadDocuments();
 
-      if (data.ok) {
-        setDocuments(formatDocuments(data.categorias));
-      }
+      setDocuments(data);
     } catch (error) {
       console.error(error);
 
-      showNotification(t("files.loadError"), "error");
+      showNotification(error.message || t("files.loadError"), "error");
     } finally {
       setLoading(false);
     }
   };
 
   // CARGA INICIAL
+
   useEffect(() => {
     let cancelled = false;
 
     getAllDocuments()
       .then((data) => {
-        if (!cancelled && data.ok) {
-          setDocuments(formatDocuments(data.categorias));
+        if (cancelled) return;
+
+        if (!data?.ok || !Array.isArray(data.categorias)) {
+          throw new Error(t("files.loadError"));
         }
+
+        setDocuments(formatDocuments(data.categorias));
       })
       .catch((error) => {
         if (cancelled) return;
 
         console.error(error);
 
-        notificationRef.current(t("files.loadError"), "error");
+        notificationRef.current(error.message || t("files.loadError"), "error");
       })
       .finally(() => {
         if (!cancelled) {
@@ -139,6 +162,7 @@ export default function DocsCard({ variant }) {
   }, [t]);
 
   // CREAR O ACTUALIZAR DOCUMENTO
+
   const handleDocumentSubmit = async (data) => {
     try {
       setSaving(true);
@@ -146,13 +170,13 @@ export default function DocsCard({ variant }) {
       let response;
 
       if (!selectedDocument) {
-        // Crear documento.
+        // Crear documento
         response = await createOrUpdateDocument(data);
       } else if (data.archivo) {
-        // Editar y reemplazar archivo.
+        // Editar y reemplazar archivo
         response = await createOrUpdateDocument(data, selectedDocument.id);
       } else {
-        // Modificar solo los metadatos.
+        // Modificar solo metadatos
         response = await updateDocument(data, selectedDocument.id);
       }
 
@@ -182,6 +206,7 @@ export default function DocsCard({ variant }) {
   };
 
   // ELIMINAR DOCUMENTO
+
   const handleDeleteDocument = async () => {
     if (!documentToDelete) return;
 
@@ -215,6 +240,7 @@ export default function DocsCard({ variant }) {
   };
 
   // FILTROS
+
   const filteredDocuments = documents.filter((documentItem) => {
     const searchText = search.toLowerCase();
 
@@ -236,14 +262,17 @@ export default function DocsCard({ variant }) {
   });
 
   // PAGINACIÓN
+
   const totalPages = Math.ceil(filteredDocuments.length / rowsPerPage);
 
   const currentPage = Math.min(page, Math.max(totalPages, 1));
 
   const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = startIndex + rowsPerPage;
 
-  const visibleDocuments = filteredDocuments.slice(startIndex, endIndex);
+  const visibleDocuments = filteredDocuments.slice(
+    startIndex,
+    startIndex + rowsPerPage,
+  );
 
   const showPagination = totalPages > 1;
 
@@ -259,11 +288,15 @@ export default function DocsCard({ variant }) {
         }}
       >
         {/* ENCABEZADO */}
+
         <Stack
-          direction="row"
+          direction={{ xs: "column", sm: "row" }}
           sx={{
             justifyContent: "space-between",
-            alignItems: "flex-start",
+            alignItems: {
+              xs: "stretch",
+              sm: "flex-start",
+            },
             mb: 2,
             gap: 2,
           }}
@@ -292,6 +325,7 @@ export default function DocsCard({ variant }) {
               textTransform: "none",
               bgcolor: "var(--primary-color)",
               whiteSpace: "nowrap",
+              alignSelf: "flex-start",
               "&:hover": {
                 bgcolor: "var(--primary-hover-color)",
               },
@@ -301,18 +335,22 @@ export default function DocsCard({ variant }) {
           </Button>
         </Stack>
 
-        {/* BÚSQUEDA Y FILTROS */}
+        {/* BÚSQUEDA, FILTROS Y REFRESH */}
+
         <Stack
           direction={{ xs: "column", sm: "row" }}
           sx={{
+            width: "100%",
             mb: 2,
-            gap: 2,
+            gap: 1.5,
             alignItems: {
               xs: "stretch",
               sm: "center",
             },
           }}
         >
+          {/* BUSCADOR */}
+
           <TextField
             size="small"
             placeholder={t("files.search")}
@@ -327,38 +365,70 @@ export default function DocsCard({ variant }) {
               },
             }}
             sx={{
+              minWidth: 0,
               width: {
                 xs: "100%",
-                sm: "250px",
+                sm: 250,
               },
             }}
           />
 
-          <TextField
-            select
-            size="small"
-            label={t("files.status")}
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value);
-              setPage(1);
-            }}
+          {/* ESTADO Y REFRESH */}
+
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
             sx={{
               width: {
                 xs: "100%",
-                sm: "160px",
+                sm: "auto",
               },
+              minWidth: 0,
             }}
           >
-            <MenuItem value="all">{t("files.all")}</MenuItem>
+            <TextField
+              select
+              size="small"
+              label={t("files.status")}
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value);
+                setPage(1);
+              }}
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                width: {
+                  sm: 160,
+                },
+              }}
+            >
+              <MenuItem value="all">{t("files.all")}</MenuItem>
 
-            <MenuItem value="active">{t("files.activePlural")}</MenuItem>
+              <MenuItem value="active">{t("files.activePlural")}</MenuItem>
 
-            <MenuItem value="inactive">{t("files.inactivePlural")}</MenuItem>
-          </TextField>
+              <MenuItem value="inactive">{t("files.inactivePlural")}</MenuItem>
+            </TextField>
+
+            <RefreshButton
+              fetchData={loadDocuments}
+              setData={setDocuments}
+              onSuccess={() => {
+                showNotification(t("common:refresh.success"), "success");
+              }}
+              onError={(error) => {
+                showNotification(
+                  error.message || t("common:refresh.error"),
+                  "error",
+                );
+              }}
+            />
+          </Stack>
         </Stack>
 
         {/* CONTENIDO */}
+
         {loading ? (
           <Box
             sx={{
@@ -374,67 +444,76 @@ export default function DocsCard({ variant }) {
         ) : (
           <TableContainer
             sx={{
-              minWidth: "100%",
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
               overflowX: "auto",
             }}
           >
             <Table
               size="small"
               sx={{
-                minWidth: {
-                  xs: "650px",
-                  md: "100%",
-                },
+                minWidth: isFull ? 850 : 750,
                 tableLayout: "fixed",
               }}
             >
               <TableHead>
                 <TableRow>
+                  {/* DOCUMENTO */}
+
                   <TableCell
                     sx={{
                       fontWeight: 700,
-                      width: isFull ? "30%" : "35%",
+                      width: isFull ? 280 : 260,
                     }}
                   >
                     {t("files.name")}
                   </TableCell>
 
+                  {/* CATEGORÍA */}
+
                   <TableCell
                     sx={{
                       fontWeight: 700,
-                      width: "20%",
+                      width: 170,
                     }}
                   >
                     {t("files.category")}
                   </TableCell>
 
+                  {/* FECHA */}
+
                   <TableCell
                     align="center"
                     sx={{
                       fontWeight: 700,
-                      width: "15%",
+                      width: 140,
                       whiteSpace: "nowrap",
                     }}
                   >
                     {t("files.uploadedAt")}
                   </TableCell>
 
+                  {/* ESTADO */}
+
                   <TableCell
                     align="center"
                     sx={{
                       fontWeight: 700,
-                      width: isFull ? "12%" : "13%",
+                      width: 115,
                       whiteSpace: "nowrap",
                     }}
                   >
                     {t("files.status")}
                   </TableCell>
 
+                  {/* ACCIONES */}
+
                   <TableCell
                     align="center"
                     sx={{
                       fontWeight: 700,
-                      width: isFull ? "12%" : "15%",
+                      width: 125,
                       whiteSpace: "nowrap",
                     }}
                   >
@@ -445,20 +524,23 @@ export default function DocsCard({ variant }) {
 
               <TableBody>
                 {visibleDocuments.map((documentItem) => (
-                  <TableRow key={documentItem.id}>
+                  <TableRow key={documentItem.id} hover>
                     {/* DOCUMENTO */}
+
                     <TableCell>
                       <Box
                         sx={{
                           display: "flex",
                           alignItems: "center",
                           gap: 2,
+                          minWidth: 0,
                         }}
                       >
                         <PdfSvg />
 
                         <Typography
                           variant="body2"
+                          title={documentItem.document}
                           sx={{
                             fontWeight: 500,
                             whiteSpace: "nowrap",
@@ -472,6 +554,7 @@ export default function DocsCard({ variant }) {
                     </TableCell>
 
                     {/* CATEGORÍA */}
+
                     <TableCell>
                       <Typography
                         variant="body2"
@@ -487,11 +570,13 @@ export default function DocsCard({ variant }) {
                     </TableCell>
 
                     {/* FECHA */}
+
                     <TableCell align="center">
                       {documentItem.uploadedAt}
                     </TableCell>
 
                     {/* ESTADO */}
+
                     <TableCell align="center">
                       <Chip
                         label={
@@ -504,11 +589,9 @@ export default function DocsCard({ variant }) {
                           bgcolor: documentItem.active
                             ? "var(--primary-color)"
                             : "var(--inactive-chip)",
-
                           color: documentItem.active
                             ? "var(--white-color)"
                             : "var(--text-main-color)",
-
                           fontWeight: 600,
                           whiteSpace: "nowrap",
                           minWidth: documentItem.active ? 64 : 78,
@@ -518,7 +601,8 @@ export default function DocsCard({ variant }) {
                     </TableCell>
 
                     {/* ACCIONES */}
-                    <TableCell>
+
+                    <TableCell align="center">
                       <Stack
                         direction="row"
                         spacing={0.5}
@@ -527,6 +611,7 @@ export default function DocsCard({ variant }) {
                         }}
                       >
                         {/* VER PDF */}
+
                         <IconButton
                           size="small"
                           href={`/api/documents/view.php?id=${documentItem.id}&includeInactive=true`}
@@ -540,6 +625,7 @@ export default function DocsCard({ variant }) {
                         </IconButton>
 
                         {/* EDITAR */}
+
                         <IconButton
                           size="small"
                           onClick={() => handleEditDocument(documentItem)}
@@ -551,6 +637,7 @@ export default function DocsCard({ variant }) {
                         </IconButton>
 
                         {/* ELIMINAR */}
+
                         <IconButton
                           size="small"
                           color="error"
@@ -571,6 +658,7 @@ export default function DocsCard({ variant }) {
         )}
 
         {/* PAGINACIÓN */}
+
         {!loading && showPagination && (
           <Stack
             direction="row"
@@ -582,7 +670,7 @@ export default function DocsCard({ variant }) {
             <Pagination
               count={totalPages}
               page={currentPage}
-              onChange={(event, value) => setPage(value)}
+              onChange={(_, value) => setPage(value)}
               size="small"
               shape="rounded"
             />
@@ -591,12 +679,14 @@ export default function DocsCard({ variant }) {
       </Card>
 
       {/* NOTIFICACIONES */}
+
       <NotificationSnackbar
         notification={notification}
         onClose={closeNotification}
       />
 
       {/* CREAR O EDITAR DOCUMENTO */}
+
       {openDocumentModal && (
         <DocumentModal
           key={selectedDocument?.id ?? "new"}
@@ -612,6 +702,7 @@ export default function DocsCard({ variant }) {
       )}
 
       {/* CONFIRMACIÓN DE ELIMINACIÓN */}
+
       <DeleteConfirmDialog
         open={Boolean(documentToDelete)}
         documentTitle={documentToDelete?.document}

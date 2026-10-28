@@ -30,9 +30,9 @@ function getSubject(transfer) {
   return transfer.elemento || "-";
 }
 
-// FECHA Y HORA DE FINALIZACIÓN
+// FORMATO DE FECHA Y HORA
 
-function FinalizationDate({ value }) {
+function ClosureDate({ value }) {
   if (!value) return "-";
 
   const normalized = String(value).replace("T", " ");
@@ -75,11 +75,18 @@ export default function CompletedTransfersTable({
 }) {
   const { t } = useTranslation("transfers");
 
-  // TRADUCIR PRIORIDAD SIN CAMBIAR EL DATO
+  // TRADUCIR PRIORIDAD
 
   const translatePriority = (priority) =>
     t(`priorities.${priority}`, {
       defaultValue: priority ?? "-",
+    });
+
+  // TRADUCIR ESTADO
+
+  const translateState = (state) =>
+    t(`states.${state}`, {
+      defaultValue: state ?? "-",
     });
 
   return (
@@ -104,14 +111,14 @@ export default function CompletedTransfersTable({
         <Table
           size="small"
           sx={{
-            minWidth: 1000,
+            minWidth: 1120,
             tableLayout: "fixed",
           }}
         >
-          {/* CABECERA */}
-
           <TableHead>
             <TableRow>
+              {/* CÓDIGO */}
+
               <TableCell
                 sx={{
                   fontWeight: 700,
@@ -121,50 +128,77 @@ export default function CompletedTransfersTable({
                 {t("history.table.code")}
               </TableCell>
 
+              {/* PACIENTE / ELEMENTO */}
+
               <TableCell
                 sx={{
                   fontWeight: 700,
-                  width: 160,
+                  width: 150,
                 }}
               >
                 {t("history.table.subject")}
               </TableCell>
 
+              {/* ORIGEN */}
+
               <TableCell
                 sx={{
                   fontWeight: 700,
-                  width: 165,
+                  width: 150,
                 }}
               >
                 {t("history.table.origin")}
               </TableCell>
 
+              {/* DESTINO */}
+
               <TableCell
                 sx={{
                   fontWeight: 700,
-                  width: 165,
+                  width: 150,
                 }}
               >
                 {t("history.table.destination")}
               </TableCell>
 
+              {/* FECHA REQUERIDA */}
+
               <TableCell
                 sx={{
                   fontWeight: 700,
                   width: 130,
+                  whiteSpace: "nowrap",
                 }}
               >
                 {t("history.table.requiredDate")}
               </TableCell>
 
+              {/* ESTADO */}
+
               <TableCell
+                align="center"
                 sx={{
                   fontWeight: 700,
                   width: 120,
+                  whiteSpace: "nowrap",
                 }}
               >
-                {t("history.table.completedAt")}
+                {t("history.table.status")}
               </TableCell>
+
+              {/* FECHA DE CIERRE */}
+
+              <TableCell
+                sx={{
+                  fontWeight: 700,
+                  width: 130,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t("history.table.closedAt")}
+              </TableCell>
+
+              {/* PRIORIDAD */}
 
               <TableCell
                 sx={{
@@ -174,6 +208,8 @@ export default function CompletedTransfersTable({
               >
                 {t("history.table.priority")}
               </TableCell>
+
+              {/* ACCIONES */}
 
               <TableCell
                 align="center"
@@ -187,13 +223,11 @@ export default function CompletedTransfersTable({
             </TableRow>
           </TableHead>
 
-          {/* CUERPO */}
-
           <TableBody>
             {transfers.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   align="center"
                   sx={{
                     py: 6,
@@ -204,94 +238,121 @@ export default function CompletedTransfersTable({
                 </TableCell>
               </TableRow>
             ) : (
-              transfers.map((transfer) => (
-                <TableRow key={transfer.id} hover>
-                  {/* CÓDIGO */}
+              transfers.map((transfer) => {
+                const cancelled = transfer.estado === "Cancelado";
 
-                  <TableCell>{transfer.codigo}</TableCell>
+                return (
+                  <TableRow key={transfer.id} hover>
+                    {/* CÓDIGO */}
 
-                  {/* PACIENTE / ELEMENTO */}
+                    <TableCell>{transfer.codigo}</TableCell>
 
-                  <TableCell>{getSubject(transfer)}</TableCell>
+                    {/* PACIENTE / ELEMENTO */}
 
-                  {/* ORIGEN */}
+                    <TableCell>{getSubject(transfer)}</TableCell>
 
-                  <TableCell>
-                    <Typography
-                      sx={{
-                        fontSize: 13,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {transfer.origen}
-                    </Typography>
-                  </TableCell>
+                    {/* ORIGEN */}
 
-                  {/* DESTINO */}
-
-                  <TableCell>
-                    <Typography
-                      sx={{
-                        fontSize: 13,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {transfer.destino}
-                    </Typography>
-                  </TableCell>
-
-                  {/* FECHA REQUERIDA */}
-
-                  <TableCell>{formatDate(transfer.fechaRequerida)}</TableCell>
-
-                  {/* FECHA DE FINALIZACIÓN */}
-
-                  <TableCell>
-                    <FinalizationDate value={transfer.fechaFinalizacion} />
-                  </TableCell>
-
-                  {/* PRIORIDAD */}
-
-                  <TableCell>
-                    <Chip
-                      label={translatePriority(transfer.prioridad)}
-                      size="small"
-                      sx={{
-                        bgcolor:
-                          transfer.prioridad === "Urgente"
-                            ? "var(--priority-urgent-bg)"
-                            : "var(--priority-normal-bg)",
-
-                        color:
-                          transfer.prioridad === "Urgente"
-                            ? "var(--priority-urgent-text)"
-                            : "var(--priority-normal-text)",
-
-                        fontWeight: 700,
-                        borderRadius: 2,
-                      }}
-                    />
-                  </TableCell>
-
-                  {/* ACCIONES */}
-
-                  <TableCell align="center">
-                    <Tooltip title={t("history.table.viewDetail")}>
-                      <IconButton
-                        size="small"
-                        aria-label={t("history.table.viewDetail")}
-                        onClick={() => onView(transfer.id)}
+                    <TableCell>
+                      <Typography
+                        title={transfer.origen}
+                        sx={{
+                          fontSize: 13,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
                       >
-                        <RemoveRedEyeIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))
+                        {transfer.origen}
+                      </Typography>
+                    </TableCell>
+
+                    {/* DESTINO */}
+
+                    <TableCell>
+                      <Typography
+                        title={transfer.destino}
+                        sx={{
+                          fontSize: 13,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {transfer.destino}
+                      </Typography>
+                    </TableCell>
+
+                    {/* FECHA REQUERIDA */}
+
+                    <TableCell>{formatDate(transfer.fechaRequerida)}</TableCell>
+
+                    {/* ESTADO */}
+
+                    <TableCell align="center">
+                      <Chip
+                        label={translateState(transfer.estado)}
+                        size="small"
+                        sx={{
+                          bgcolor: cancelled
+                            ? "var(--priority-urgent-bg)"
+                            : "var(--primary-color)",
+
+                          color: cancelled
+                            ? "var(--priority-urgent-text)"
+                            : "var(--white-color)",
+
+                          fontWeight: 700,
+                          minWidth: 88,
+                        }}
+                      />
+                    </TableCell>
+
+                    {/* FECHA DE CIERRE */}
+
+                    <TableCell>
+                      <ClosureDate value={transfer.fechaCierre} />
+                    </TableCell>
+
+                    {/* PRIORIDAD */}
+
+                    <TableCell>
+                      <Chip
+                        label={translatePriority(transfer.prioridad)}
+                        size="small"
+                        sx={{
+                          bgcolor:
+                            transfer.prioridad === "Urgente"
+                              ? "var(--priority-urgent-bg)"
+                              : "var(--priority-normal-bg)",
+
+                          color:
+                            transfer.prioridad === "Urgente"
+                              ? "var(--priority-urgent-text)"
+                              : "var(--priority-normal-text)",
+
+                          fontWeight: 700,
+                          borderRadius: 2,
+                        }}
+                      />
+                    </TableCell>
+
+                    {/* ACCIONES */}
+
+                    <TableCell align="center">
+                      <Tooltip title={t("history.table.viewDetail")}>
+                        <IconButton
+                          size="small"
+                          aria-label={t("history.table.viewDetail")}
+                          onClick={() => onView(transfer.id)}
+                        >
+                          <RemoveRedEyeIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

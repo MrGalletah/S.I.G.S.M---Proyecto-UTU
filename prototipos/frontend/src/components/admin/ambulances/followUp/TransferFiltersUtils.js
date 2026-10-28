@@ -17,8 +17,8 @@ const stateOrder = {
     "Llegó al destino": 2,
     Retornando: 3,
     Completado: 4,
+    Cancelado: 5,
 };
-
 // NORMALIZACIÓN PARA EL BUSCADOR
 
 function normalize(value) {
