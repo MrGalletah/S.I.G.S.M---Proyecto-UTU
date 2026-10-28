@@ -59,7 +59,7 @@ export default function CategoriesCard({ variant }) {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const isFull = variant === "full";
-  const rowsPerPage = isFull ? 15 : 7;
+  const rowsPerPage = isFull ? 15 : 6;
 
   // REFERENCIA ESTABLE PARA NOTIFICACIONES
 
